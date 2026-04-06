@@ -18,7 +18,7 @@ function validate(d, allowed) {
   if (tot < 600 || tot > 840) issues.push("사용 가능 시간(10:00~14:00) 외 사용입니다.");
   const dow = new Date(d.date).getDay();
   if (dow === 0 || dow === 6) issues.push("주말/공휴일 사용은 지원되지 않습니다.");
-  if (!allowed.some(t => (d.category || "").includes(t))) issues.push("지원 업종이 아닙니다. (업종: " + (d.category || "미확인") + ")");
+  if (!allowed.some(t => (d.category || "").split(/[\/,\s]/).some(part => part.includes(t) || t.includes(part))))if (!allowed.some(t => (d.category || "").includes(t))) issues.push("지원 업종이 아닙니다. (업종: " + (d.category || "미확인") + ")");
   if (!d.amount || parseInt(d.amount) <= 0) issues.push("금액 정보를 확인할 수 없습니다.");
   return issues;
 }
@@ -88,7 +88,7 @@ export default function App() {
         },
         body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 500, messages: [{ role: "user", content: [
           { type: "image", source: { type: "base64", media_type: file.type, data: b64 } },
-          { type: "text", text: "영수증 이미지에서 정보 추출. JSON만 반환:\n{\"date\":\"YYYY-MM-DD\",\"time\":\"HH:MM\",\"amount\":\"숫자만\",\"category\":\"업종명\",\"storeName\":\"가게명\"}" }
+          { type: "text", text: "이 카드 매출전표 이미지에서 정보를 추출하세요. 반드시 JSON만 반환하고 다른 텍스트는 없어야 합니다.\n{\"date\":\"YYYY-MM-DD\",\"time\":\"HH:MM\",\"amount\":\"합계금액 숫자만(예:8000)\",\"category\":\"가맹점 업종명\",\"storeName\":\"가맹점명\"}\n금액은 합계 또는 이용금액 숫자만 추출하세요. 원,쉼표 제외." }
         ]}] })
       });
       const data = await resp.json();
