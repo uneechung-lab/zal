@@ -87,9 +87,8 @@ export default function App() {
           "anthropic-dangerous-direct-browser-access": "true"
         },
         body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 500, messages: [{ role: "user", content: [
-          { type: "image", source: { type: "base64", media_type: file.type, data: b64 } },
-          { type: "text", text: "이 카드 매출전표 이미지에서 정보를 추출하세요. 반드시 JSON만 반환하고 다른 텍스트는 없어야 합니다.\n{\"date\":\"YYYY-MM-DD\",\"time\":\"HH:MM\",\"amount\":\"합계금액 숫자만(예:8000)\",\"category\":\"가맹점 업종명\",\"storeName\":\"가맹점명\"}\n금액은 합계 또는 이용금액 숫자만 추출하세요. 원,쉼표 제외." }
-        ]}] })
+          { type: "image", source: { type: "base64", media_type: (file.type === "image/png" ? "image/png" : "image/jpeg"), data: b64 } },
+(Get-Content src\employee\App.jsx) | ForEach-Object { $_ -replace '.*이 카드 매출전표 이미지에서 정보를 추출하세요.*', '          { type: "text", text: "카드 매출전표입니다. JSON만 반환하세요.\n{\"date\":\"YYYY-MM-DD\",\"time\":\"HH:MM\",\"amount\":\"숫자만\",\"category\":\"업종명\",\"storeName\":\"가맹점명\"}\n규칙: amount는 금액 숫자만(8,000원이면 8000). date는 이용일시 기준(26.04.06이면 2026-04-06)." }' } | Set-Content src\employee\App.jsx -Encoding UTF8
       });
       const data = await resp.json();
       const txt = data.content?.find(c => c.type === "text")?.text || "{}";
