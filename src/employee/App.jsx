@@ -18,7 +18,7 @@ function validate(d, allowed) {
   if (tot < 600 || tot > 840) issues.push("사용 가능 시간(10:00~14:00) 외 사용입니다.");
   const dow = new Date(d.date).getDay();
   if (dow === 0 || dow === 6) issues.push("주말/공휴일 사용은 지원되지 않습니다.");
-  if (!allowed.some(t => (d.category || "").split(/[\/,\s]/).some(part => part.includes(t) || t.includes(part))))if (!allowed.some(t => (d.category || "").includes(t))) issues.push("지원 업종이 아닙니다. (업종: " + (d.category || "미확인") + ")");
+  if (!allowed.some(t => (d.category || "").includes(t))) issues.push("지원 업종이 아닙니다. (업종: " + (d.category || "미확인") + ")");
   if (!d.amount || parseInt(d.amount) <= 0) issues.push("금액 정보를 확인할 수 없습니다.");
   return issues;
 }
@@ -88,7 +88,8 @@ export default function App() {
         },
         body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 500, messages: [{ role: "user", content: [
           { type: "image", source: { type: "base64", media_type: (file.type === "image/png" ? "image/png" : "image/jpeg"), data: b64 } },
-(Get-Content src\employee\App.jsx) | ForEach-Object { $_ -replace '.*이 카드 매출전표 이미지에서 정보를 추출하세요.*', '          { type: "text", text: "카드 매출전표입니다. JSON만 반환하세요.\n{\"date\":\"YYYY-MM-DD\",\"time\":\"HH:MM\",\"amount\":\"숫자만\",\"category\":\"업종명\",\"storeName\":\"가맹점명\"}\n규칙: amount는 금액 숫자만(8,000원이면 8000). date는 이용일시 기준(26.04.06이면 2026-04-06)." }' } | Set-Content src\employee\App.jsx -Encoding UTF8
+          { type: "text", text: "카드 매출전표입니다. JSON만 반환하세요.\n{\"date\":\"YYYY-MM-DD\",\"time\":\"HH:MM\",\"amount\":\"숫자만\",\"category\":\"업종명\",\"storeName\":\"가맹점명\"}\n규칙: amount는 금액 숫자만(8,000원이면 8000). date는 이용일시 기준(26.04.06이면 2026-04-06)." }
+        ]}] })
       });
       const data = await resp.json();
       const txt = data.content?.find(c => c.type === "text")?.text || "{}";
