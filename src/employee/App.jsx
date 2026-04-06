@@ -1,15 +1,24 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
-const ALLOWED = ["음식점","한식","중식","일식","양식","분식","카페","커피전문점","제과점","베이커리","편의점","슈퍼마켓","백화점","푸드코트"];
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-function validate(d) {
+async function fetchCategories() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/allowed_categories?select=name&order=name`, {
+    headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+  });
+  const data = await res.json();
+  return data.map(d => d.name);
+}
+
+function validate(d, allowed) {
   const issues = [];
   const [h, m] = (d.time || "0:0").split(":").map(Number);
   const tot = h * 60 + m;
   if (tot < 600 || tot > 840) issues.push("사용 가능 시간(10:00~14:00) 외 사용입니다.");
   const dow = new Date(d.date).getDay();
   if (dow === 0 || dow === 6) issues.push("주말/공휴일 사용은 지원되지 않습니다.");
-  if (!ALLOWED.some(t => (d.category || "").includes(t))) issues.push("지원 업종이 아닙니다. (업종: " + (d.category || "미확인") + ")");
+  if (!allowed.some(t => (d.category || "").includes(t))) issues.push("지원 업종이 아닙니다. (업종: " + (d.category || "미확인") + ")");
   if (!d.amount || parseInt(d.amount) <= 0) issues.push("금액 정보를 확인할 수 없습니다.");
   return issues;
 }
@@ -49,7 +58,12 @@ export default function App() {
   const [excType, setExcType] = useState("");
   const [excText, setExcText] = useState("");
   const [detail, setDetail] = useState(null);
+  const [allowed, setAllowed] = useState([]);
   const fileRef = useRef();
+
+  useEffect(() => {
+    fetchCategories().then(setAllowed).catch(() => setAllowed(["음식점","한식","중식","일식","양식","분식","카페","커피전문점","제과점","베이커리","편의점","슈퍼마켓","백화점","푸드코트"]));
+  }, []);
 
   const reset = () => { setStep("home"); setFile(null); setPreview(null); setOcr(null); setIssues([]); setExcType(""); setExcText(""); };
 
@@ -65,7 +79,13 @@ export default function App() {
     try {
       const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = rej; r.readAsDataURL(file); });
       const resp = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true"
+        },
         body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 500, messages: [{ role: "user", content: [
           { type: "image", source: { type: "base64", media_type: file.type, data: b64 } },
           { type: "text", text: "영수증 이미지에서 정보 추출. JSON만 반환:\n{\"date\":\"YYYY-MM-DD\",\"time\":\"HH:MM\",\"amount\":\"숫자만\",\"category\":\"업종명\",\"storeName\":\"가게명\"}" }
@@ -74,10 +94,10 @@ export default function App() {
       const data = await resp.json();
       const txt = data.content?.find(c => c.type === "text")?.text || "{}";
       const parsed = JSON.parse(txt.replace(/```json|```/g, "").trim());
-      setOcr(parsed); setIssues(validate(parsed));
+      setOcr(parsed); setIssues(validate(parsed, allowed));
     } catch {
       const mock = { date: new Date().toISOString().slice(0,10), time: "12:30", amount: "9800", category: "한식", storeName: "테스트 식당" };
-      setOcr(mock); setIssues(validate(mock));
+      setOcr(mock); setIssues(validate(mock, allowed));
     }
     setLoading(false);
   };
@@ -87,13 +107,11 @@ export default function App() {
     setStep("done");
   };
 
-  // HOME
+  const dotBg = { position: "fixed", inset: 0, backgroundImage: "radial-gradient(circle, #C8622A18 1px, transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" };
+
   if (step === "home") return (
     <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
-      {/* 배경 패턴 */}
-      <div style={{ position: "fixed", inset: 0, backgroundImage: "radial-gradient(circle, #C8622A18 1px, transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
-
-      {/* 헤더 */}
+      <div style={dotBg} />
       <header style={{ position: "relative", zIndex: 10, padding: "18px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 16 }}>잘</div>
@@ -101,26 +119,19 @@ export default function App() {
         </div>
         <button onClick={() => setStep("list")} style={{ fontSize: 13, color: MUTED, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>내 내역 →</button>
       </header>
-
-      {/* 히어로 섹션 */}
       <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", padding: "32px 24px 0" }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <p style={{ margin: "0 0 8px", fontSize: 14, color: PRIMARY, fontWeight: 700, letterSpacing: 1 }}>식대 정산 자동화</p>
           <h1 style={{ margin: "0 0 12px", fontSize: 38, fontWeight: 900, color: TEXT, lineHeight: 1.2 }}>점심 한 끼,<br /><span style={{ color: PRIMARY }}>10초에 정산!</span></h1>
           <p style={{ margin: 0, fontSize: 15, color: MUTED, lineHeight: 1.6 }}>영수증 사진 한 장이면 충분합니다.<br />AI가 자동으로 규정을 확인해 드려요.</p>
         </div>
-
-        {/* 기능 뱃지 */}
         <div style={{ display: "flex", gap: 8, marginBottom: 36, flexWrap: "wrap", justifyContent: "center" }}>
           {["AI 자동 인식", "규정 즉시 확인", "실물 영수증 불필요"].map(t => (
             <span key={t} style={{ background: PRIMARY_LIGHT, color: PRIMARY, fontSize: 12, fontWeight: 700, padding: "6px 14px", borderRadius: 20 }}>{t}</span>
           ))}
         </div>
-
-        {/* 메인 카드 */}
         <div style={{ width: "100%", maxWidth: 400, background: CARD, borderRadius: 24, padding: 24, boxShadow: "0 8px 40px rgba(200,98,42,0.12)", border: "1px solid #EDD9C8" }}>
           <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
-
           {!preview ? (
             <div onClick={() => fileRef.current.click()} style={{ border: "2px dashed #D4B8A8", borderRadius: 16, padding: "40px 20px", textAlign: "center", cursor: "pointer", background: BG, marginBottom: 16 }}>
               <div style={{ width: 64, height: 64, borderRadius: "50%", background: PRIMARY_LIGHT, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", fontSize: 28 }}>🧾</div>
@@ -133,13 +144,10 @@ export default function App() {
               <button onClick={() => { setFile(null); setPreview(null); }} style={{ position: "absolute", top: 10, right: 10, width: 28, height: 28, borderRadius: "50%", background: "rgba(0,0,0,0.5)", border: "none", color: "#fff", cursor: "pointer", fontSize: 16 }}>×</button>
             </div>
           )}
-
-          <button onClick={runOCR} disabled={!file} style={{ width: "100%", padding: "15px", borderRadius: 14, border: "none", background: file ? PRIMARY : "#D4B8A8", color: "#fff", fontWeight: 800, fontSize: 16, cursor: file ? "pointer" : "default", letterSpacing: 0.5 }}>
+          <button onClick={runOCR} disabled={!file} style={{ width: "100%", padding: "15px", borderRadius: 14, border: "none", background: file ? PRIMARY : "#D4B8A8", color: "#fff", fontWeight: 800, fontSize: 16, cursor: file ? "pointer" : "default" }}>
             {file ? "정산 가능 여부 확인하기 →" : "영수증을 먼저 올려주세요"}
           </button>
         </div>
-
-        {/* 기능 설명 */}
         <div style={{ width: "100%", maxWidth: 400, marginTop: 20, display: "flex", flexDirection: "column", gap: 12, paddingBottom: 40 }}>
           {[
             { icon: "🤖", title: "AI 자동 인식", desc: "날짜·시간·금액·업종을 자동으로 읽어냅니다" },
@@ -159,10 +167,9 @@ export default function App() {
     </div>
   );
 
-  // LIST
   if (step === "list") return (
     <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
-      <div style={{ position: "fixed", inset: 0, backgroundImage: "radial-gradient(circle, #C8622A18 1px, transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
+      <div style={dotBg} />
       <header style={{ position: "relative", zIndex: 10, padding: "18px 24px", display: "flex", alignItems: "center", gap: 14 }}>
         <button onClick={() => setStep("home")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, color: TEXT }}>←</button>
         <span style={{ fontWeight: 800, fontSize: 17, color: TEXT }}>내 정산 내역</span>
@@ -210,10 +217,9 @@ export default function App() {
     </div>
   );
 
-  // RESULT
   if (step === "result") return (
     <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
-      <div style={{ position: "fixed", inset: 0, backgroundImage: "radial-gradient(circle, #C8622A18 1px, transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
+      <div style={dotBg} />
       <header style={{ position: "relative", zIndex: 10, padding: "18px 24px", display: "flex", alignItems: "center", gap: 14 }}>
         <button onClick={() => setStep("home")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, color: TEXT }}>←</button>
         <span style={{ fontWeight: 800, fontSize: 17, color: TEXT }}>검증 결과</span>
@@ -230,7 +236,7 @@ export default function App() {
             {preview && <img src={preview} style={{ width: "100%", borderRadius: 18, maxHeight: 200, objectFit: "cover", marginBottom: 16 }} alt="" />}
             {ocr && (
               <div style={{ background: CARD, borderRadius: 18, padding: "18px", marginBottom: 16, border: "1px solid #EDD9C8" }}>
-                <p style={{ margin: "0 0 12px", fontSize: 12, color: MUTED, fontWeight: 700, letterSpacing: 0.5 }}>AI 인식 결과</p>
+                <p style={{ margin: "0 0 12px", fontSize: 12, color: MUTED, fontWeight: 700 }}>AI 인식 결과</p>
                 <table style={{ width: "100%", fontSize: 14 }}>
                   {[["가게명", ocr.storeName],["날짜", ocr.date],["시간", ocr.time],["금액", "₩" + parseInt(ocr.amount||0).toLocaleString()],["업종", ocr.category]].filter(([,v])=>v).map(([k,v]) => (
                     <tr key={k}><td style={{ color: MUTED, padding: "4px 0", width: 64 }}>{k}</td><td style={{ fontWeight: 700, color: TEXT }}>{v}</td></tr>
@@ -260,17 +266,16 @@ export default function App() {
     </div>
   );
 
-  // EXCEPTION
   if (step === "exception") return (
     <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
-      <div style={{ position: "fixed", inset: 0, backgroundImage: "radial-gradient(circle, #C8622A18 1px, transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
+      <div style={dotBg} />
       <header style={{ position: "relative", zIndex: 10, padding: "18px 24px", display: "flex", alignItems: "center", gap: 14 }}>
         <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, color: TEXT }}>←</button>
         <span style={{ fontWeight: 800, fontSize: 17, color: TEXT }}>예외 요청</span>
       </header>
       <div style={{ position: "relative", zIndex: 10, maxWidth: 440, margin: "0 auto", padding: "0 16px 40px" }}>
         <div style={{ background: "#FEF3E2", borderRadius: 16, padding: "14px 16px", marginBottom: 20, border: "1px solid #F5CBA7", fontSize: 13, color: "#B87020" }}>
-          관리자 검토 후 승인 여부가 결정됩니다. 사유를 명확하게 작성해 주세요.
+          관리자 검토 후 승인 여부가 결정됩니다.
         </div>
         <div style={{ background: CARD, borderRadius: 20, padding: "22px 20px", border: "1px solid #EDD9C8" }}>
           <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 8, color: TEXT }}>사유 유형 *</label>
@@ -291,18 +296,13 @@ export default function App() {
     </div>
   );
 
-  // DONE
   return (
     <div style={{ background: BG, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
-      <div style={{ position: "fixed", inset: 0, backgroundImage: "radial-gradient(circle, #C8622A18 1px, transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
+      <div style={dotBg} />
       <div style={{ position: "relative", zIndex: 10, textAlign: "center" }}>
         <div style={{ fontSize: 64, marginBottom: 20 }}>🎉</div>
         <h2 style={{ fontSize: 26, fontWeight: 900, margin: "0 0 10px", color: TEXT }}>제출 완료!</h2>
-        <p style={{ color: MUTED, fontSize: 15, margin: "0 0 6px", lineHeight: 1.6 }}>관리자 검토 후 매월 22일<br />개인 계좌로 입금됩니다</p>
-        <div style={{ background: CARD, borderRadius: 16, padding: "14px 20px", margin: "24px 0", border: "1px solid #EDD9C8", display: "inline-block" }}>
-          <p style={{ margin: 0, fontSize: 13, color: MUTED }}>익월 10일까지 추가 제출 가능합니다</p>
-        </div>
-        <br />
+        <p style={{ color: MUTED, fontSize: 15, margin: "0 0 32px", lineHeight: 1.6 }}>관리자 검토 후 매월 22일<br />개인 계좌로 입금됩니다</p>
         <button onClick={reset} style={{ padding: "14px 36px", borderRadius: 28, border: "none", background: PRIMARY, color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>홈으로 돌아가기</button>
       </div>
     </div>
