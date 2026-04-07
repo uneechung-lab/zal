@@ -294,7 +294,7 @@ export default function App() {
 
       {/* 우측 앱 영역 */}
       <div style={{ flex: 1, height: "100%", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px" }}>
-        <div style={{ width: 390, height: "100%", maxHeight: 780, background: C.card, borderRadius: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.15)", overflow: "hidden", display: "flex", flexDirection: "column", position: "relative" }}>
+        <div style={{ width: 390, height: "100%", background: C.card, borderRadius: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.15)", overflow: "hidden", display: "flex", flexDirection: "column", position: "relative" }}>
           {screens[step] || AppHome}
         </div>
       </div>
