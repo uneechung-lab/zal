@@ -263,10 +263,10 @@ export default function App() {
   const screens = { home: AppHome, list: AppList, result: AppResult, exception: AppException, done: AppDone };
 
   return (
-    <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
+    <div style={{ display: "flex", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
 
       {/* 좌측 브랜딩 */}
-      <div style={{ width: 600, flexShrink: 0, height: "100%", background: C.bg, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 52px", position: "relative", overflow: "hidden" }}>
+      <div style={{ flex: 1, height: "100%", background: C.bg, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 52px", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: 40, left: 52, display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: C.primary, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 16 }}>잘</div>
           <span style={{ fontWeight: 800, fontSize: 18, color: C.text }}>ZAL : 잘</span>
@@ -293,7 +293,7 @@ export default function App() {
       </div>
 
       {/* 우측 앱 영역 */}
-      <div style={{ width: 480, height: "100vh", background: C.card, boxShadow: "-12px 0 48px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
+      <div style={{ width: 480, height: "100%", background: C.card, boxShadow: "-12px 0 48px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
         {screens[step] || AppHome}
       </div>
 
