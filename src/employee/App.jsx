@@ -34,14 +34,14 @@ const DEMO = [
 ];
 
 const C = {
-  bg: "#D6EEFF",
+  bg: "#FEF7E0", // 라이트 골든 옐로우 배경
   card: "#FFFFFF",
-  primary: "#1A8CFF",
+  primary: "#000000", // 메인 블랙 버튼
   brand: "#FEC601", // 다음정보시스템즈 Golden Yellow
-  brandLight: "#FFF4D6",
+  brandLight: "#FFEAB2",
   text: "#1A1A1A",
   muted: "#666",
-  border: "#C5DFF5",
+  border: "#EEDBB4",
 };
 
 const FOOD_EMOJIS = ["🍱", "🍜", "🍣", "🥗", "🍛", "🥘", "🍲", "🍔"];
@@ -295,7 +295,7 @@ export default function App() {
       <div style={{ padding: "0 var(--side-pad)", display: "flex", flexDirection: "column", gap: 12, marginTop: "var(--btn-top)", marginBottom: "var(--btn-bot)" }}>
         <p style={{ margin: "0 0 4px", fontSize: 13, color: "#888", textAlign: "center", fontWeight: 500 }}>영수증이 업로드 되면 음식이 채워집니다.</p>
         <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
-        <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "18px", borderRadius: 12, border: "none", background: "#0A84FF", color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
+        <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "18px", borderRadius: 12, border: "none", background: "#000000", color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
           영수증 올리기
         </button>
         <button onClick={() => {}} style={{ width: "100%", padding: "18px", borderRadius: 12, border: `2px solid ${C.brand}`, background: "transparent", color: C.brand, fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
@@ -421,6 +421,8 @@ export default function App() {
   );
 
   const screens = { home: AppHome, list: AppList, result: AppResult, exception: AppException, done: AppDone };
+
+  const bgStyle = { flex: 1, display: "flex", flexDirection: "column", background: C.bg };
 
   return (
     <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "#F7F6F3", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
