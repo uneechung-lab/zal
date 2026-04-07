@@ -422,9 +422,15 @@ export default function App() {
 
   return (
     <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "#F7F6F3", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
+      <style>{`
+        @media (max-width: 1060px) {
+          .desktop-panel { display: none !important; }
+          .app-container { width: 100% !important; border-left: none !important; }
+        }
+      `}</style>
 
       {/* 좌측 브랜딩 */}
-      <div style={{ width: 600, flexShrink: 0, height: "100%", background: "#F7F6F3", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 64px" }}>
+      <div className="desktop-panel" style={{ width: 600, flexShrink: 0, height: "100%", background: "#F7F6F3", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 64px" }}>
         <div style={{ position: "fixed", top: 28, left: 36, display: "flex", alignItems: "center", gap: 8, zIndex: 100 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: "#C8622A", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 500, fontSize: 16 }}>잘</div>
           <span style={{ fontWeight: 500, fontSize: 18, color: "#1A1A1A" }}>ZAL : 잘</span>
@@ -449,7 +455,7 @@ export default function App() {
       </div>
 
       {/* 우측 앱 영역 */}
-      <div style={{ width: 460, flexShrink: 0, height: "100%", boxShadow: "none", borderLeft: "1px solid #ddd", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
+      <div className="app-container" style={{ width: 460, flexShrink: 0, height: "100%", boxShadow: "none", borderLeft: "1px solid #ddd", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
         {screens[step] || AppHome}
         {/* 바텀시트 컴포넌트 렌더링 */}
         <BottomSheetPicker 
