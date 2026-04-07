@@ -469,7 +469,7 @@ export default function App() {
       </div>
 
       {/* 우측 앱 영역 */}
-      <div className="app-container" style={{ width: 460, flexShrink: 0, height: "100%", boxShadow: "20px 0 50px rgba(0,0,0,0.08)", borderLeft: "1px solid #ddd", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
+      <div className="app-container" style={{ width: 460, flexShrink: 0, height: "100%", boxShadow: "30px 30px 60px -15px rgba(0,0,0,0.12)", borderLeft: "1px solid #ddd", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
         {screens[step] || AppHome}
         {/* 바텀시트 컴포넌트 렌더링 */}
         <BottomSheetPicker 
