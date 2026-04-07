@@ -62,7 +62,7 @@ function Badge({ status }) {
 // 좌측 브랜딩 패널
 function BrandPanel() {
   return (
-    <div style={{ width: "50%", height: "100vh", background: C.bg, position: "sticky", top: 0, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-start", padding: "48px 52px" }}>
+    <div style={{ width: "50%", height: "100%", background: C.bg, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-start", padding: "48px 52px", position: "relative" }}>
       {/* 로고 */}
       <div style={{ position: "absolute", top: 40, left: 52, display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ width: 38, height: 38, borderRadius: 10, background: C.primary, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 17 }}>잘</div>
@@ -112,7 +112,7 @@ function BrandPanel() {
 // 모바일 앱 래퍼
 function MobileFrame({ children }) {
   return (
-    <div style={{ width: "50%", height: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 32px", boxSizing: "border-box" }}>
+    <div style={{ width: "50%", height: "100%", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 32px", boxSizing: "border-box" }}>
       <div style={{ width: "100%", maxWidth: 390, height: "100%", maxHeight: 780, background: C.card, borderRadius: 32, boxShadow: "0 24px 80px rgba(0,0,0,0.10)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
         {children}
       </div>
@@ -376,7 +376,7 @@ export default function App() {
   const screens = { home: HomeScreen, list: ListScreen, result: ResultScreen, exception: ExceptionScreen, done: DoneScreen };
 
   return (
-    <div style={{ display: "flex", position: "fixed", inset: 0, fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
+    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
       <BrandPanel />
       <MobileFrame>
         {screens[step] || HomeScreen}
