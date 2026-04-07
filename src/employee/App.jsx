@@ -112,8 +112,8 @@ function BrandPanel() {
 // 모바일 앱 래퍼
 function MobileFrame({ children }) {
   return (
-    <div style={{ width: "50%", height: "100%", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 32px", boxSizing: "border-box" }}>
-      <div style={{ width: "100%", maxWidth: 390, height: "100%", maxHeight: 780, background: C.card, borderRadius: 32, boxShadow: "0 24px 80px rgba(0,0,0,0.10)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+    <div style={{ width: "50%", height: "100%", background: "#ffffff", display: "flex", alignItems: "stretch", justifyContent: "center", padding: "0", boxSizing: "border-box" }}>
+      <div style={{ width: "100%", maxWidth: 480, height: "100%", background: C.card, borderRadius: 0, boxShadow: "none", overflow: "hidden", display: "flex", flexDirection: "column", borderLeft: "1px solid #eee" }}>
         {children}
       </div>
     </div>
