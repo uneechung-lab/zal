@@ -232,14 +232,14 @@ export default function App() {
   const AppHome = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, overflowY: "auto" }}>
       {/* 헤더 */}
-      <div style={{ padding: "30px 48px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ padding: "30px var(--side-pad) 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontWeight: 500, fontSize: 18, color: "#000" }}>ZAL:잘먹</span>
         <button onClick={() => setStep("list")} style={{ fontSize: 14, color: "#000", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>내역보기</button>
       </div>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", paddingBottom: "120px" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", paddingBottom: "var(--center-gap)" }}>
       {/* 인사 + 금액 */}
-      <div style={{ padding: "40px 48px 60px" }}>
+      <div style={{ padding: "40px var(--side-pad) var(--item-gap)" }}>
         <p style={{ margin: "0 0 32px", fontSize: 22, color: "#777", fontWeight: 500, lineHeight: 1.4 }}>
           <span style={{ fontWeight: 800, color: "#000" }}>정다음</span>님, 맛있는 하루를<br/>다음정보시스템즈가 지원합니다!
         </p>
@@ -250,7 +250,7 @@ export default function App() {
       </div>
 
       {/* 바텀시트 여는 트리거 버튼 */}
-      <div style={{ padding: "20px 48px 30px" }}>
+      <div style={{ padding: "20px var(--side-pad) 30px" }}>
         <button onClick={() => setIsPickerOpen(true)} style={{ background: "none", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, padding: 0 }}>
           <span style={{ color: "#444", fontSize: 16, fontWeight: 600 }}>{String(selYear).slice(2)}년 {selMonth}월 {selWeek}주</span>
           <svg width="10" height="6" viewBox="0 0 10 6" fill="#444">
@@ -260,7 +260,7 @@ export default function App() {
       </div>
 
       {/* 주간 캘린더 — 카드 배경 없음, 옆에 일자 표기 */}
-      <div style={{ padding: "0 48px 40px" }}>
+      <div style={{ padding: "0 var(--side-pad) 40px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", padding: 0 }}>
           {weekDates.map((date, i) => {
             const dateStr = date.toISOString().slice(0, 10);
@@ -290,7 +290,7 @@ export default function App() {
       </div>
 
       {/* 버튼들 */}
-      <div style={{ padding: "0 48px", display: "flex", flexDirection: "column", gap: 12, marginTop: 40, marginBottom: 80 }}>
+      <div style={{ padding: "0 var(--side-pad)", display: "flex", flexDirection: "column", gap: 12, marginTop: "var(--btn-top)", marginBottom: "var(--btn-bot)" }}>
         <p style={{ margin: "0 0 4px", fontSize: 13, color: "#888", textAlign: "center", fontWeight: 500 }}>영수증이 업로드 되면 음식이 채워집니다.</p>
         <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
         <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "18px", borderRadius: 12, border: "none", background: "#0A84FF", color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
@@ -423,9 +423,23 @@ export default function App() {
   return (
     <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "#F7F6F3", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
       <style>{`
+        :root {
+          --side-pad: 48px;
+          --center-gap: 120px;
+          --item-gap: 60px;
+          --btn-top: 40px;
+          --btn-bot: 80px;
+        }
         @media (max-width: 1060px) {
           .desktop-panel { display: none !important; }
           .app-container { width: 100% !important; border-left: none !important; }
+          :root {
+            --side-pad: 24px;
+            --center-gap: 30px;
+            --item-gap: 30px;
+            --btn-top: 20px;
+            --btn-bot: 40px;
+          }
         }
       `}</style>
 
