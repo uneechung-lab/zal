@@ -376,7 +376,7 @@ export default function App() {
   const screens = { home: HomeScreen, list: ListScreen, result: ResultScreen, exception: ExceptionScreen, done: DoneScreen };
 
   return (
-    <div style={{ display: "flex", height: "100vh", overflow: "hidden", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
+    <div style={{ display: "flex", position: "fixed", inset: 0, fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
       <BrandPanel />
       <MobileFrame>
         {screens[step] || HomeScreen}
