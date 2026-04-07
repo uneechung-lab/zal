@@ -62,36 +62,31 @@ function Badge({ status }) {
 // 좌측 브랜딩 패널
 function BrandPanel() {
   return (
-    <div style={{ width: "50%", minHeight: "100vh", background: C.accent, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "48px 52px" }}>
-      {/* 배경 도형들 */}
-      <div style={{ position: "absolute", top: -80, right: -80, width: 320, height: 320, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
-      <div style={{ position: "absolute", bottom: 80, left: -60, width: 240, height: 240, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
-      <div style={{ position: "absolute", top: "40%", right: 40, width: 120, height: 120, borderRadius: "50%", background: "rgba(200,98,42,0.3)" }} />
-
+    <div style={{ width: "50%", height: "100vh", background: C.bg, position: "sticky", top: 0, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-start", padding: "48px 52px" }}>
       {/* 로고 */}
-      <div style={{ position: "relative", zIndex: 2 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 80 }}>
-          <div style={{ width: 38, height: 38, borderRadius: 10, background: C.primary, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 17 }}>잘</div>
-          <span style={{ fontWeight: 800, fontSize: 20, color: "#fff", letterSpacing: -0.5 }}>ZAL : 잘</span>
-          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginLeft: 4 }}>먹겠습니다!</span>
-        </div>
+      <div style={{ position: "absolute", top: 40, left: 52, display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ width: 38, height: 38, borderRadius: 10, background: C.primary, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 17 }}>잘</div>
+        <span style={{ fontWeight: 800, fontSize: 20, color: C.text, letterSpacing: -0.5 }}>ZAL : 잘</span>
+        <span style={{ fontSize: 13, color: C.muted, marginLeft: 2 }}>먹겠습니다!</span>
+      </div>
 
-        {/* 메인 카피 */}
-        <p style={{ margin: "0 0 12px", fontSize: 14, color: "rgba(255,255,255,0.6)", fontWeight: 600, letterSpacing: 1 }}>식대 정산 자동화 시스템</p>
-        <h1 style={{ margin: "0 0 20px", fontSize: 44, fontWeight: 900, color: "#fff", lineHeight: 1.15, letterSpacing: -1 }}>
+      {/* 중앙 카피 */}
+      <div>
+        <p style={{ margin: "0 0 12px", fontSize: 13, color: C.primary, fontWeight: 700, letterSpacing: 1 }}>식대 정산 자동화 시스템</p>
+        <h1 style={{ margin: "0 0 20px", fontSize: 48, fontWeight: 900, color: C.text, lineHeight: 1.15, letterSpacing: -1.5 }}>
           점심 한 끼,<br />
-          <span style={{ color: "#FFB347" }}>10초</span>에 정산!
+          <span style={{ color: C.primary }}>10초</span>에 정산!
         </h1>
-        <p style={{ margin: "0 0 48px", fontSize: 16, color: "rgba(255,255,255,0.7)", lineHeight: 1.7 }}>
+        <p style={{ margin: "0 0 40px", fontSize: 16, color: C.muted, lineHeight: 1.8 }}>
           영수증 사진 한 장이면 충분합니다.<br />
           AI가 자동으로 규정을 확인하고<br />
           매월 22일 자동 입금까지!
         </p>
 
         {/* 기능 태그 */}
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 60 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 52 }}>
           {["AI 자동 인식", "규정 즉시 검증", "실물 영수증 불필요", "매월 22일 자동 입금"].map(t => (
-            <span key={t} style={{ background: "rgba(255,255,255,0.12)", color: "#fff", fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.2)" }}>{t}</span>
+            <span key={t} style={{ background: C.primaryLight, color: C.primary, fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 20 }}>{t}</span>
           ))}
         </div>
 
@@ -99,16 +94,16 @@ function BrandPanel() {
         <div style={{ display: "flex", gap: 40 }}>
           {[["10초", "정산 완료"], ["0장", "실물 영수증"], ["22일", "매월 자동 입금"]].map(([num, label]) => (
             <div key={label}>
-              <p style={{ margin: "0 0 4px", fontSize: 28, fontWeight: 900, color: "#FFB347" }}>{num}</p>
-              <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{label}</p>
+              <p style={{ margin: "0 0 4px", fontSize: 28, fontWeight: 900, color: C.primary }}>{num}</p>
+              <p style={{ margin: 0, fontSize: 12, color: C.muted }}>{label}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* 하단 회사명 */}
-      <div style={{ position: "relative", zIndex: 2 }}>
-        <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>© 2026 다음정보시스템즈. All rights reserved.</p>
+      <div style={{ position: "absolute", bottom: 40, left: 52 }}>
+        <p style={{ margin: 0, fontSize: 12, color: "#bbb" }}>© 2026 다음정보시스템즈. All rights reserved.</p>
       </div>
     </div>
   );
@@ -117,8 +112,8 @@ function BrandPanel() {
 // 모바일 앱 래퍼
 function MobileFrame({ children }) {
   return (
-    <div style={{ width: "50%", minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 32px" }}>
-      <div style={{ width: "100%", maxWidth: 390, background: C.card, borderRadius: 32, boxShadow: "0 24px 80px rgba(0,0,0,0.12)", overflow: "hidden", minHeight: 700, display: "flex", flexDirection: "column" }}>
+    <div style={{ width: "50%", height: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 32px", boxSizing: "border-box" }}>
+      <div style={{ width: "100%", maxWidth: 390, height: "100%", maxHeight: 780, background: C.card, borderRadius: 32, boxShadow: "0 24px 80px rgba(0,0,0,0.10)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
         {children}
       </div>
     </div>
@@ -381,7 +376,7 @@ export default function App() {
   const screens = { home: HomeScreen, list: ListScreen, result: ResultScreen, exception: ExceptionScreen, done: DoneScreen };
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
       <BrandPanel />
       <MobileFrame>
         {screens[step] || HomeScreen}
