@@ -61,6 +61,20 @@ function getWeekDates(year, month, week) {
   return dates;
 }
 
+// 해당 월의 주 수 계산
+function getWeekCount(year, month) {
+  const firstDay = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0);
+  const firstDow = firstDay.getDay();
+  const diff = firstDow === 0 ? 1 : firstDow === 1 ? 0 : 8 - firstDow;
+  const firstMonday = new Date(firstDay);
+  firstMonday.setDate(firstDay.getDate() + diff);
+  let count = 0;
+  let cur = new Date(firstMonday);
+  while (cur <= lastDay) { count++; cur.setDate(cur.getDate() + 7); }
+  return count;
+}
+
 function Badge({ status }) {
   const map = {
     "승인대기": { bg: "#E8F0FD", color: "#3B6FD4", label: "승인 대기" },
@@ -70,6 +84,19 @@ function Badge({ status }) {
   };
   const s = map[status] || map["승인대기"];
   return <span style={{ background: s.bg, color: s.color, fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>{s.label}</span>;
+}
+
+// 드롭다운 컴포넌트
+function Selector({ value, options, onChange }) {
+  return (
+    <select
+      value={value}
+      onChange={e => onChange(Number(e.target.value))}
+      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 15, fontWeight: 700, color: C.text, padding: 0, appearance: "none", WebkitAppearance: "none" }}
+    >
+      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  );
 }
 
 export default function App() {
@@ -93,22 +120,29 @@ export default function App() {
 
   const reset = () => { setStep("home"); setFile(null); setPreview(null); setOcr(null); setIssues([]); setExcType(""); setExcText(""); };
 
-  const handleFile = e => {
+  // ✅ 파일 선택 즉시 OCR 자동 실행
+  const handleFile = async e => {
     const f = e.target.files[0]; if (!f) return;
     setFile(f);
-    const r = new FileReader(); r.onload = ev => setPreview(ev.target.result); r.readAsDataURL(f);
-  };
+    const r = new FileReader();
+    r.onload = ev => setPreview(ev.target.result);
+    r.readAsDataURL(f);
 
-  const runOCR = async () => {
-    if (!file) return;
-    setLoading(true); setStep("result");
+    // 즉시 OCR 시작
+    setLoading(true);
+    setStep("result");
     try {
-      const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = rej; r.readAsDataURL(file); });
+      const b64 = await new Promise((res, rej) => {
+        const rd = new FileReader();
+        rd.onload = () => res(rd.result.split(",")[1]);
+        rd.onerror = rej;
+        rd.readAsDataURL(f);
+      });
       const resp = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
         body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 500, messages: [{ role: "user", content: [
-          { type: "image", source: { type: "base64", media_type: file.type === "image/png" ? "image/png" : "image/jpeg", data: b64 } },
+          { type: "image", source: { type: "base64", media_type: f.type === "image/png" ? "image/png" : "image/jpeg", data: b64 } },
           { type: "text", text: "카드 매출전표입니다. JSON만 반환하세요.\n{\"date\":\"YYYY-MM-DD\",\"time\":\"HH:MM\",\"amount\":\"숫자만\",\"category\":\"업종명\",\"storeName\":\"가맹점명\"}\n규칙: amount는 금액 숫자만(8,000원이면 8000). date는 이용일시 기준(26.04.06이면 2026-04-06)." }
         ]}] })
       });
@@ -123,6 +157,7 @@ export default function App() {
     setLoading(false);
   };
 
+  // ✅ 제출 시 규정 합치이면 홈으로 돌아가며 아이콘 자동 변경
   const submit = (isException = false) => {
     setSubs(p => [{ id: Date.now(), date: ocr.date, time: ocr.time, amount: ocr.amount, category: ocr.category, storeName: ocr.storeName || ocr.category, status: isException ? "예외요청" : "승인대기" }, ...p]);
     setStep("done");
@@ -130,8 +165,19 @@ export default function App() {
 
   const approvedTotal = subs.filter(s => s.status === "승인완료").reduce((a, s) => a + parseInt(s.amount || 0), 0);
   const weekDates = getWeekDates(selYear, selMonth, selWeek);
+  const weekCount = getWeekCount(selYear, selMonth);
 
-  // ✅ HOME — Image 2 스타일
+  // ✅ 익월 22일 입금 예정
+  const payMonth = selMonth === 12 ? 1 : selMonth + 1;
+  const payYear = selMonth === 12 ? selYear + 1 : selYear;
+  const payDateStr = `${String(payYear).slice(2)}.${String(payMonth).padStart(2,"0")}.22`;
+
+  // 드롭다운 옵션
+  const yearOptions = [2024,2025,2026,2027].map(y => ({ value: y, label: `${String(y).slice(2)}년` }));
+  const monthOptions = Array.from({length:12},(_,i)=>({ value:i+1, label:`${i+1}월` }));
+  const weekOptions = Array.from({length:weekCount},(_,i)=>({ value:i+1, label:`${i+1}주` }));
+
+  // HOME
   const AppHome = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, overflowY: "auto" }}>
       {/* 헤더 */}
@@ -143,37 +189,38 @@ export default function App() {
       {/* 인사 + 금액 */}
       <div style={{ padding: "28px 24px 20px" }}>
         <p style={{ margin: "0 0 6px", fontSize: 16, color: C.text, fontWeight: 600 }}>정다음 님, 맛있는 하루 :-)</p>
-        {/* ✅ 연도 26년 형식으로 */}
-        <p style={{ margin: "0 0 6px", fontSize: 13, color: C.muted }}>{selYear.toString().slice(2)}.{String(selMonth).padStart(2,"0")}.22 입금 예정</p>
+        {/* ✅ 익월 22일 입금 예정 */}
+        <p style={{ margin: "0 0 6px", fontSize: 13, color: C.muted }}>{payDateStr} 입금 예정</p>
         <p style={{ margin: 0, fontSize: 36, fontWeight: 900, color: C.text }}>{approvedTotal.toLocaleString()}원</p>
       </div>
 
-      {/* 주 선택 — ✅ 26년 형식 */}
-      <div style={{ padding: "0 24px 20px", display: "flex", alignItems: "center", gap: 8 }}>
-        {[
-          { label: `${selYear.toString().slice(2)}년` },
-          { label: `${selMonth}월` },
-          { label: `${selWeek}주` },
-        ].map(({ label }) => (
-          <button key={label} onClick={() => {}} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 15, fontWeight: 700, color: C.text, padding: 0 }}>
-            {label} ▼
-          </button>
-        ))}
+      {/* ✅ 년/월/주 실제 드롭다운 */}
+      <div style={{ padding: "0 24px 20px", display: "flex", alignItems: "center", gap: 12 }}>
+        <Selector value={selYear} options={yearOptions} onChange={v => { setSelYear(v); setSelWeek(1); }} />
+        <span style={{ color: C.text, fontWeight: 700, fontSize: 15 }}>▼</span>
+        <Selector value={selMonth} options={monthOptions} onChange={v => { setSelMonth(v); setSelWeek(1); }} />
+        <span style={{ color: C.text, fontWeight: 700, fontSize: 15 }}>▼</span>
+        <Selector value={selWeek} options={weekOptions} onChange={setSelWeek} />
+        <span style={{ color: C.text, fontWeight: 700, fontSize: 15 }}>▼</span>
       </div>
 
-      {/* ✅ 주간 캘린더 — 카드 배경 제거, 직접 배치 */}
+      {/* ✅ 주간 캘린더 — 날짜 병기, 카드 배경 없음 */}
       <div style={{ padding: "0 24px 32px" }}>
         <div style={{ display: "flex", justifyContent: "space-around" }}>
           {weekDates.map((date, i) => {
             const dateStr = date.toISOString().slice(0, 10);
             const daySub = subs.find(s => s.date === dateStr && s.status === "승인완료");
             const emoji = daySub ? FOOD_EMOJIS[i % FOOD_EMOJIS.length] : "🥣";
+            const dayNum = date.getDate();
             return (
               <div key={i} style={{ textAlign: "center" }}>
-                <div style={{ width: 56, height: 56, borderRadius: "50%", background: daySub ? "#fff" : "rgba(255,255,255,0.35)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 8, fontSize: 28 }}>
+                <div style={{ width: 56, height: 56, borderRadius: "50%", background: daySub ? "#fff" : "rgba(255,255,255,0.35)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 6, fontSize: 28 }}>
                   {emoji}
                 </div>
-                <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{DAYS[i]}</span>
+                {/* ✅ 요일 + 날짜 병기 */}
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{DAYS[i]}</span>
+                <br />
+                <span style={{ fontSize: 11, color: C.muted }}>{dayNum}</span>
               </div>
             );
           })}
@@ -182,25 +229,19 @@ export default function App() {
 
       {/* 버튼들 */}
       <div style={{ padding: "0 24px", display: "flex", flexDirection: "column", gap: 12, marginBottom: 32 }}>
+        {/* ✅ 파일 선택 즉시 OCR 실행 — 버튼 하나만 */}
         <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
         <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "18px", borderRadius: 16, border: "none", background: C.primary, color: "#fff", fontWeight: 800, fontSize: 17, cursor: "pointer" }}>
           영수증 올리기
         </button>
-        {file && (
-          <button onClick={runOCR} style={{ width: "100%", padding: "18px", borderRadius: 16, border: "none", background: "#0066CC", color: "#fff", fontWeight: 800, fontSize: 17, cursor: "pointer" }}>
-            정산 확인하기 →
-          </button>
-        )}
         <button onClick={() => {}} style={{ width: "100%", padding: "18px", borderRadius: 16, border: `2px solid ${C.primary}`, background: "transparent", color: C.primary, fontWeight: 800, fontSize: 17, cursor: "pointer" }}>
           오늘 뭐 먹지?
         </button>
       </div>
-
-      {/* ✅ 최근 정산 내역 — 제거 */}
     </div>
   );
 
-  // LIST (변경 없음)
+  // LIST
   const AppList = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
       <div style={{ padding: "20px 24px 16px", display: "flex", alignItems: "center", gap: 12 }}>
@@ -224,7 +265,7 @@ export default function App() {
     </div>
   );
 
-  // RESULT (변경 없음)
+  // ✅ RESULT — 로딩 중 "확인 중입니다" 단계별 메시지
   const AppResult = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
       <div style={{ padding: "20px 24px 16px", display: "flex", alignItems: "center", gap: 12 }}>
@@ -234,8 +275,12 @@ export default function App() {
       <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 24px" }}>
         {loading ? (
           <div style={{ textAlign: "center", padding: "60px 0" }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
-            <p style={{ fontWeight: 800, fontSize: 16, color: C.text }}>AI가 분석 중입니다</p>
+            <div style={{ fontSize: 48, marginBottom: 20 }}>🤖</div>
+            <p style={{ fontWeight: 800, fontSize: 17, color: C.text, margin: "0 0 8px" }}>확인 중입니다...</p>
+            <p style={{ fontSize: 13, color: C.muted, margin: 0, lineHeight: 2 }}>
+              영수증 판독 중<br />
+              규정 검토 중
+            </p>
           </div>
         ) : (
           <>
@@ -270,7 +315,7 @@ export default function App() {
     </div>
   );
 
-  // EXCEPTION (변경 없음)
+  // EXCEPTION
   const AppException = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
       <div style={{ padding: "20px 24px 16px", display: "flex", alignItems: "center", gap: 12 }}>
@@ -295,7 +340,7 @@ export default function App() {
     </div>
   );
 
-  // DONE (변경 없음)
+  // DONE
   const AppDone = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 28, textAlign: "center", background: C.bg }}>
       <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
