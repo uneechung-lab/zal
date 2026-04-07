@@ -37,6 +37,8 @@ const C = {
   bg: "#D6EEFF",
   card: "#FFFFFF",
   primary: "#1A8CFF",
+  brand: "#FEC601", // 다음정보시스템즈 Golden Yellow
+  brandLight: "#FFF4D6",
   text: "#1A1A1A",
   muted: "#666",
   border: "#C5DFF5",
@@ -296,7 +298,7 @@ export default function App() {
         <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "18px", borderRadius: 12, border: "none", background: "#0A84FF", color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
           영수증 올리기
         </button>
-        <button onClick={() => {}} style={{ width: "100%", padding: "18px", borderRadius: 12, border: `2px solid #0A84FF`, background: "transparent", color: "#0A84FF", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
+        <button onClick={() => {}} style={{ width: "100%", padding: "18px", borderRadius: 12, border: `2px solid ${C.brand}`, background: "transparent", color: C.brand, fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
           오늘 뭐 먹지?
         </button>
       </div>
@@ -446,22 +448,22 @@ export default function App() {
       {/* 좌측 브랜딩 */}
       <div className="desktop-panel" style={{ width: 600, flexShrink: 0, height: "100%", background: "#F7F6F3", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 64px" }}>
         <div style={{ position: "fixed", top: 28, left: 36, display: "flex", alignItems: "center", gap: 8, zIndex: 100 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: "#C8622A", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 500, fontSize: 16 }}>잘</div>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: C.brand, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 16 }}>잘</div>
           <span style={{ fontWeight: 500, fontSize: 18, color: "#1A1A1A" }}>ZAL : 잘</span>
           <span style={{ fontSize: 12, color: "#888" }}>먹겠습니다!</span>
         </div>
         <div>
-          <p style={{ margin: "0 0 10px", fontSize: 13, color: "#C8622A", fontWeight: 600, letterSpacing: 1 }}>식대 정산 자동화 시스템</p>
-          <h1 style={{ margin: "0 0 18px", fontSize: 46, fontWeight: 600, color: "#1A1A1A", lineHeight: 1.15, letterSpacing: -1.5 }}>점심 한 끼,<br /><span style={{ color: "#C8622A" }}>10초</span>에 정산!</h1>
+          <p style={{ margin: "0 0 10px", fontSize: 13, color: C.brand, fontWeight: 700, letterSpacing: 1 }}>식대 정산 자동화 시스템</p>
+          <h1 style={{ margin: "0 0 18px", fontSize: 48, fontWeight: 800, color: "#1A1A1A", lineHeight: 1.1, letterSpacing: -2 }}>점심 한 끼,<br /><span style={{ color: C.brand }}>10초</span>에 정산!</h1>
           <p style={{ margin: "0 0 36px", fontSize: 15, color: "#888", lineHeight: 1.8 }}>영수증 사진 한 장이면 충분합니다.<br />AI가 자동으로 규정을 확인하고<br />매월 22일 자동 입금까지!</p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 48 }}>
             {["AI 자동 인식","규정 즉시 검증","실물 영수증 불필요","매월 22일 자동 입금"].map(t => (
-              <span key={t} style={{ background: "#F5E6DC", color: "#C8622A", fontSize: 11, fontWeight: 500, padding: "5px 12px", borderRadius: 20 }}>{t}</span>
+              <span key={t} style={{ background: C.brandLight, color: C.brand, fontSize: 11, fontWeight: 700, padding: "6px 14px", borderRadius: 20 }}>{t}</span>
             ))}
           </div>
           <div style={{ display: "flex", gap: 36 }}>
             {[["10초","정산 완료"],["0장","실물 영수증"],["22일","매월 자동 입금"]].map(([num,label]) => (
-              <div key={label}><p style={{ margin: "0 0 4px", fontSize: 26, fontWeight: 600, color: "#C8622A" }}>{num}</p><p style={{ margin: 0, fontSize: 11, color: "#888" }}>{label}</p></div>
+              <div key={label}><p style={{ margin: "0 0 4px", fontSize: 26, fontWeight: 800, color: C.brand }}>{num}</p><p style={{ margin: 0, fontSize: 11, color: "#888" }}>{label}</p></div>
             ))}
           </div>
         </div>
