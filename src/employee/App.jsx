@@ -267,7 +267,7 @@ export default function App() {
 
       {/* 좌측 브랜딩 */}
       <div style={{ width: 600, flexShrink: 0, height: "100%", background: C.bg, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 52px", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", top: 40, left: 52, display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ position: "fixed", top: 28, left: 36, display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: C.primary, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 16 }}>잘</div>
           <span style={{ fontWeight: 800, fontSize: 18, color: C.text }}>ZAL : 잘</span>
           <span style={{ fontSize: 12, color: C.muted }}>먹겠습니다!</span>
@@ -293,7 +293,7 @@ export default function App() {
       </div>
 
       {/* 우측 앱 영역 */}
-      <div style={{ width: 480, height: "100vh", background: C.card, boxShadow: "-12px 0 48px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
+      <div style={{ width: 480, height: "100vh", background: C.card, boxShadow: "12px 0 48px rgba(0,0,0,0.12)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
         {screens[step] || AppHome}
       </div>
 
