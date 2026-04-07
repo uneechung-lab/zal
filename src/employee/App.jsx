@@ -34,14 +34,14 @@ const DEMO = [
 ];
 
 const C = {
-  bg: "#FEF7E0", // 라이트 골든 옐로우 배경
+  bg: "#FFFBF0", // 채도가 낮고 더 밝은 크림색 배경
   card: "#FFFFFF",
-  primary: "#000000", // 메인 블랙 버튼
+  primary: "#000000",
   brand: "#FEC601", // 다음정보시스템즈 Golden Yellow
   brandLight: "#FFEAB2",
   text: "#1A1A1A",
   muted: "#666",
-  border: "#EEDBB4",
+  border: "#F2E8CF",
 };
 
 const FOOD_EMOJIS = ["🍱", "🍜", "🍣", "🥗", "🍛", "🥘", "🍲", "🍔"];
@@ -295,10 +295,10 @@ export default function App() {
       <div style={{ padding: "0 var(--side-pad)", display: "flex", flexDirection: "column", gap: 12, marginTop: "var(--btn-top)", marginBottom: "var(--btn-bot)" }}>
         <p style={{ margin: "0 0 4px", fontSize: 13, color: "#888", textAlign: "center", fontWeight: 500 }}>영수증이 업로드 되면 음식이 채워집니다.</p>
         <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
-        <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "18px", borderRadius: 12, border: "none", background: "#000000", color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
+        <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "18px", borderRadius: 12, border: "none", background: "#000000", color: C.brand, fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
           영수증 올리기
         </button>
-        <button onClick={() => {}} style={{ width: "100%", padding: "18px", borderRadius: 12, border: `2px solid ${C.brand}`, background: "transparent", color: C.brand, fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
+        <button onClick={() => {}} style={{ width: "100%", padding: "18px", borderRadius: 12, border: `2px solid #000000`, background: "transparent", color: "#000000", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
           오늘 뭐 먹지?
         </button>
       </div>
