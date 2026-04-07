@@ -131,7 +131,7 @@ export default function App() {
   const approvedTotal = subs.filter(s => s.status === "승인완료").reduce((a, s) => a + parseInt(s.amount || 0), 0);
   const weekDates = getWeekDates(selYear, selMonth, selWeek);
 
-  // HOME
+  // ✅ HOME — Image 2 스타일
   const AppHome = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, overflowY: "auto" }}>
       {/* 헤더 */}
@@ -141,43 +141,42 @@ export default function App() {
       </div>
 
       {/* 인사 + 금액 */}
-      <div style={{ padding: "24px 24px 20px" }}>
-        <p style={{ margin: "0 0 4px", fontSize: 16, color: C.text, fontWeight: 600 }}>정다음 님, 맛있는 하루 :-)</p>
-        <p style={{ margin: "0 0 4px", fontSize: 13, color: C.muted }}>{selYear.toString().slice(2)}.{String(selMonth).padStart(2,"0")}.22 입금 예정</p>
+      <div style={{ padding: "28px 24px 20px" }}>
+        <p style={{ margin: "0 0 6px", fontSize: 16, color: C.text, fontWeight: 600 }}>정다음 님, 맛있는 하루 :-)</p>
+        {/* ✅ 연도 26년 형식으로 */}
+        <p style={{ margin: "0 0 6px", fontSize: 13, color: C.muted }}>{selYear.toString().slice(2)}.{String(selMonth).padStart(2,"0")}.22 입금 예정</p>
         <p style={{ margin: 0, fontSize: 36, fontWeight: 900, color: C.text }}>{approvedTotal.toLocaleString()}원</p>
       </div>
 
-      {/* 주 선택 */}
-      <div style={{ padding: "0 24px 16px", display: "flex", alignItems: "center", gap: 8 }}>
+      {/* 주 선택 — ✅ 26년 형식 */}
+      <div style={{ padding: "0 24px 20px", display: "flex", alignItems: "center", gap: 8 }}>
         {[
-          { val: selYear, set: setSelYear, label: `${selYear}년` },
-          { val: selMonth, set: setSelMonth, label: `${selMonth}월` },
-          { val: selWeek, set: setSelWeek, label: `${selWeek}주` },
-        ].map(({ val, set, label }) => (
+          { label: `${selYear.toString().slice(2)}년` },
+          { label: `${selMonth}월` },
+          { label: `${selWeek}주` },
+        ].map(({ label }) => (
           <button key={label} onClick={() => {}} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 15, fontWeight: 700, color: C.text, padding: 0 }}>
             {label} ▼
           </button>
         ))}
       </div>
 
-      {/* 주간 캘린더 */}
-      <div style={{ padding: "0 24px 24px" }}>
-        <div style={{ background: "rgba(255,255,255,0.6)", borderRadius: 20, padding: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-around" }}>
-            {weekDates.map((date, i) => {
-              const dateStr = date.toISOString().slice(0, 10);
-              const daySub = subs.find(s => s.date === dateStr && s.status === "승인완료");
-              const emoji = daySub ? FOOD_EMOJIS[i % FOOD_EMOJIS.length] : null;
-              return (
-                <div key={i} style={{ textAlign: "center" }}>
-                  <div style={{ width: 52, height: 52, borderRadius: "50%", background: daySub ? "#fff" : "rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 8, fontSize: daySub ? 28 : 22, border: daySub ? "none" : "2px solid rgba(255,255,255,0.5)" }}>
-                    {daySub ? emoji : "🫙"}
-                  </div>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{DAYS[i]}</span>
+      {/* ✅ 주간 캘린더 — 카드 배경 제거, 직접 배치 */}
+      <div style={{ padding: "0 24px 32px" }}>
+        <div style={{ display: "flex", justifyContent: "space-around" }}>
+          {weekDates.map((date, i) => {
+            const dateStr = date.toISOString().slice(0, 10);
+            const daySub = subs.find(s => s.date === dateStr && s.status === "승인완료");
+            const emoji = daySub ? FOOD_EMOJIS[i % FOOD_EMOJIS.length] : "🥣";
+            return (
+              <div key={i} style={{ textAlign: "center" }}>
+                <div style={{ width: 56, height: 56, borderRadius: "50%", background: daySub ? "#fff" : "rgba(255,255,255,0.35)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 8, fontSize: 28 }}>
+                  {emoji}
                 </div>
-              );
-            })}
-          </div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{DAYS[i]}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -197,28 +196,11 @@ export default function App() {
         </button>
       </div>
 
-      {/* 최근 내역 */}
-      {subs.length > 0 && (
-        <div style={{ padding: "0 24px 32px" }}>
-          <p style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700, color: C.text }}>최근 정산 내역</p>
-          {subs.slice(0, 3).map(s => (
-            <div key={s.id} onClick={() => setDetail(s)} style={{ background: "rgba(255,255,255,0.8)", borderRadius: 14, padding: "12px 16px", marginBottom: 8, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <p style={{ margin: "0 0 2px", fontWeight: 700, fontSize: 14, color: C.text }}>{s.storeName}</p>
-                <p style={{ margin: 0, fontSize: 12, color: C.muted }}>{s.date} · {s.category}</p>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <p style={{ margin: "0 0 2px", fontWeight: 800, fontSize: 14, color: C.primary }}>₩{parseInt(s.amount).toLocaleString()}</p>
-                <Badge status={s.status} />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* ✅ 최근 정산 내역 — 제거 */}
     </div>
   );
 
-  // LIST
+  // LIST (변경 없음)
   const AppList = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
       <div style={{ padding: "20px 24px 16px", display: "flex", alignItems: "center", gap: 12 }}>
@@ -242,7 +224,7 @@ export default function App() {
     </div>
   );
 
-  // RESULT
+  // RESULT (변경 없음)
   const AppResult = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
       <div style={{ padding: "20px 24px 16px", display: "flex", alignItems: "center", gap: 12 }}>
@@ -288,7 +270,7 @@ export default function App() {
     </div>
   );
 
-  // EXCEPTION
+  // EXCEPTION (변경 없음)
   const AppException = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
       <div style={{ padding: "20px 24px 16px", display: "flex", alignItems: "center", gap: 12 }}>
@@ -313,7 +295,7 @@ export default function App() {
     </div>
   );
 
-  // DONE
+  // DONE (변경 없음)
   const AppDone = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 28, textAlign: "center", background: C.bg }}>
       <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
