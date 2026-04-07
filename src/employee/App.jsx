@@ -425,7 +425,7 @@ export default function App() {
   const bgStyle = { flex: 1, display: "flex", flexDirection: "column", background: C.bg };
 
   return (
-    <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "#F7F6F3", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: C.brand, fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
       <style>{`
         :root {
           --side-pad: 48px;
@@ -448,28 +448,28 @@ export default function App() {
       `}</style>
 
       {/* 좌측 브랜딩 */}
-      <div className="desktop-panel" style={{ width: 600, flexShrink: 0, height: "100%", background: "#F7F6F3", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 64px" }}>
+      <div className="desktop-panel" style={{ width: 600, flexShrink: 0, height: "100%", background: C.brand, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 64px" }}>
         <div style={{ position: "fixed", top: 28, left: 36, display: "flex", alignItems: "center", gap: 8, zIndex: 100 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: C.brand, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 16 }}>잘</div>
-          <span style={{ fontWeight: 500, fontSize: 18, color: "#1A1A1A" }}>ZAL : 잘</span>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 16 }}>잘</div>
+          <span style={{ fontWeight: 800, fontSize: 18, color: "#000" }}>ZAL : 잘</span>
           <span style={{ fontSize: 12, color: "#888" }}>먹겠습니다!</span>
         </div>
         <div>
-          <p style={{ margin: "0 0 10px", fontSize: 13, color: C.brand, fontWeight: 700, letterSpacing: 1 }}>식대 정산 자동화 시스템</p>
-          <h1 style={{ margin: "0 0 18px", fontSize: 48, fontWeight: 800, color: "#1A1A1A", lineHeight: 1.1, letterSpacing: -2 }}>점심 한 끼,<br /><span style={{ color: C.brand }}>10초</span>에 정산!</h1>
-          <p style={{ margin: "0 0 36px", fontSize: 15, color: "#888", lineHeight: 1.8 }}>영수증 사진 한 장이면 충분합니다.<br />AI가 자동으로 규정을 확인하고<br />매월 22일 자동 입금까지!</p>
+          <p style={{ margin: "0 0 10px", fontSize: 13, color: "#000", fontWeight: 800, letterSpacing: 1 }}>식대 정산 자동화 시스템</p>
+          <h1 style={{ margin: "0 0 18px", fontSize: 48, fontWeight: 800, color: "#000", lineHeight: 1.1, letterSpacing: -2 }}>점심 한 끼,<br /><span style={{ background: "#000", color: C.brand, padding: "0 8px", borderRadius: 4 }}>10초</span>에 정산!</h1>
+          <p style={{ margin: "0 0 36px", fontSize: 15, color: "rgba(0,0,0,0.6)", lineHeight: 1.8, fontWeight: 500 }}>영수증 사진 한 장이면 충분합니다.<br />AI가 자동으로 규정을 확인하고<br />매월 22일 자동 입금까지!</p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 48 }}>
             {["AI 자동 인식","규정 즉시 검증","실물 영수증 불필요","매월 22일 자동 입금"].map(t => (
-              <span key={t} style={{ background: C.brandLight, color: C.brand, fontSize: 11, fontWeight: 700, padding: "6px 14px", borderRadius: 20 }}>{t}</span>
+              <span key={t} style={{ background: "rgba(0,0,0,0.05)", color: "#000", fontSize: 11, fontWeight: 800, padding: "6px 14px", borderRadius: 20, border: "1px solid rgba(0,0,0,0.1)" }}>{t}</span>
             ))}
           </div>
           <div style={{ display: "flex", gap: 36 }}>
             {[["10초","정산 완료"],["0장","실물 영수증"],["22일","매월 자동 입금"]].map(([num,label]) => (
-              <div key={label}><p style={{ margin: "0 0 4px", fontSize: 26, fontWeight: 800, color: C.brand }}>{num}</p><p style={{ margin: 0, fontSize: 11, color: "#888" }}>{label}</p></div>
+              <div key={label}><p style={{ margin: "0 0 4px", fontSize: 26, fontWeight: 800, color: "#000" }}>{num}</p><p style={{ margin: 0, fontSize: 11, color: "rgba(0,0,0,0.5)" }}>{label}</p></div>
             ))}
           </div>
         </div>
-        <p style={{ position: "absolute", bottom: 36, left: 64, margin: 0, fontSize: 11, color: "#ccc" }}>© 2026 다음정보시스템즈. All rights reserved.</p>
+        <p style={{ position: "absolute", bottom: 36, left: 64, margin: 0, fontSize: 11, color: "rgba(0,0,0,0.3)" }}>© 2026 다음정보시스템즈. All rights reserved.</p>
       </div>
 
       {/* 우측 앱 영역 */}
