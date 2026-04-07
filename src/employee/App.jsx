@@ -295,7 +295,7 @@ export default function App() {
       <div style={{ padding: "0 var(--side-pad)", display: "flex", flexDirection: "column", gap: 12, marginTop: "var(--btn-top)", marginBottom: "var(--btn-bot)" }}>
         <p style={{ margin: "0 0 4px", fontSize: 13, color: "#888", textAlign: "center", fontWeight: 500 }}>영수증이 업로드 되면 음식이 채워집니다.</p>
         <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
-        <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "18px", borderRadius: 12, border: "none", background: "#000000", color: C.brand, fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
+        <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "18px", borderRadius: 12, border: "none", background: "#000000", color: "#ffffff", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
           영수증 올리기
         </button>
         <button onClick={() => {}} style={{ width: "100%", padding: "18px", borderRadius: 12, border: `2px solid #000000`, background: "transparent", color: "#000000", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
