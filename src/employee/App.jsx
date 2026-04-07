@@ -4,11 +4,15 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 async function fetchCategories() {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/allowed_categories?select=name&order=name`, {
-    headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
-  });
-  const data = await res.json();
-  return data.map(d => d.name);
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/allowed_categories?select=name&order=name`, {
+      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+    });
+    const data = await res.json();
+    return data.map(d => d.name);
+  } catch {
+    return ["음식점","한식","중식","일식","양식","분식","카페","커피전문점","제과점","베이커리","편의점","슈퍼마켓","백화점","푸드코트"];
+  }
 }
 
 function validate(d, allowed) {
@@ -18,7 +22,11 @@ function validate(d, allowed) {
   if (tot < 600 || tot > 840) issues.push("사용 가능 시간(10:00~14:00) 외 사용입니다.");
   const dow = new Date(d.date).getDay();
   if (dow === 0 || dow === 6) issues.push("주말/공휴일 사용은 지원되지 않습니다.");
-  if (!allowed.some(t => (d.category || "").includes(t))) issues.push("지원 업종이 아닙니다. (업종: " + (d.category || "미확인") + ")");
+  const catMatch = allowed.some(t => {
+    const cats = (d.category || "").split(/[\/,\s·]/);
+    return cats.some(c => c.includes(t) || t.includes(c));
+  });
+  if (!catMatch) issues.push("지원 업종이 아닙니다. (업종: " + (d.category || "미확인") + ")");
   if (!d.amount || parseInt(d.amount) <= 0) issues.push("금액 정보를 확인할 수 없습니다.");
   return issues;
 }
@@ -29,22 +37,92 @@ const DEMO = [
   { id: 3, date: "2026-04-01", time: "09:30", amount: "8000", category: "카페", storeName: "스타벅스", status: "반려", issues: [], exceptionReason: "", rejectReason: "시간 외 사용으로 지급 불가" },
 ];
 
-const BG = "#F5F0E8";
-const CARD = "#FFFDF7";
-const PRIMARY = "#C8622A";
-const PRIMARY_LIGHT = "#F5E6DC";
-const TEXT = "#2C1A0E";
-const MUTED = "#8B6F5E";
+const C = {
+  bg: "#F7F6F3",
+  card: "#FFFFFF",
+  primary: "#C8622A",
+  primaryLight: "#F5E6DC",
+  text: "#1A1A1A",
+  muted: "#888",
+  border: "#EBEBEB",
+  accent: "#3B3B98",
+};
 
 function Badge({ status }) {
   const map = {
-    "승인대기": { bg: "#E8F0FD", color: "#3B6FD4", label: "승인 대기" },
+    "승인대기": { bg: "#EEF2FF", color: "#3B3B98", label: "승인 대기" },
     "승인완료": { bg: "#E2F5EC", color: "#1E8A4A", label: "승인 완료" },
     "예외요청": { bg: "#FEF3E2", color: "#B87020", label: "예외 요청" },
     "반려": { bg: "#FDECEA", color: "#C0392B", label: "반려" },
   };
   const s = map[status] || map["승인대기"];
   return <span style={{ background: s.bg, color: s.color, fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>{s.label}</span>;
+}
+
+// 좌측 브랜딩 패널
+function BrandPanel() {
+  return (
+    <div style={{ width: "50%", minHeight: "100vh", background: C.accent, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "48px 52px" }}>
+      {/* 배경 도형들 */}
+      <div style={{ position: "absolute", top: -80, right: -80, width: 320, height: 320, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
+      <div style={{ position: "absolute", bottom: 80, left: -60, width: 240, height: 240, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
+      <div style={{ position: "absolute", top: "40%", right: 40, width: 120, height: 120, borderRadius: "50%", background: "rgba(200,98,42,0.3)" }} />
+
+      {/* 로고 */}
+      <div style={{ position: "relative", zIndex: 2 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 80 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 10, background: C.primary, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 17 }}>잘</div>
+          <span style={{ fontWeight: 800, fontSize: 20, color: "#fff", letterSpacing: -0.5 }}>ZAL : 잘</span>
+          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginLeft: 4 }}>먹겠습니다!</span>
+        </div>
+
+        {/* 메인 카피 */}
+        <p style={{ margin: "0 0 12px", fontSize: 14, color: "rgba(255,255,255,0.6)", fontWeight: 600, letterSpacing: 1 }}>식대 정산 자동화 시스템</p>
+        <h1 style={{ margin: "0 0 20px", fontSize: 44, fontWeight: 900, color: "#fff", lineHeight: 1.15, letterSpacing: -1 }}>
+          점심 한 끼,<br />
+          <span style={{ color: "#FFB347" }}>10초</span>에 정산!
+        </h1>
+        <p style={{ margin: "0 0 48px", fontSize: 16, color: "rgba(255,255,255,0.7)", lineHeight: 1.7 }}>
+          영수증 사진 한 장이면 충분합니다.<br />
+          AI가 자동으로 규정을 확인하고<br />
+          매월 22일 자동 입금까지!
+        </p>
+
+        {/* 기능 태그 */}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 60 }}>
+          {["AI 자동 인식", "규정 즉시 검증", "실물 영수증 불필요", "매월 22일 자동 입금"].map(t => (
+            <span key={t} style={{ background: "rgba(255,255,255,0.12)", color: "#fff", fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.2)" }}>{t}</span>
+          ))}
+        </div>
+
+        {/* 통계 */}
+        <div style={{ display: "flex", gap: 40 }}>
+          {[["10초", "정산 완료"], ["0장", "실물 영수증"], ["22일", "매월 자동 입금"]].map(([num, label]) => (
+            <div key={label}>
+              <p style={{ margin: "0 0 4px", fontSize: 28, fontWeight: 900, color: "#FFB347" }}>{num}</p>
+              <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 하단 회사명 */}
+      <div style={{ position: "relative", zIndex: 2 }}>
+        <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>© 2026 다음정보시스템즈. All rights reserved.</p>
+      </div>
+    </div>
+  );
+}
+
+// 모바일 앱 래퍼
+function MobileFrame({ children }) {
+  return (
+    <div style={{ width: "50%", minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 32px" }}>
+      <div style={{ width: "100%", maxWidth: 390, background: C.card, borderRadius: 32, boxShadow: "0 24px 80px rgba(0,0,0,0.12)", overflow: "hidden", minHeight: 700, display: "flex", flexDirection: "column" }}>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 export default function App() {
@@ -61,9 +139,7 @@ export default function App() {
   const [allowed, setAllowed] = useState([]);
   const fileRef = useRef();
 
-  useEffect(() => {
-    fetchCategories().then(setAllowed).catch(() => setAllowed(["음식점","한식","중식","일식","양식","분식","카페","커피전문점","제과점","베이커리","편의점","슈퍼마켓","백화점","푸드코트"]));
-  }, []);
+  useEffect(() => { fetchCategories().then(setAllowed); }, []);
 
   const reset = () => { setStep("home"); setFile(null); setPreview(null); setOcr(null); setIssues([]); setExcType(""); setExcText(""); };
 
@@ -107,158 +183,156 @@ export default function App() {
     setStep("done");
   };
 
-  const dotBg = { position: "fixed", inset: 0, backgroundImage: "radial-gradient(circle, #C8622A18 1px, transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" };
+  // HOME
+  const HomeScreen = (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      {/* 앱 헤더 */}
+      <div style={{ padding: "24px 24px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <p style={{ margin: "0 0 2px", fontSize: 13, color: C.muted }}>안녕하세요 👋</p>
+          <p style={{ margin: 0, fontSize: 17, fontWeight: 800, color: C.text }}>김민준님</p>
+        </div>
+        <button onClick={() => setStep("list")} style={{ fontSize: 12, color: C.accent, background: "#EEF2FF", border: "none", padding: "7px 14px", borderRadius: 20, cursor: "pointer", fontWeight: 600 }}>내역 보기</button>
+      </div>
 
-  if (step === "home") return (
-    <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
-      <div style={dotBg} />
-      <header style={{ position: "relative", zIndex: 10, padding: "18px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 16 }}>잘</div>
-          <span style={{ fontWeight: 800, fontSize: 17, color: TEXT }}>ZAL : 잘</span>
-        </div>
-        <button onClick={() => setStep("list")} style={{ fontSize: 13, color: MUTED, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>내 내역 →</button>
-      </header>
-      <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", padding: "32px 24px 0" }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <p style={{ margin: "0 0 8px", fontSize: 14, color: PRIMARY, fontWeight: 700, letterSpacing: 1 }}>식대 정산 자동화</p>
-          <h1 style={{ margin: "0 0 12px", fontSize: 38, fontWeight: 900, color: TEXT, lineHeight: 1.2 }}>점심 한 끼,<br /><span style={{ color: PRIMARY }}>10초에 정산!</span></h1>
-          <p style={{ margin: 0, fontSize: 15, color: MUTED, lineHeight: 1.6 }}>영수증 사진 한 장이면 충분합니다.<br />AI가 자동으로 규정을 확인해 드려요.</p>
-        </div>
-        <div style={{ display: "flex", gap: 8, marginBottom: 36, flexWrap: "wrap", justifyContent: "center" }}>
-          {["AI 자동 인식", "규정 즉시 확인", "실물 영수증 불필요"].map(t => (
-            <span key={t} style={{ background: PRIMARY_LIGHT, color: PRIMARY, fontSize: 12, fontWeight: 700, padding: "6px 14px", borderRadius: 20 }}>{t}</span>
-          ))}
-        </div>
-        <div style={{ width: "100%", maxWidth: 400, background: CARD, borderRadius: 24, padding: 24, boxShadow: "0 8px 40px rgba(200,98,42,0.12)", border: "1px solid #EDD9C8" }}>
-          <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
-          {!preview ? (
-            <div onClick={() => fileRef.current.click()} style={{ border: "2px dashed #D4B8A8", borderRadius: 16, padding: "40px 20px", textAlign: "center", cursor: "pointer", background: BG, marginBottom: 16 }}>
-              <div style={{ width: 64, height: 64, borderRadius: "50%", background: PRIMARY_LIGHT, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", fontSize: 28 }}>🧾</div>
-              <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 15, color: TEXT }}>영수증 사진 올리기</p>
-              <p style={{ margin: 0, fontSize: 12, color: MUTED }}>카드 매출전표 · JPG · PNG</p>
-            </div>
-          ) : (
-            <div style={{ borderRadius: 16, overflow: "hidden", marginBottom: 16, position: "relative" }}>
-              <img src={preview} style={{ width: "100%", maxHeight: 220, objectFit: "cover", display: "block" }} alt="preview" />
-              <button onClick={() => { setFile(null); setPreview(null); }} style={{ position: "absolute", top: 10, right: 10, width: 28, height: 28, borderRadius: "50%", background: "rgba(0,0,0,0.5)", border: "none", color: "#fff", cursor: "pointer", fontSize: 16 }}>×</button>
-            </div>
-          )}
-          <button onClick={runOCR} disabled={!file} style={{ width: "100%", padding: "15px", borderRadius: 14, border: "none", background: file ? PRIMARY : "#D4B8A8", color: "#fff", fontWeight: 800, fontSize: 16, cursor: file ? "pointer" : "default" }}>
-            {file ? "정산 가능 여부 확인하기 →" : "영수증을 먼저 올려주세요"}
-          </button>
-        </div>
-        <div style={{ width: "100%", maxWidth: 400, marginTop: 20, display: "flex", flexDirection: "column", gap: 12, paddingBottom: 40 }}>
-          {[
-            { icon: "🤖", title: "AI 자동 인식", desc: "날짜·시간·금액·업종을 자동으로 읽어냅니다" },
-            { icon: "✅", title: "규정 즉시 검증", desc: "시간·업종·횟수 규정을 즉시 확인합니다" },
-            { icon: "📅", title: "월말 자동 정산", desc: "매월 22일 개인 계좌로 자동 입금됩니다" },
-          ].map(f => (
-            <div key={f.title} style={{ background: CARD, borderRadius: 16, padding: "16px 18px", display: "flex", alignItems: "center", gap: 14, border: "1px solid #EDD9C8" }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: PRIMARY_LIGHT, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{f.icon}</div>
-              <div>
-                <p style={{ margin: "0 0 2px", fontWeight: 700, fontSize: 14, color: TEXT }}>{f.title}</p>
-                <p style={{ margin: 0, fontSize: 12, color: MUTED }}>{f.desc}</p>
-              </div>
+      {/* 이번달 요약 */}
+      <div style={{ margin: "20px 20px 0", background: C.accent, borderRadius: 20, padding: "20px", color: "#fff" }}>
+        <p style={{ margin: "0 0 14px", fontSize: 12, color: "rgba(255,255,255,0.7)" }}>이번 달 정산 현황</p>
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          {[["제출", subs.length + "건"], ["승인", subs.filter(s=>s.status==="승인완료").length + "건"], ["지급예정", "₩" + subs.filter(s=>s.status==="승인완료").reduce((a,s)=>a+parseInt(s.amount),0).toLocaleString()]].map(([k,v]) => (
+            <div key={k}>
+              <p style={{ margin: "0 0 4px", fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{k}</p>
+              <p style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{v}</p>
             </div>
           ))}
         </div>
+      </div>
+
+      {/* 업로드 영역 */}
+      <div style={{ margin: "20px 20px 0" }}>
+        <p style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700, color: C.text }}>영수증 등록</p>
+        <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
+        {!preview ? (
+          <div onClick={() => fileRef.current.click()} style={{ border: "2px dashed #DDD", borderRadius: 16, padding: "28px 20px", textAlign: "center", cursor: "pointer", background: C.bg }}>
+            <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.primaryLight, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 22 }}>🧾</div>
+            <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 14, color: C.text }}>영수증 사진 올리기</p>
+            <p style={{ margin: 0, fontSize: 11, color: C.muted }}>카드 매출전표 · JPG · PNG</p>
+          </div>
+        ) : (
+          <div style={{ borderRadius: 16, overflow: "hidden", position: "relative" }}>
+            <img src={preview} style={{ width: "100%", maxHeight: 180, objectFit: "cover", display: "block" }} alt="preview" />
+            <button onClick={() => { setFile(null); setPreview(null); }} style={{ position: "absolute", top: 10, right: 10, width: 28, height: 28, borderRadius: "50%", background: "rgba(0,0,0,0.5)", border: "none", color: "#fff", cursor: "pointer", fontSize: 16 }}>×</button>
+          </div>
+        )}
+      </div>
+
+      <button onClick={runOCR} disabled={!file} style={{ margin: "16px 20px 0", padding: "15px", borderRadius: 14, border: "none", background: file ? C.primary : "#DDD", color: "#fff", fontWeight: 800, fontSize: 15, cursor: file ? "pointer" : "default" }}>
+        {file ? "정산 가능 여부 확인하기 →" : "영수증을 먼저 올려주세요"}
+      </button>
+
+      {/* 기능 안내 */}
+      <div style={{ margin: "20px 20px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {[
+          { icon: "🤖", title: "AI 자동 인식", desc: "날짜·시간·금액·업종 자동 추출" },
+          { icon: "✅", title: "규정 즉시 검증", desc: "시간·업종 규정 즉시 확인" },
+          { icon: "📅", title: "월말 자동 정산", desc: "매월 22일 계좌 자동 입금" },
+        ].map(f => (
+          <div key={f.title} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, borderRadius: 12 }}>
+            <span style={{ fontSize: 18 }}>{f.icon}</span>
+            <div>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: C.text }}>{f.title}</p>
+              <p style={{ margin: 0, fontSize: 11, color: C.muted }}>{f.desc}</p>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
 
-  if (step === "list") return (
-    <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
-      <div style={dotBg} />
-      <header style={{ position: "relative", zIndex: 10, padding: "18px 24px", display: "flex", alignItems: "center", gap: 14 }}>
-        <button onClick={() => setStep("home")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, color: TEXT }}>←</button>
-        <span style={{ fontWeight: 800, fontSize: 17, color: TEXT }}>내 정산 내역</span>
-      </header>
-      <div style={{ position: "relative", zIndex: 10, maxWidth: 440, margin: "0 auto", padding: "0 16px 40px" }}>
-        <div style={{ background: CARD, borderRadius: 20, padding: "18px", marginBottom: 16, display: "flex", justifyContent: "space-around", border: "1px solid #EDD9C8" }}>
-          {[["제출", subs.length + "건"], ["승인", subs.filter(s=>s.status==="승인완료").length + "건"], ["지급예정", "₩" + subs.filter(s=>s.status==="승인완료").reduce((a,s)=>a+parseInt(s.amount),0).toLocaleString()]].map(([k,v]) => (
-            <div key={k} style={{ textAlign: "center" }}>
-              <p style={{ margin: "0 0 2px", fontSize: 11, color: MUTED, fontWeight: 600 }}>{k}</p>
-              <p style={{ margin: 0, fontSize: 17, fontWeight: 800, color: PRIMARY }}>{v}</p>
-            </div>
-          ))}
-        </div>
+  // LIST
+  const ListScreen = (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "24px 20px 16px", display: "flex", alignItems: "center", gap: 12, borderBottom: `1px solid ${C.border}` }}>
+        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: C.text, padding: 0 }}>←</button>
+        <span style={{ fontWeight: 800, fontSize: 17, color: C.text }}>정산 내역</span>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
         {subs.map(s => (
-          <div key={s.id} onClick={() => setDetail(s)} style={{ background: CARD, border: "1px solid #EDD9C8", borderRadius: 18, padding: "16px 18px", marginBottom: 10, cursor: "pointer" }}>
+          <div key={s.id} onClick={() => setDetail(s)} style={{ background: C.bg, borderRadius: 14, padding: "14px 16px", marginBottom: 10, cursor: "pointer" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-              <span style={{ fontWeight: 700, fontSize: 15, color: TEXT }}>{s.storeName}</span>
+              <span style={{ fontWeight: 700, fontSize: 14, color: C.text }}>{s.storeName}</span>
               <Badge status={s.status} />
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 12, color: MUTED }}>{s.date} {s.time} · {s.category}</span>
-              <span style={{ fontSize: 15, fontWeight: 800, color: PRIMARY }}>₩{parseInt(s.amount).toLocaleString()}</span>
+              <span style={{ fontSize: 12, color: C.muted }}>{s.date} · {s.category}</span>
+              <span style={{ fontSize: 14, fontWeight: 800, color: C.primary }}>₩{parseInt(s.amount).toLocaleString()}</span>
             </div>
-            {s.status === "반려" && s.rejectReason && <p style={{ margin: "8px 0 0", fontSize: 12, color: "#C0392B", background: "#FDECEA", padding: "5px 10px", borderRadius: 8 }}>반려: {s.rejectReason}</p>}
+            {s.status === "반려" && s.rejectReason && <p style={{ margin: "8px 0 0", fontSize: 11, color: "#C0392B", background: "#FDECEA", padding: "5px 8px", borderRadius: 8 }}>반려: {s.rejectReason}</p>}
           </div>
         ))}
       </div>
       {detail && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(44,26,14,0.5)", zIndex: 200, display: "flex", alignItems: "flex-end" }} onClick={() => setDetail(null)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: CARD, borderRadius: "24px 24px 0 0", padding: 24, width: "100%", maxWidth: 440, margin: "0 auto" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => setDetail(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: C.card, borderRadius: "24px 24px 0 0", padding: 24, width: "100%", maxWidth: 390 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-              <span style={{ fontWeight: 800, fontSize: 16, color: TEXT }}>{detail.storeName}</span>
+              <span style={{ fontWeight: 800, fontSize: 16 }}>{detail.storeName}</span>
               <Badge status={detail.status} />
             </div>
             <table style={{ width: "100%", fontSize: 13 }}>
               {[["날짜", detail.date],["시간", detail.time],["금액", "₩" + parseInt(detail.amount).toLocaleString()],["업종", detail.category]].map(([k,v]) => (
-                <tr key={k}><td style={{ color: MUTED, padding: "5px 0", width: 56 }}>{k}</td><td style={{ fontWeight: 700, color: TEXT }}>{v}</td></tr>
+                <tr key={k}><td style={{ color: C.muted, padding: "5px 0", width: 56 }}>{k}</td><td style={{ fontWeight: 700 }}>{v}</td></tr>
               ))}
             </table>
-            {detail.rejectReason && <p style={{ fontSize: 12, color: "#C0392B", background: "#FDECEA", padding: "10px 12px", borderRadius: 10, marginTop: 14 }}>반려 사유: {detail.rejectReason}</p>}
-            <button onClick={() => setDetail(null)} style={{ width: "100%", marginTop: 18, padding: 13, borderRadius: 12, border: "2px solid #EDD9C8", background: "transparent", color: MUTED, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>닫기</button>
+            {detail.rejectReason && <p style={{ fontSize: 12, color: "#C0392B", background: "#FDECEA", padding: "10px", borderRadius: 10, marginTop: 12 }}>반려: {detail.rejectReason}</p>}
+            <button onClick={() => setDetail(null)} style={{ width: "100%", marginTop: 16, padding: 12, borderRadius: 12, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontSize: 13, cursor: "pointer" }}>닫기</button>
           </div>
         </div>
       )}
     </div>
   );
 
-  if (step === "result") return (
-    <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
-      <div style={dotBg} />
-      <header style={{ position: "relative", zIndex: 10, padding: "18px 24px", display: "flex", alignItems: "center", gap: 14 }}>
-        <button onClick={() => setStep("home")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, color: TEXT }}>←</button>
-        <span style={{ fontWeight: 800, fontSize: 17, color: TEXT }}>검증 결과</span>
-      </header>
-      <div style={{ position: "relative", zIndex: 10, maxWidth: 440, margin: "0 auto", padding: "0 16px 40px" }}>
+  // RESULT
+  const ResultScreen = (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "24px 20px 16px", display: "flex", alignItems: "center", gap: 12, borderBottom: `1px solid ${C.border}` }}>
+        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: C.text, padding: 0 }}>←</button>
+        <span style={{ fontWeight: 800, fontSize: 17, color: C.text }}>검증 결과</span>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px 24px" }}>
         {loading ? (
-          <div style={{ textAlign: "center", padding: "80px 0" }}>
+          <div style={{ textAlign: "center", padding: "60px 0" }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
-            <p style={{ fontWeight: 800, fontSize: 18, color: TEXT, margin: "0 0 8px" }}>AI가 분석 중입니다</p>
-            <p style={{ color: MUTED, fontSize: 14, margin: 0 }}>영수증 정보를 읽고 있어요...</p>
+            <p style={{ fontWeight: 800, fontSize: 16, color: C.text, margin: "0 0 8px" }}>AI가 분석 중입니다</p>
+            <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>잠시만 기다려 주세요...</p>
           </div>
         ) : (
           <>
-            {preview && <img src={preview} style={{ width: "100%", borderRadius: 18, maxHeight: 200, objectFit: "cover", marginBottom: 16 }} alt="" />}
+            {preview && <img src={preview} style={{ width: "100%", borderRadius: 14, maxHeight: 180, objectFit: "cover", marginBottom: 14 }} alt="" />}
             {ocr && (
-              <div style={{ background: CARD, borderRadius: 18, padding: "18px", marginBottom: 16, border: "1px solid #EDD9C8" }}>
-                <p style={{ margin: "0 0 12px", fontSize: 12, color: MUTED, fontWeight: 700 }}>AI 인식 결과</p>
-                <table style={{ width: "100%", fontSize: 14 }}>
+              <div style={{ background: C.bg, borderRadius: 14, padding: "14px 16px", marginBottom: 14 }}>
+                <p style={{ margin: "0 0 10px", fontSize: 11, color: C.muted, fontWeight: 700, letterSpacing: 0.5 }}>AI 인식 결과</p>
+                <table style={{ width: "100%", fontSize: 13 }}>
                   {[["가게명", ocr.storeName],["날짜", ocr.date],["시간", ocr.time],["금액", "₩" + parseInt(ocr.amount||0).toLocaleString()],["업종", ocr.category]].filter(([,v])=>v).map(([k,v]) => (
-                    <tr key={k}><td style={{ color: MUTED, padding: "4px 0", width: 64 }}>{k}</td><td style={{ fontWeight: 700, color: TEXT }}>{v}</td></tr>
+                    <tr key={k}><td style={{ color: C.muted, padding: "3px 0", width: 56 }}>{k}</td><td style={{ fontWeight: 700, color: C.text }}>{v}</td></tr>
                   ))}
                 </table>
               </div>
             )}
             {issues.length === 0 ? (
-              <div style={{ background: "#E8F7EE", borderRadius: 18, padding: "24px 20px", textAlign: "center", marginBottom: 16, border: "1px solid #B7DFC7" }}>
-                <div style={{ fontSize: 40, marginBottom: 10 }}>✅</div>
-                <p style={{ margin: "0 0 4px", fontWeight: 800, color: "#1E6B3A", fontSize: 18 }}>정산 가능합니다!</p>
-                <p style={{ margin: 0, fontSize: 13, color: "#3A8A56" }}>모든 규정을 충족하는 영수증입니다</p>
+              <div style={{ background: "#E8F7EE", borderRadius: 14, padding: "20px", textAlign: "center", marginBottom: 14, border: "1px solid #B7DFC7" }}>
+                <div style={{ fontSize: 36, marginBottom: 8 }}>✅</div>
+                <p style={{ margin: "0 0 4px", fontWeight: 800, color: "#1E6B3A", fontSize: 16 }}>정산 가능합니다!</p>
+                <p style={{ margin: 0, fontSize: 12, color: "#3A8A56" }}>모든 규정을 충족합니다</p>
               </div>
             ) : (
-              <div style={{ background: "#FDECEA", borderRadius: 18, padding: "18px", marginBottom: 16, border: "1px solid #F5B7B1" }}>
-                <p style={{ margin: "0 0 10px", fontWeight: 800, color: "#C0392B", fontSize: 15 }}>⚠️ 규정 위반 항목</p>
-                {issues.map((iss, i) => <p key={i} style={{ margin: "4px 0", fontSize: 13, color: "#C0392B" }}>• {iss}</p>)}
+              <div style={{ background: "#FDECEA", borderRadius: 14, padding: "14px 16px", marginBottom: 14, border: "1px solid #F5B7B1" }}>
+                <p style={{ margin: "0 0 8px", fontWeight: 800, color: "#C0392B", fontSize: 14 }}>⚠️ 규정 위반</p>
+                {issues.map((iss, i) => <p key={i} style={{ margin: "3px 0", fontSize: 12, color: "#C0392B" }}>• {iss}</p>)}
               </div>
             )}
             {issues.length === 0
-              ? <button onClick={() => submit(false)} style={{ width: "100%", padding: 16, borderRadius: 14, border: "none", background: PRIMARY, color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>제출하기 →</button>
-              : <button onClick={() => setStep("exception")} style={{ width: "100%", padding: 16, borderRadius: 14, border: "none", background: "#B87020", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>예외 요청하기 →</button>
+              ? <button onClick={() => submit(false)} style={{ width: "100%", padding: 15, borderRadius: 14, border: "none", background: C.accent, color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>제출하기 →</button>
+              : <button onClick={() => setStep("exception")} style={{ width: "100%", padding: 15, borderRadius: 14, border: "none", background: C.primary, color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>예외 요청하기 →</button>
             }
           </>
         )}
@@ -266,45 +340,52 @@ export default function App() {
     </div>
   );
 
-  if (step === "exception") return (
-    <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
-      <div style={dotBg} />
-      <header style={{ position: "relative", zIndex: 10, padding: "18px 24px", display: "flex", alignItems: "center", gap: 14 }}>
-        <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, color: TEXT }}>←</button>
-        <span style={{ fontWeight: 800, fontSize: 17, color: TEXT }}>예외 요청</span>
-      </header>
-      <div style={{ position: "relative", zIndex: 10, maxWidth: 440, margin: "0 auto", padding: "0 16px 40px" }}>
-        <div style={{ background: "#FEF3E2", borderRadius: 16, padding: "14px 16px", marginBottom: 20, border: "1px solid #F5CBA7", fontSize: 13, color: "#B87020" }}>
+  // EXCEPTION
+  const ExceptionScreen = (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "24px 20px 16px", display: "flex", alignItems: "center", gap: 12, borderBottom: `1px solid ${C.border}` }}>
+        <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: C.text, padding: 0 }}>←</button>
+        <span style={{ fontWeight: 800, fontSize: 17, color: C.text }}>예외 요청</span>
+      </div>
+      <div style={{ flex: 1, padding: "20px" }}>
+        <div style={{ background: "#FEF3E2", borderRadius: 12, padding: "12px 14px", marginBottom: 20, fontSize: 12, color: "#B87020", border: "1px solid #F5CBA7" }}>
           관리자 검토 후 승인 여부가 결정됩니다.
         </div>
-        <div style={{ background: CARD, borderRadius: 20, padding: "22px 20px", border: "1px solid #EDD9C8" }}>
-          <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 8, color: TEXT }}>사유 유형 *</label>
-          <select value={excType} onChange={e => setExcType(e.target.value)} style={{ width: "100%", marginBottom: 20, padding: "13px 14px", borderRadius: 12, border: "1.5px solid #EDD9C8", fontSize: 14, background: BG, color: TEXT, fontWeight: 600 }}>
-            <option value="">선택하세요</option>
-            <option value="조기출근/야근">조기출근 / 야근</option>
-            <option value="외부 미팅">외부 미팅</option>
-            <option value="업무 연장">업무 연장</option>
-            <option value="기타">기타</option>
-          </select>
-          <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 8, color: TEXT }}>상세 사유 *</label>
-          <textarea value={excText} onChange={e => setExcText(e.target.value)} placeholder="예외 사유를 상세히 작성해 주세요" style={{ width: "100%", minHeight: 120, padding: "13px 14px", borderRadius: 12, border: "1.5px solid #EDD9C8", fontSize: 14, resize: "vertical", boxSizing: "border-box", background: BG, color: TEXT, fontFamily: "inherit" }} />
-          <button onClick={() => submit(true)} disabled={!excType || !excText.trim()} style={{ width: "100%", marginTop: 18, padding: 16, borderRadius: 14, border: "none", background: excType && excText.trim() ? PRIMARY : "#D4B8A8", color: "#fff", fontWeight: 800, fontSize: 16, cursor: excType && excText.trim() ? "pointer" : "default" }}>
-            예외 요청 제출 →
-          </button>
-        </div>
+        <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 8, color: C.text }}>사유 유형 *</label>
+        <select value={excType} onChange={e => setExcType(e.target.value)} style={{ width: "100%", marginBottom: 18, padding: "12px 14px", borderRadius: 12, border: `1.5px solid ${C.border}`, fontSize: 13, background: C.bg, color: C.text }}>
+          <option value="">선택하세요</option>
+          <option value="조기출근/야근">조기출근 / 야근</option>
+          <option value="외부 미팅">외부 미팅</option>
+          <option value="업무 연장">업무 연장</option>
+          <option value="기타">기타</option>
+        </select>
+        <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 8, color: C.text }}>상세 사유 *</label>
+        <textarea value={excText} onChange={e => setExcText(e.target.value)} placeholder="예외 사유를 상세히 작성해 주세요" style={{ width: "100%", minHeight: 110, padding: "12px 14px", borderRadius: 12, border: `1.5px solid ${C.border}`, fontSize: 13, resize: "vertical", boxSizing: "border-box", background: C.bg, color: C.text, fontFamily: "inherit" }} />
+        <button onClick={() => submit(true)} disabled={!excType || !excText.trim()} style={{ width: "100%", marginTop: 16, padding: 15, borderRadius: 14, border: "none", background: excType && excText.trim() ? C.accent : "#DDD", color: "#fff", fontWeight: 800, fontSize: 15, cursor: excType && excText.trim() ? "pointer" : "default" }}>
+          예외 요청 제출 →
+        </button>
       </div>
     </div>
   );
 
+  // DONE
+  const DoneScreen = (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center" }}>
+      <div style={{ fontSize: 64, marginBottom: 20 }}>🎉</div>
+      <h2 style={{ fontSize: 24, fontWeight: 900, margin: "0 0 10px", color: C.text }}>제출 완료!</h2>
+      <p style={{ color: C.muted, fontSize: 14, margin: "0 0 32px", lineHeight: 1.7 }}>관리자 검토 후<br />매월 22일 개인 계좌로 입금됩니다</p>
+      <button onClick={reset} style={{ padding: "14px 36px", borderRadius: 28, border: "none", background: C.accent, color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>홈으로 →</button>
+    </div>
+  );
+
+  const screens = { home: HomeScreen, list: ListScreen, result: ResultScreen, exception: ExceptionScreen, done: DoneScreen };
+
   return (
-    <div style={{ background: BG, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
-      <div style={dotBg} />
-      <div style={{ position: "relative", zIndex: 10, textAlign: "center" }}>
-        <div style={{ fontSize: 64, marginBottom: 20 }}>🎉</div>
-        <h2 style={{ fontSize: 26, fontWeight: 900, margin: "0 0 10px", color: TEXT }}>제출 완료!</h2>
-        <p style={{ color: MUTED, fontSize: 15, margin: "0 0 32px", lineHeight: 1.6 }}>관리자 검토 후 매월 22일<br />개인 계좌로 입금됩니다</p>
-        <button onClick={reset} style={{ padding: "14px 36px", borderRadius: 28, border: "none", background: PRIMARY, color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>홈으로 돌아가기</button>
-      </div>
+    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
+      <BrandPanel />
+      <MobileFrame>
+        {screens[step] || HomeScreen}
+      </MobileFrame>
     </div>
   );
 }
