@@ -293,8 +293,8 @@ export default function App() {
       </div>
 
       {/* 우측 앱 영역 */}
-      <div style={{ width: "50%", height: "100%", background: "#fff", borderLeft: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ width: "100%", maxWidth: 420, height: "100%", display: "flex", flexDirection: "column", position: "relative" }}>
+      <div style={{ flex: 1, height: "100%", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px" }}>
+        <div style={{ width: 390, height: "100%", maxHeight: 780, background: C.card, borderRadius: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.15)", overflow: "hidden", display: "flex", flexDirection: "column", position: "relative" }}>
           {screens[step] || AppHome}
         </div>
       </div>
