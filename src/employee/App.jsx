@@ -293,7 +293,7 @@ export default function App() {
       </div>
 
       {/* 우측 앱 영역 */}
-      <div style={{ width: 480, height: "100%", background: C.card, boxShadow: "-12px 0 48px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
+      <div style={{ width: 480, height: "100vh", background: C.card, boxShadow: "-12px 0 48px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
         {screens[step] || AppHome}
       </div>
 
