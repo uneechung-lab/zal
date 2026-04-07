@@ -425,7 +425,7 @@ export default function App() {
   const bgStyle = { flex: 1, display: "flex", flexDirection: "column", background: C.bg };
 
   return (
-    <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: C.brand, fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "linear-gradient(180deg, #FFB100 0%, #FFD688 50%, #FFF5D6 100%)", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
       <style>{`
         :root {
           --side-pad: 48px;
@@ -448,7 +448,7 @@ export default function App() {
       `}</style>
 
       {/* 좌측 브랜딩 */}
-      <div className="desktop-panel" style={{ width: 600, flexShrink: 0, height: "100%", background: C.brand, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 64px" }}>
+      <div className="desktop-panel" style={{ width: 600, flexShrink: 0, height: "100%", background: "transparent", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 64px" }}>
         <div style={{ position: "fixed", top: 28, left: 36, display: "flex", alignItems: "center", gap: 8, zIndex: 100 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 16 }}>잘</div>
           <span style={{ fontWeight: 800, fontSize: 18, color: "#000" }}>ZAL : 잘</span>
