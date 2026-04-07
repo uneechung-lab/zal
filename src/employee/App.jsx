@@ -456,7 +456,7 @@ export default function App() {
         </div>
         <div>
           <p style={{ margin: "0 0 10px", fontSize: 13, color: "#000", fontWeight: 800, letterSpacing: 1 }}>식대 정산 자동화 시스템</p>
-          <h1 style={{ margin: "0 0 18px", fontSize: 48, fontWeight: 800, color: "#000", lineHeight: 1.1, letterSpacing: -2 }}>점심 한 끼,<br /><span style={{ background: "#000", color: C.brand, padding: "0 8px", borderRadius: 4 }}>10초</span>에 정산!</h1>
+          <h1 style={{ margin: "0 0 18px", fontSize: 48, fontWeight: 800, color: "#000", lineHeight: 1.1, letterSpacing: -2 }}>점심 한 끼,<br /><span>10초</span>에 정산!</h1>
           <p style={{ margin: "0 0 36px", fontSize: 15, color: "rgba(0,0,0,0.6)", lineHeight: 1.8, fontWeight: 500 }}>영수증 사진 한 장이면 충분합니다.<br />AI가 자동으로 규정을 확인하고<br />매월 22일 자동 입금까지!</p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 48 }}>
             {["AI 자동 인식","규정 즉시 검증","실물 영수증 불필요","매월 22일 자동 입금"].map(t => (
