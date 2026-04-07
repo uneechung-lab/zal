@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -11,7 +11,7 @@ async function fetchCategories() {
     const data = await res.json();
     return data.map(d => d.name);
   } catch {
-    return ["음식점","한식","중식","일식","양식","분식","카페","커피전문점","제과점","베이커리","편의점","슈퍼마켓","백화점","푸드코트"];
+    return ["?뚯떇??,"?쒖떇","以묒떇","?쇱떇","?묒떇","遺꾩떇","移댄럹","而ㅽ뵾?꾨Ц??,"?쒓낵??,"踰좎씠而ㅻ━","?몄쓽??,"?덊띁留덉폆","諛깊솕??,"?몃뱶肄뷀듃"];
   }
 }
 
@@ -19,22 +19,22 @@ function validate(d, allowed) {
   const issues = [];
   const [h, m] = (d.time || "0:0").split(":").map(Number);
   const tot = h * 60 + m;
-  if (tot < 600 || tot > 840) issues.push("사용 가능 시간(10:00~14:00) 외 사용입니다.");
+  if (tot < 600 || tot > 840) issues.push("?ъ슜 媛???쒓컙(10:00~14:00) ???ъ슜?낅땲??");
   const dow = new Date(d.date).getDay();
-  if (dow === 0 || dow === 6) issues.push("주말/공휴일 사용은 지원되지 않습니다.");
+  if (dow === 0 || dow === 6) issues.push("二쇰쭚/怨듯쑕???ъ슜? 吏?먮릺吏 ?딆뒿?덈떎.");
   const catMatch = allowed.some(t => {
-    const cats = (d.category || "").split(/[\/,\s·]/);
+    const cats = (d.category || "").split(/[\/,\s쨌]/);
     return cats.some(c => c.includes(t) || t.includes(c));
   });
-  if (!catMatch) issues.push("지원 업종이 아닙니다. (업종: " + (d.category || "미확인") + ")");
-  if (!d.amount || parseInt(d.amount) <= 0) issues.push("금액 정보를 확인할 수 없습니다.");
+  if (!catMatch) issues.push("吏???낆쥌???꾨떃?덈떎. (?낆쥌: " + (d.category || "誘명솗??) + ")");
+  if (!d.amount || parseInt(d.amount) <= 0) issues.push("湲덉븸 ?뺣낫瑜??뺤씤?????놁뒿?덈떎.");
   return issues;
 }
 
 const DEMO = [
-  { id: 1, date: "2026-04-03", time: "12:15", amount: "9500", category: "한식", storeName: "김밥나라", status: "승인대기", issues: [], exceptionReason: "", rejectReason: "" },
-  { id: 2, date: "2026-04-02", time: "13:00", amount: "12000", category: "일식", storeName: "스시로", status: "승인완료", issues: [], exceptionReason: "", rejectReason: "" },
-  { id: 3, date: "2026-04-01", time: "09:30", amount: "8000", category: "카페", storeName: "스타벅스", status: "반려", issues: [], exceptionReason: "", rejectReason: "시간 외 사용으로 지급 불가" },
+  { id: 1, date: "2026-04-03", time: "12:15", amount: "9500", category: "?쒖떇", storeName: "源諛λ굹??, status: "?뱀씤?湲?, issues: [], exceptionReason: "", rejectReason: "" },
+  { id: 2, date: "2026-04-02", time: "13:00", amount: "12000", category: "?쇱떇", storeName: "?ㅼ떆濡?, status: "?뱀씤?꾨즺", issues: [], exceptionReason: "", rejectReason: "" },
+  { id: 3, date: "2026-04-01", time: "09:30", amount: "8000", category: "移댄럹", storeName: "?ㅽ?踰낆뒪", status: "諛섎젮", issues: [], exceptionReason: "", rejectReason: "?쒓컙 ???ъ슜?쇰줈 吏湲?遺덇?" },
 ];
 
 const C = {
@@ -50,49 +50,49 @@ const C = {
 
 function Badge({ status }) {
   const map = {
-    "승인대기": { bg: "#EEF2FF", color: "#3B3B98", label: "승인 대기" },
-    "승인완료": { bg: "#E2F5EC", color: "#1E8A4A", label: "승인 완료" },
-    "예외요청": { bg: "#FEF3E2", color: "#B87020", label: "예외 요청" },
-    "반려": { bg: "#FDECEA", color: "#C0392B", label: "반려" },
+    "?뱀씤?湲?: { bg: "#EEF2FF", color: "#3B3B98", label: "?뱀씤 ?湲? },
+    "?뱀씤?꾨즺": { bg: "#E2F5EC", color: "#1E8A4A", label: "?뱀씤 ?꾨즺" },
+    "?덉쇅?붿껌": { bg: "#FEF3E2", color: "#B87020", label: "?덉쇅 ?붿껌" },
+    "諛섎젮": { bg: "#FDECEA", color: "#C0392B", label: "諛섎젮" },
   };
-  const s = map[status] || map["승인대기"];
+  const s = map[status] || map["?뱀씤?湲?];
   return <span style={{ background: s.bg, color: s.color, fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>{s.label}</span>;
 }
 
-// 좌측 브랜딩 패널
+// 醫뚯륫 釉뚮옖???⑤꼸
 function BrandPanel() {
   return (
-    <div style={{ width: "50%", height: "100%", background: C.bg, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-start", padding: "48px 52px", position: "relative" }}>
-      {/* 로고 */}
+    <div style={{ width: "50%", height: "100vh", background: C.bg, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-start", padding: "48px 52px", position: "relative" }}>
+      {/* 濡쒓퀬 */}
       <div style={{ position: "absolute", top: 40, left: 52, display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 38, height: 38, borderRadius: 10, background: C.primary, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 17 }}>잘</div>
-        <span style={{ fontWeight: 800, fontSize: 20, color: C.text, letterSpacing: -0.5 }}>ZAL : 잘</span>
-        <span style={{ fontSize: 13, color: C.muted, marginLeft: 2 }}>먹겠습니다!</span>
+        <div style={{ width: 38, height: 38, borderRadius: 10, background: C.primary, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 17 }}>??/div>
+        <span style={{ fontWeight: 800, fontSize: 20, color: C.text, letterSpacing: -0.5 }}>ZAL : ??/span>
+        <span style={{ fontSize: 13, color: C.muted, marginLeft: 2 }}>癒밴쿋?듬땲??</span>
       </div>
 
-      {/* 중앙 카피 */}
+      {/* 以묒븰 移댄뵾 */}
       <div>
-        <p style={{ margin: "0 0 12px", fontSize: 13, color: C.primary, fontWeight: 700, letterSpacing: 1 }}>식대 정산 자동화 시스템</p>
+        <p style={{ margin: "0 0 12px", fontSize: 13, color: C.primary, fontWeight: 700, letterSpacing: 1 }}>?앸? ?뺤궛 ?먮룞???쒖뒪??/p>
         <h1 style={{ margin: "0 0 20px", fontSize: 48, fontWeight: 900, color: C.text, lineHeight: 1.15, letterSpacing: -1.5 }}>
-          점심 한 끼,<br />
-          <span style={{ color: C.primary }}>10초</span>에 정산!
+          ?먯떖 ????<br />
+          <span style={{ color: C.primary }}>10珥?/span>???뺤궛!
         </h1>
         <p style={{ margin: "0 0 40px", fontSize: 16, color: C.muted, lineHeight: 1.8 }}>
-          영수증 사진 한 장이면 충분합니다.<br />
-          AI가 자동으로 규정을 확인하고<br />
-          매월 22일 자동 입금까지!
+          ?곸닔利??ъ쭊 ???μ씠硫?異⑸텇?⑸땲??<br />
+          AI媛 ?먮룞?쇰줈 洹쒖젙???뺤씤?섍퀬<br />
+          留ㅼ썡 22???먮룞 ?낃툑源뚯?!
         </p>
 
-        {/* 기능 태그 */}
+        {/* 湲곕뒫 ?쒓렇 */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 52 }}>
-          {["AI 자동 인식", "규정 즉시 검증", "실물 영수증 불필요", "매월 22일 자동 입금"].map(t => (
+          {["AI ?먮룞 ?몄떇", "洹쒖젙 利됱떆 寃利?, "?ㅻЪ ?곸닔利?遺덊븘??, "留ㅼ썡 22???먮룞 ?낃툑"].map(t => (
             <span key={t} style={{ background: C.primaryLight, color: C.primary, fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 20 }}>{t}</span>
           ))}
         </div>
 
-        {/* 통계 */}
+        {/* ?듦퀎 */}
         <div style={{ display: "flex", gap: 40 }}>
-          {[["10초", "정산 완료"], ["0장", "실물 영수증"], ["22일", "매월 자동 입금"]].map(([num, label]) => (
+          {[["10珥?, "?뺤궛 ?꾨즺"], ["0??, "?ㅻЪ ?곸닔利?], ["22??, "留ㅼ썡 ?먮룞 ?낃툑"]].map(([num, label]) => (
             <div key={label}>
               <p style={{ margin: "0 0 4px", fontSize: 28, fontWeight: 900, color: C.primary }}>{num}</p>
               <p style={{ margin: 0, fontSize: 12, color: C.muted }}>{label}</p>
@@ -101,18 +101,18 @@ function BrandPanel() {
         </div>
       </div>
 
-      {/* 하단 회사명 */}
+      {/* ?섎떒 ?뚯궗紐?*/}
       <div style={{ position: "absolute", bottom: 40, left: 52 }}>
-        <p style={{ margin: 0, fontSize: 12, color: "#bbb" }}>© 2026 다음정보시스템즈. All rights reserved.</p>
+        <p style={{ margin: 0, fontSize: 12, color: "#bbb" }}>짤 2026 ?ㅼ쓬?뺣낫?쒖뒪?쒖쫰. All rights reserved.</p>
       </div>
     </div>
   );
 }
 
-// 모바일 앱 래퍼
+// 紐⑤컮?????섑띁
 function MobileFrame({ children }) {
   return (
-    <div style={{ width: "50%", height: "100%", background: "#ffffff", display: "flex", alignItems: "stretch", justifyContent: "center", padding: "0", boxSizing: "border-box" }}>
+    <div style={{ width: "50%", height: "100vh", background: "#ffffff", display: "flex", alignItems: "stretch", justifyContent: "center", padding: "0", boxSizing: "border-box" }}>
       <div style={{ width: "100%", maxWidth: 480, height: "100%", background: C.card, borderRadius: 0, boxShadow: "none", overflow: "hidden", display: "flex", flexDirection: "column", borderLeft: "1px solid #eee" }}>
         {children}
       </div>
@@ -159,7 +159,7 @@ export default function App() {
         },
         body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 500, messages: [{ role: "user", content: [
           { type: "image", source: { type: "base64", media_type: (file.type === "image/png" ? "image/png" : "image/jpeg"), data: b64 } },
-          { type: "text", text: "카드 매출전표입니다. JSON만 반환하세요.\n{\"date\":\"YYYY-MM-DD\",\"time\":\"HH:MM\",\"amount\":\"숫자만\",\"category\":\"업종명\",\"storeName\":\"가맹점명\"}\n규칙: amount는 금액 숫자만(8,000원이면 8000). date는 이용일시 기준(26.04.06이면 2026-04-06)." }
+          { type: "text", text: "移대뱶 留ㅼ텧?꾪몴?낅땲?? JSON留?諛섑솚?섏꽭??\n{\"date\":\"YYYY-MM-DD\",\"time\":\"HH:MM\",\"amount\":\"?レ옄留?",\"category\":\"?낆쥌紐?",\"storeName\":\"媛留뱀젏紐?"}\n洹쒖튃: amount??湲덉븸 ?レ옄留?8,000?먯씠硫?8000). date???댁슜?쇱떆 湲곗?(26.04.06?대㈃ 2026-04-06)." }
         ]}] })
       });
       const data = await resp.json();
@@ -167,34 +167,34 @@ export default function App() {
       const parsed = JSON.parse(txt.replace(/```json|```/g, "").trim());
       setOcr(parsed); setIssues(validate(parsed, allowed));
     } catch {
-      const mock = { date: new Date().toISOString().slice(0,10), time: "12:30", amount: "9800", category: "한식", storeName: "테스트 식당" };
+      const mock = { date: new Date().toISOString().slice(0,10), time: "12:30", amount: "9800", category: "?쒖떇", storeName: "?뚯뒪???앸떦" };
       setOcr(mock); setIssues(validate(mock, allowed));
     }
     setLoading(false);
   };
 
   const submit = (isException = false) => {
-    setSubs(prev => [{ id: Date.now(), date: ocr.date, time: ocr.time, amount: ocr.amount, category: ocr.category, storeName: ocr.storeName || ocr.category, status: isException ? "예외요청" : "승인대기", issues, exceptionReason: isException ? "[" + excType + "] " + excText : "", rejectReason: "" }, ...prev]);
+    setSubs(prev => [{ id: Date.now(), date: ocr.date, time: ocr.time, amount: ocr.amount, category: ocr.category, storeName: ocr.storeName || ocr.category, status: isException ? "?덉쇅?붿껌" : "?뱀씤?湲?, issues, exceptionReason: isException ? "[" + excType + "] " + excText : "", rejectReason: "" }, ...prev]);
     setStep("done");
   };
 
   // HOME
   const HomeScreen = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-      {/* 앱 헤더 */}
+      {/* ???ㅻ뜑 */}
       <div style={{ padding: "24px 24px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <p style={{ margin: "0 0 2px", fontSize: 13, color: C.muted }}>안녕하세요 👋</p>
-          <p style={{ margin: 0, fontSize: 17, fontWeight: 800, color: C.text }}>김민준님</p>
+          <p style={{ margin: "0 0 2px", fontSize: 13, color: C.muted }}>?덈뀞?섏꽭???몝</p>
+          <p style={{ margin: 0, fontSize: 17, fontWeight: 800, color: C.text }}>源誘쇱???/p>
         </div>
-        <button onClick={() => setStep("list")} style={{ fontSize: 12, color: C.accent, background: "#EEF2FF", border: "none", padding: "7px 14px", borderRadius: 20, cursor: "pointer", fontWeight: 600 }}>내역 보기</button>
+        <button onClick={() => setStep("list")} style={{ fontSize: 12, color: C.accent, background: "#EEF2FF", border: "none", padding: "7px 14px", borderRadius: 20, cursor: "pointer", fontWeight: 600 }}>?댁뿭 蹂닿린</button>
       </div>
 
-      {/* 이번달 요약 */}
+      {/* ?대쾲???붿빟 */}
       <div style={{ margin: "20px 20px 0", background: C.accent, borderRadius: 20, padding: "20px", color: "#fff" }}>
-        <p style={{ margin: "0 0 14px", fontSize: 12, color: "rgba(255,255,255,0.7)" }}>이번 달 정산 현황</p>
+        <p style={{ margin: "0 0 14px", fontSize: 12, color: "rgba(255,255,255,0.7)" }}>?대쾲 ???뺤궛 ?꾪솴</p>
         <div style={{ display: "flex", justifyContent: "space-between" }}>
-          {[["제출", subs.length + "건"], ["승인", subs.filter(s=>s.status==="승인완료").length + "건"], ["지급예정", "₩" + subs.filter(s=>s.status==="승인완료").reduce((a,s)=>a+parseInt(s.amount),0).toLocaleString()]].map(([k,v]) => (
+          {[["?쒖텧", subs.length + "嫄?], ["?뱀씤", subs.filter(s=>s.status==="?뱀씤?꾨즺").length + "嫄?], ["吏湲됱삁??, "?? + subs.filter(s=>s.status==="?뱀씤?꾨즺").reduce((a,s)=>a+parseInt(s.amount),0).toLocaleString()]].map(([k,v]) => (
             <div key={k}>
               <p style={{ margin: "0 0 4px", fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{k}</p>
               <p style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{v}</p>
@@ -203,34 +203,34 @@ export default function App() {
         </div>
       </div>
 
-      {/* 업로드 영역 */}
+      {/* ?낅줈???곸뿭 */}
       <div style={{ margin: "20px 20px 0" }}>
-        <p style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700, color: C.text }}>영수증 등록</p>
+        <p style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700, color: C.text }}>?곸닔利??깅줉</p>
         <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
         {!preview ? (
           <div onClick={() => fileRef.current.click()} style={{ border: "2px dashed #DDD", borderRadius: 16, padding: "28px 20px", textAlign: "center", cursor: "pointer", background: C.bg }}>
-            <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.primaryLight, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 22 }}>🧾</div>
-            <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 14, color: C.text }}>영수증 사진 올리기</p>
-            <p style={{ margin: 0, fontSize: 11, color: C.muted }}>카드 매출전표 · JPG · PNG</p>
+            <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.primaryLight, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 22 }}>?㎨</div>
+            <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 14, color: C.text }}>?곸닔利??ъ쭊 ?щ━湲?/p>
+            <p style={{ margin: 0, fontSize: 11, color: C.muted }}>移대뱶 留ㅼ텧?꾪몴 쨌 JPG 쨌 PNG</p>
           </div>
         ) : (
           <div style={{ borderRadius: 16, overflow: "hidden", position: "relative" }}>
             <img src={preview} style={{ width: "100%", maxHeight: 180, objectFit: "cover", display: "block" }} alt="preview" />
-            <button onClick={() => { setFile(null); setPreview(null); }} style={{ position: "absolute", top: 10, right: 10, width: 28, height: 28, borderRadius: "50%", background: "rgba(0,0,0,0.5)", border: "none", color: "#fff", cursor: "pointer", fontSize: 16 }}>×</button>
+            <button onClick={() => { setFile(null); setPreview(null); }} style={{ position: "absolute", top: 10, right: 10, width: 28, height: 28, borderRadius: "50%", background: "rgba(0,0,0,0.5)", border: "none", color: "#fff", cursor: "pointer", fontSize: 16 }}>횞</button>
           </div>
         )}
       </div>
 
       <button onClick={runOCR} disabled={!file} style={{ margin: "16px 20px 0", padding: "15px", borderRadius: 14, border: "none", background: file ? C.primary : "#DDD", color: "#fff", fontWeight: 800, fontSize: 15, cursor: file ? "pointer" : "default" }}>
-        {file ? "정산 가능 여부 확인하기 →" : "영수증을 먼저 올려주세요"}
+        {file ? "?뺤궛 媛???щ? ?뺤씤?섍린 ?? : "?곸닔利앹쓣 癒쇱? ?щ젮二쇱꽭??}
       </button>
 
-      {/* 기능 안내 */}
+      {/* 湲곕뒫 ?덈궡 */}
       <div style={{ margin: "20px 20px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
         {[
-          { icon: "🤖", title: "AI 자동 인식", desc: "날짜·시간·금액·업종 자동 추출" },
-          { icon: "✅", title: "규정 즉시 검증", desc: "시간·업종 규정 즉시 확인" },
-          { icon: "📅", title: "월말 자동 정산", desc: "매월 22일 계좌 자동 입금" },
+          { icon: "?쨼", title: "AI ?먮룞 ?몄떇", desc: "?좎쭨쨌?쒓컙쨌湲덉븸쨌?낆쥌 ?먮룞 異붿텧" },
+          { icon: "??, title: "洹쒖젙 利됱떆 寃利?, desc: "?쒓컙쨌?낆쥌 洹쒖젙 利됱떆 ?뺤씤" },
+          { icon: "?뱟", title: "?붾쭚 ?먮룞 ?뺤궛", desc: "留ㅼ썡 22??怨꾩쥖 ?먮룞 ?낃툑" },
         ].map(f => (
           <div key={f.title} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, borderRadius: 12 }}>
             <span style={{ fontSize: 18 }}>{f.icon}</span>
@@ -248,8 +248,8 @@ export default function App() {
   const ListScreen = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
       <div style={{ padding: "24px 20px 16px", display: "flex", alignItems: "center", gap: 12, borderBottom: `1px solid ${C.border}` }}>
-        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: C.text, padding: 0 }}>←</button>
-        <span style={{ fontWeight: 800, fontSize: 17, color: C.text }}>정산 내역</span>
+        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: C.text, padding: 0 }}>??/button>
+        <span style={{ fontWeight: 800, fontSize: 17, color: C.text }}>?뺤궛 ?댁뿭</span>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
         {subs.map(s => (
@@ -259,10 +259,10 @@ export default function App() {
               <Badge status={s.status} />
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 12, color: C.muted }}>{s.date} · {s.category}</span>
-              <span style={{ fontSize: 14, fontWeight: 800, color: C.primary }}>₩{parseInt(s.amount).toLocaleString()}</span>
+              <span style={{ fontSize: 12, color: C.muted }}>{s.date} 쨌 {s.category}</span>
+              <span style={{ fontSize: 14, fontWeight: 800, color: C.primary }}>??parseInt(s.amount).toLocaleString()}</span>
             </div>
-            {s.status === "반려" && s.rejectReason && <p style={{ margin: "8px 0 0", fontSize: 11, color: "#C0392B", background: "#FDECEA", padding: "5px 8px", borderRadius: 8 }}>반려: {s.rejectReason}</p>}
+            {s.status === "諛섎젮" && s.rejectReason && <p style={{ margin: "8px 0 0", fontSize: 11, color: "#C0392B", background: "#FDECEA", padding: "5px 8px", borderRadius: 8 }}>諛섎젮: {s.rejectReason}</p>}
           </div>
         ))}
       </div>
@@ -274,12 +274,12 @@ export default function App() {
               <Badge status={detail.status} />
             </div>
             <table style={{ width: "100%", fontSize: 13 }}>
-              {[["날짜", detail.date],["시간", detail.time],["금액", "₩" + parseInt(detail.amount).toLocaleString()],["업종", detail.category]].map(([k,v]) => (
+              {[["?좎쭨", detail.date],["?쒓컙", detail.time],["湲덉븸", "?? + parseInt(detail.amount).toLocaleString()],["?낆쥌", detail.category]].map(([k,v]) => (
                 <tr key={k}><td style={{ color: C.muted, padding: "5px 0", width: 56 }}>{k}</td><td style={{ fontWeight: 700 }}>{v}</td></tr>
               ))}
             </table>
-            {detail.rejectReason && <p style={{ fontSize: 12, color: "#C0392B", background: "#FDECEA", padding: "10px", borderRadius: 10, marginTop: 12 }}>반려: {detail.rejectReason}</p>}
-            <button onClick={() => setDetail(null)} style={{ width: "100%", marginTop: 16, padding: 12, borderRadius: 12, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontSize: 13, cursor: "pointer" }}>닫기</button>
+            {detail.rejectReason && <p style={{ fontSize: 12, color: "#C0392B", background: "#FDECEA", padding: "10px", borderRadius: 10, marginTop: 12 }}>諛섎젮: {detail.rejectReason}</p>}
+            <button onClick={() => setDetail(null)} style={{ width: "100%", marginTop: 16, padding: 12, borderRadius: 12, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontSize: 13, cursor: "pointer" }}>?リ린</button>
           </div>
         </div>
       )}
@@ -290,24 +290,24 @@ export default function App() {
   const ResultScreen = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
       <div style={{ padding: "24px 20px 16px", display: "flex", alignItems: "center", gap: 12, borderBottom: `1px solid ${C.border}` }}>
-        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: C.text, padding: 0 }}>←</button>
-        <span style={{ fontWeight: 800, fontSize: 17, color: C.text }}>검증 결과</span>
+        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: C.text, padding: 0 }}>??/button>
+        <span style={{ fontWeight: 800, fontSize: 17, color: C.text }}>寃利?寃곌낵</span>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px 24px" }}>
         {loading ? (
           <div style={{ textAlign: "center", padding: "60px 0" }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
-            <p style={{ fontWeight: 800, fontSize: 16, color: C.text, margin: "0 0 8px" }}>AI가 분석 중입니다</p>
-            <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>잠시만 기다려 주세요...</p>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>?쨼</div>
+            <p style={{ fontWeight: 800, fontSize: 16, color: C.text, margin: "0 0 8px" }}>AI媛 遺꾩꽍 以묒엯?덈떎</p>
+            <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>?좎떆留?湲곕떎??二쇱꽭??..</p>
           </div>
         ) : (
           <>
             {preview && <img src={preview} style={{ width: "100%", borderRadius: 14, maxHeight: 180, objectFit: "cover", marginBottom: 14 }} alt="" />}
             {ocr && (
               <div style={{ background: C.bg, borderRadius: 14, padding: "14px 16px", marginBottom: 14 }}>
-                <p style={{ margin: "0 0 10px", fontSize: 11, color: C.muted, fontWeight: 700, letterSpacing: 0.5 }}>AI 인식 결과</p>
+                <p style={{ margin: "0 0 10px", fontSize: 11, color: C.muted, fontWeight: 700, letterSpacing: 0.5 }}>AI ?몄떇 寃곌낵</p>
                 <table style={{ width: "100%", fontSize: 13 }}>
-                  {[["가게명", ocr.storeName],["날짜", ocr.date],["시간", ocr.time],["금액", "₩" + parseInt(ocr.amount||0).toLocaleString()],["업종", ocr.category]].filter(([,v])=>v).map(([k,v]) => (
+                  {[["媛寃뚮챸", ocr.storeName],["?좎쭨", ocr.date],["?쒓컙", ocr.time],["湲덉븸", "?? + parseInt(ocr.amount||0).toLocaleString()],["?낆쥌", ocr.category]].filter(([,v])=>v).map(([k,v]) => (
                     <tr key={k}><td style={{ color: C.muted, padding: "3px 0", width: 56 }}>{k}</td><td style={{ fontWeight: 700, color: C.text }}>{v}</td></tr>
                   ))}
                 </table>
@@ -315,19 +315,19 @@ export default function App() {
             )}
             {issues.length === 0 ? (
               <div style={{ background: "#E8F7EE", borderRadius: 14, padding: "20px", textAlign: "center", marginBottom: 14, border: "1px solid #B7DFC7" }}>
-                <div style={{ fontSize: 36, marginBottom: 8 }}>✅</div>
-                <p style={{ margin: "0 0 4px", fontWeight: 800, color: "#1E6B3A", fontSize: 16 }}>정산 가능합니다!</p>
-                <p style={{ margin: 0, fontSize: 12, color: "#3A8A56" }}>모든 규정을 충족합니다</p>
+                <div style={{ fontSize: 36, marginBottom: 8 }}>??/div>
+                <p style={{ margin: "0 0 4px", fontWeight: 800, color: "#1E6B3A", fontSize: 16 }}>?뺤궛 媛?ν빀?덈떎!</p>
+                <p style={{ margin: 0, fontSize: 12, color: "#3A8A56" }}>紐⑤뱺 洹쒖젙??異⑹”?⑸땲??/p>
               </div>
             ) : (
               <div style={{ background: "#FDECEA", borderRadius: 14, padding: "14px 16px", marginBottom: 14, border: "1px solid #F5B7B1" }}>
-                <p style={{ margin: "0 0 8px", fontWeight: 800, color: "#C0392B", fontSize: 14 }}>⚠️ 규정 위반</p>
-                {issues.map((iss, i) => <p key={i} style={{ margin: "3px 0", fontSize: 12, color: "#C0392B" }}>• {iss}</p>)}
+                <p style={{ margin: "0 0 8px", fontWeight: 800, color: "#C0392B", fontSize: 14 }}>?좑툘 洹쒖젙 ?꾨컲</p>
+                {issues.map((iss, i) => <p key={i} style={{ margin: "3px 0", fontSize: 12, color: "#C0392B" }}>??{iss}</p>)}
               </div>
             )}
             {issues.length === 0
-              ? <button onClick={() => submit(false)} style={{ width: "100%", padding: 15, borderRadius: 14, border: "none", background: C.accent, color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>제출하기 →</button>
-              : <button onClick={() => setStep("exception")} style={{ width: "100%", padding: 15, borderRadius: 14, border: "none", background: C.primary, color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>예외 요청하기 →</button>
+              ? <button onClick={() => submit(false)} style={{ width: "100%", padding: 15, borderRadius: 14, border: "none", background: C.accent, color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>?쒖텧?섍린 ??/button>
+              : <button onClick={() => setStep("exception")} style={{ width: "100%", padding: 15, borderRadius: 14, border: "none", background: C.primary, color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>?덉쇅 ?붿껌?섍린 ??/button>
             }
           </>
         )}
@@ -339,25 +339,25 @@ export default function App() {
   const ExceptionScreen = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
       <div style={{ padding: "24px 20px 16px", display: "flex", alignItems: "center", gap: 12, borderBottom: `1px solid ${C.border}` }}>
-        <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: C.text, padding: 0 }}>←</button>
-        <span style={{ fontWeight: 800, fontSize: 17, color: C.text }}>예외 요청</span>
+        <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: C.text, padding: 0 }}>??/button>
+        <span style={{ fontWeight: 800, fontSize: 17, color: C.text }}>?덉쇅 ?붿껌</span>
       </div>
       <div style={{ flex: 1, padding: "20px" }}>
         <div style={{ background: "#FEF3E2", borderRadius: 12, padding: "12px 14px", marginBottom: 20, fontSize: 12, color: "#B87020", border: "1px solid #F5CBA7" }}>
-          관리자 검토 후 승인 여부가 결정됩니다.
+          愿由ъ옄 寃?????뱀씤 ?щ?媛 寃곗젙?⑸땲??
         </div>
-        <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 8, color: C.text }}>사유 유형 *</label>
+        <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 8, color: C.text }}>?ъ쑀 ?좏삎 *</label>
         <select value={excType} onChange={e => setExcType(e.target.value)} style={{ width: "100%", marginBottom: 18, padding: "12px 14px", borderRadius: 12, border: `1.5px solid ${C.border}`, fontSize: 13, background: C.bg, color: C.text }}>
-          <option value="">선택하세요</option>
-          <option value="조기출근/야근">조기출근 / 야근</option>
-          <option value="외부 미팅">외부 미팅</option>
-          <option value="업무 연장">업무 연장</option>
-          <option value="기타">기타</option>
+          <option value="">?좏깮?섏꽭??/option>
+          <option value="議곌린異쒓렐/?쇨렐">議곌린異쒓렐 / ?쇨렐</option>
+          <option value="?몃? 誘명똿">?몃? 誘명똿</option>
+          <option value="?낅Т ?곗옣">?낅Т ?곗옣</option>
+          <option value="湲고?">湲고?</option>
         </select>
-        <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 8, color: C.text }}>상세 사유 *</label>
-        <textarea value={excText} onChange={e => setExcText(e.target.value)} placeholder="예외 사유를 상세히 작성해 주세요" style={{ width: "100%", minHeight: 110, padding: "12px 14px", borderRadius: 12, border: `1.5px solid ${C.border}`, fontSize: 13, resize: "vertical", boxSizing: "border-box", background: C.bg, color: C.text, fontFamily: "inherit" }} />
+        <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 8, color: C.text }}>?곸꽭 ?ъ쑀 *</label>
+        <textarea value={excText} onChange={e => setExcText(e.target.value)} placeholder="?덉쇅 ?ъ쑀瑜??곸꽭???묒꽦??二쇱꽭?? style={{ width: "100%", minHeight: 110, padding: "12px 14px", borderRadius: 12, border: `1.5px solid ${C.border}`, fontSize: 13, resize: "vertical", boxSizing: "border-box", background: C.bg, color: C.text, fontFamily: "inherit" }} />
         <button onClick={() => submit(true)} disabled={!excType || !excText.trim()} style={{ width: "100%", marginTop: 16, padding: 15, borderRadius: 14, border: "none", background: excType && excText.trim() ? C.accent : "#DDD", color: "#fff", fontWeight: 800, fontSize: 15, cursor: excType && excText.trim() ? "pointer" : "default" }}>
-          예외 요청 제출 →
+          ?덉쇅 ?붿껌 ?쒖텧 ??
         </button>
       </div>
     </div>
@@ -366,17 +366,17 @@ export default function App() {
   // DONE
   const DoneScreen = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center" }}>
-      <div style={{ fontSize: 64, marginBottom: 20 }}>🎉</div>
-      <h2 style={{ fontSize: 24, fontWeight: 900, margin: "0 0 10px", color: C.text }}>제출 완료!</h2>
-      <p style={{ color: C.muted, fontSize: 14, margin: "0 0 32px", lineHeight: 1.7 }}>관리자 검토 후<br />매월 22일 개인 계좌로 입금됩니다</p>
-      <button onClick={reset} style={{ padding: "14px 36px", borderRadius: 28, border: "none", background: C.accent, color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>홈으로 →</button>
+      <div style={{ fontSize: 64, marginBottom: 20 }}>?럦</div>
+      <h2 style={{ fontSize: 24, fontWeight: 900, margin: "0 0 10px", color: C.text }}>?쒖텧 ?꾨즺!</h2>
+      <p style={{ color: C.muted, fontSize: 14, margin: "0 0 32px", lineHeight: 1.7 }}>愿由ъ옄 寃????br />留ㅼ썡 22??媛쒖씤 怨꾩쥖濡??낃툑?⑸땲??/p>
+      <button onClick={reset} style={{ padding: "14px 36px", borderRadius: 28, border: "none", background: C.accent, color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>?덉쑝濡???/button>
     </div>
   );
 
   const screens = { home: HomeScreen, list: ListScreen, result: ResultScreen, exception: ExceptionScreen, done: DoneScreen };
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
+    <div style={{ display: "flex", height: "100vh", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" }}>
       <BrandPanel />
       <MobileFrame>
         {screens[step] || HomeScreen}
