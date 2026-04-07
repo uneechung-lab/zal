@@ -263,7 +263,7 @@ export default function App() {
   const screens = { home: AppHome, list: AppList, result: AppResult, exception: AppException, done: AppDone };
 
   return (
-    <div style={{ display: "flex", width: "100vw", height: "100vh", alignItems: "stretch", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif", overflow: "hidden" }}>
+    <div style={{ display: "flex", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, alignItems: "stretch", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif", overflow: "hidden" }}>
 
       {/* 좌측 브랜딩 */}
       <div style={{ width: "50%", height: "100%", background: C.bg, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 52px", position: "relative", overflow: "hidden" }}>
