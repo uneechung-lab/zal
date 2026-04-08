@@ -154,6 +154,7 @@ export default function App() {
   const [selMonth, setSelMonth] = useState(4);
   const [selWeek, setSelWeek] = useState(2);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [showFail, setShowFail] = useState(false); // 시뮬레이션용 토글
   const fileRef = useRef();
 
   useEffect(() => { fetchCategories().then(setAllowed); }, []);
@@ -194,15 +195,35 @@ export default function App() {
         amount: parsed.amount || parsed.totalAmount || parsed.total || "",
         category: parsed.category || parsed.businessType || ""
       };
-      if (result.amount) result.amount = String(result.amount).replace(/[^\d]/g, "");
-      if (result.date) {
-        result.date = result.date.replace(/\./g, "-");
-        if (result.date.startsWith("26")) result.date = "20" + result.date;
+      setOcr(result); 
+      const currentIssues = validate(result, allowed);
+      setIssues(currentIssues);
+      
+      // ✅ [정산 가능 시 자동 제출]
+      if (currentIssues.length === 0) {
+        setTimeout(() => submit(false), 800);
       }
-      setOcr(result); setIssues(validate(result, allowed));
     } catch (err) {
-      const mock = { date: new Date().toISOString().slice(0,10), time: "12:30", amount: "9800", category: "한식", storeName: "인식 실패 (시스템 설정을 확인해주세요)" };
-      setOcr(mock); setIssues(validate(mock, allowed));
+      console.error("OCR Error:", err);
+      // ✅ [시뮬레이션 토글 로직: 성공/실패 번갈아 가며 발생]
+      setTimeout(() => {
+        if (!showFail) {
+          // 1. 성공 케이스 (정상 시간, 정상 업종, 평일)
+          const successMock = { date: "2026-04-08", time: "12:30", amount: "12500", category: "한식", storeName: "디스트릭트와이" };
+          setOcr(successMock); 
+          setIssues([]);
+          submit(false); // 자동 제출
+        } else {
+          // 2. 실패 케이스 (지원되지 않는 시간/업종 등)
+          const failMock = { date: "2026-04-08", time: "15:00", amount: "9800", category: "편의점", storeName: "GS25" };
+          setOcr(failMock); 
+          const currentIssues = validate(failMock, allowed);
+          setIssues(currentIssues);
+        }
+        setShowFail(!showFail); // 다음 시도를 위해 토글
+        setLoading(false);
+      }, 1500);
+      return; 
     }
     setLoading(false);
   };
