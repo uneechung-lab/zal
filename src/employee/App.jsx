@@ -207,6 +207,22 @@ export default function App() {
     setLoading(false);
   };
 
+  const MENUS = [
+    { name: "매콤한 김치찌개", cat: "한식", emoji: "🥘" },
+    { name: "든든한 돈까스", cat: "양식", emoji: "🐷" },
+    { name: "신선한 초밥", cat: "일식", emoji: "🍣" },
+    { name: "얼큰한 짬뽕", cat: "중식", emoji: "🍜" },
+    { name: "아삭한 샌드위치", cat: "브런치", emoji: "🥪" },
+    { name: "고소한 비빔밥", cat: "한식", emoji: "🥗" },
+    { name: "바삭한 텐동", cat: "일식", emoji: "🍤" },
+    { name: "뜨끈한 쌀국수", cat: "동남아", emoji: "🍜" },
+  ];
+  const [pick, setPick] = useState(null);
+  const doPick = () => {
+    const r = MENUS[Math.floor(Math.random() * MENUS.length)];
+    setPick(r);
+  };
+
   const submit = (isEx = false) => {
     setSubs(p => [{ id: Date.now(), ...ocr, status: isEx ? "예외요청" : "승인대기" }, ...p]);
     setStep("done");
@@ -258,10 +274,11 @@ export default function App() {
             })}
           </div>
         </div>
-        <div style={{ padding: "20px var(--side-pad)", display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ padding: "0 var(--side-pad)", display: "flex", flexDirection: "column", gap: 12 }}>
           <p style={{ margin: "0 0 4px", fontSize: 13, color: "#888", textAlign: "center", fontWeight: 500 }}>영수증이 업로드 되면 음식이 채워집니다.</p>
           <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
           <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: 18, borderRadius: 12, border: "none", background: "#000", color: "#fff", fontWeight: 700, fontSize: 16 }}>영수증 올리기</button>
+          <button onClick={() => { doPick(); setStep("menu"); }} style={{ width: "100%", padding: 18, borderRadius: 12, border: "2px solid #000", background: "transparent", color: "#000", fontWeight: 700, fontSize: 16 }}>오늘 뭐 먹지?</button>
         </div>
       </div>
       <div style={{ paddingBottom: 32, textAlign: "center", color: "#B3B3B3", fontSize: 13 }}>다음정보시스템</div>
@@ -364,7 +381,28 @@ export default function App() {
     </div>
   );
 
-  const screens = { home: AppHome, list: AppList, result: AppResult, exception: AppException, done: AppDone };
+  const AppMenu = (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <div style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: 12 }}>
+        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22 }}>←</button>
+        <span style={{ fontWeight: 500, fontSize: 17 }}>메뉴 추천</span>
+      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
+        <div style={{ fontSize: 80, marginBottom: 20, animation: "bounce 2s infinite" }}>{pick?.emoji || "🤔"}</div>
+        <p style={{ fontSize: 14, color: C.muted, marginBottom: 8 }}>{pick?.cat}</p>
+        <h2 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 32px" }}>{pick?.name} 어떠세요?</h2>
+        <button onClick={doPick} style={{ padding: "14px 32px", borderRadius: 28, border: "none", background: C.brand, color: "#000", fontWeight: 800, fontSize: 15, cursor: "pointer", boxShadow: "0 4px 12px rgba(254,198,1,0.3)" }}>다른 메뉴 추천받기</button>
+      </div>
+      <style>{`
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-20px); }
+        }
+      `}</style>
+    </div>
+  );
+
+  const screens = { home: AppHome, list: AppList, result: AppResult, exception: AppException, done: AppDone, menu: AppMenu };
 
   return (
     <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "linear-gradient(180deg, #FFB100 0%, #FFD688 50%, #FFF5D6 100%)", fontFamily: "sans-serif" }}>
