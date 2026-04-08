@@ -15,8 +15,12 @@ async function fetchCategories() {
   }
 }
 
-function validate(d, allowed) {
+function validate(d, allowed, existingSubs = []) {
   const issues = [];
+  
+  const isDup = existingSubs.some(s => s.date === d.date && s.id !== d.id);
+  if (isDup) issues.push("해당 날짜( " + d.date + " )에 이미 제출된 내역이 있습니다.");
+
   if (!d.time || !d.time.includes(":")) {
     issues.push("시간 정보를 확인할 수 없습니다.");
   } else {
@@ -204,7 +208,7 @@ export default function App() {
         category: parsed.category || parsed.businessType || ""
       };
       setOcr(result); 
-      const currentIssues = validate(result, allowed);
+      const currentIssues = validate(result, allowed, subs);
       setIssues(currentIssues);
       if (currentIssues.length === 0) {
         submit(false, result);
@@ -214,9 +218,11 @@ export default function App() {
     } catch (err) {
       setTimeout(() => {
         if (!showFail) {
-          // ✅ [시연용] 오늘 날짜에 음식이 바로 들어오도록 설정합니다.
-          const today = new Date().toISOString().slice(0, 10);
-          const successMock = { date: today, time: "12:30", amount: "12500", category: "한식", storeName: "디스트릭트와이" };
+          // ✅ [시연 편의성] 이번 주 빈 날짜를 자동으로 찾아 제출합니다.
+          const weekDates = getWeekDates(selYear, selMonth, selWeek).map(d => d.toISOString().slice(0, 10));
+          const emptyDate = weekDates.find(d => !subs.some(s => s.date === d)) || new Date().toISOString().slice(0, 10);
+          
+          const successMock = { date: emptyDate, time: "12:30", amount: "12500", category: "한식", storeName: "디스트릭트와이" };
           setOcr(successMock); setIssues([]);
           submit(false, successMock);
         } else {
