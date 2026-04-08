@@ -331,36 +331,45 @@ export default function App() {
   );
 
   const AppResult = (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
-      <div style={{ padding: "24px", display: "flex", alignItems: "center", gap: 16 }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, position: "relative" }}>
+      <div style={{ padding: "24px 24px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
-        <span style={{ fontWeight: 800, fontSize: 18 }}>검증 결과</span>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 24px", minHeight: 0 }}>
-        {preview && <img src={preview} style={{ width: "100%", maxHeight: 400, objectFit: "contain", borderRadius: 24, marginBottom: 20, background: "#000", boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }} />}
-        {ocr && (
-          <div style={{ background: "#fff", borderRadius: 24, padding: "24px", marginBottom: 20 }}>
+      
+      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 100px", minHeight: 0 }}>
+        <div style={{ textAlign: "center", padding: "20px 0 40px" }}>
+          <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#E5E7EB", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, margin: "0 auto 16px", fontWeight: 800 }}>!</div>
+          <h2 style={{ fontSize: 28, fontWeight: 900, margin: "0 0 8px", color: "#111" }}>검증 실패</h2>
+          <p style={{ fontSize: 15, color: "#666", lineHeight: 1.5, margin: 0, fontWeight: 500 }}>입력된 영수증 정보 중 일부가<br/>회사 정산 규정에 맞지 않습니다.</p>
+        </div>
+
+        {issues.length > 0 && (
+          <div style={{ background: "#F3F4F6", borderRadius: 16, padding: "20px", marginBottom: 32, textAlign: "center" }}>
+            <p style={{ margin: "0 0 8px", fontSize: 14, color: "#444", fontWeight: 700 }}>규정 위반 항목</p>
+            {issues.map((iss, i) => (
+              <p key={i} style={{ margin: "4px 0", fontSize: 13, color: "#E24B4A", fontWeight: 800 }}>{iss}</p>
+            ))}
+            <p style={{ marginTop: 12, fontSize: 12, color: "#888", fontWeight: 500 }}>정산이 필요할 경우 하단 [예외 요청]을 이용해주세요.</p>
+          </div>
+        )}
+
+        <div style={{ background: "#fff", borderRadius: 24, overflow: "hidden", boxShadow: "0 10px 30px rgba(0,0,0,0.05)", marginBottom: 20 }}>
+          {preview && <img src={preview} style={{ width: "100%", maxHeight: 300, objectFit: "cover" }} />}
+          <div style={{ padding: "24px" }}>
             <table style={{ width: "100%", fontSize: 14, borderCollapse: "collapse" }}>
               <tbody>
-                {[["가게명",ocr.storeName],["날짜",ocr.date],["시간",ocr.time],["금액","₩"+parseInt(ocr.amount||0).toLocaleString()],["업종",ocr.category]].map(([k,v]) => (
-                  <tr key={k}><td style={{ color: "#888", padding: "8px 0", width: 70, fontWeight: 500 }}>{k}</td><td style={{ fontWeight: 800, padding: "8px 0", textAlign: "right" }}>{v}</td></tr>
+                {[["가게명",ocr?.storeName],["날짜",ocr?.date],["시간",ocr?.time],["금액","₩"+parseInt(ocr?.amount||0).toLocaleString()],["업종",ocr?.category]].map(([k,v]) => (
+                  <tr key={k}><td style={{ color: "#888", padding: "10px 0", width: 70, fontWeight: 500 }}>{k}</td><td style={{ fontWeight: 800, padding: "10px 0", textAlign: "right", color: "#333" }}>{v}</td></tr>
                 ))}
               </tbody>
             </table>
           </div>
-        )}
-        {issues.length === 0
-          ? <div style={{ background: "#E8F7EE", borderRadius: 24, padding: "32px 24px", textAlign: "center" }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-              <p style={{ margin: "0 0 4px", fontWeight: 800, color: "#1E6B3A", fontSize: 18 }}>정산 가능합니다!</p>
-              <button onClick={() => submit(false)} style={{ width: "100%", marginTop: 24, padding: "20px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 17 }}>제출하기 →</button>
-            </div>
-          : <div style={{ background: "#FDECEA", borderRadius: 24, padding: "24px" }}>
-              <p style={{ margin: "0 0 12px", fontWeight: 800, color: "#C0392B", fontSize: 16 }}>⚠️ 규정 위반 항목</p>
-              {issues.map((iss,i) => <p key={i} style={{ margin: "6px 0", fontSize: 14, color: "#C0392B", fontWeight: 500 }}>• {iss}</p>)}
-              <button onClick={() => setStep("exception")} style={{ width: "100%", marginTop: 24, padding: "20px", borderRadius: 16, border: "none", background: "#E24B4A", color: "#fff", fontWeight: 800, fontSize: 17 }}>예외 요청하기 →</button>
-            </div>
-        }
+        </div>
+      </div>
+
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "20px 24px 40px", background: "linear-gradient(to top, #FFFBF0 80%, transparent)", display: "flex", gap: 12 }}>
+        <button onClick={reset} style={{ flex: 1, padding: "18px", borderRadius: 16, border: "2px solid #E5E7EB", background: "#fff", color: "#333", fontWeight: 800, fontSize: 16 }}>홈으로</button>
+        <button onClick={() => setStep("exception")} style={{ flex: 2, padding: "18px", borderRadius: 16, border: "none", background: "#E24B4A", color: "#fff", fontWeight: 800, fontSize: 16 }}>예외 요청하기</button>
       </div>
     </div>
   );
