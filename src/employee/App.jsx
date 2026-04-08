@@ -440,7 +440,7 @@ export default function App() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
           {screens[step] || AppHome}
         </div>
-        <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", fontSize: 10, color: "#bbb", fontWeight: 700, whiteSpace: "nowrap", letterSpacing: "0.5px" }}>
+        <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", fontSize: 12, color: "#999", fontWeight: 700, whiteSpace: "nowrap", letterSpacing: "0.5px" }}>
           ⓒ 다음정보시스템즈
         </div>
         {modal && <StatusModal type={modal} onClose={reset} />}
