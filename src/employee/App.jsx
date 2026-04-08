@@ -176,7 +176,6 @@ export default function App() {
   const [excText, setExcText] = useState("");
   const [detail, setDetail] = useState(null);
   const [allowed, setAllowed] = useState([]);
-  const [rawOcr, setRawOcr] = useState(""); // 에러 진단용
   const [selYear, setSelYear] = useState(2026);
   const [selMonth, setSelMonth] = useState(4);
   const [selWeek, setSelWeek] = useState(2);
@@ -187,7 +186,7 @@ export default function App() {
 
   const reset = () => { 
     setStep("home"); setFile(null); setPreview(null); setOcr(null); 
-    setIssues([]); setExcType(""); setExcText(""); setRawOcr("");
+    setIssues([]); setExcType(""); setExcText("");
   };
 
   // ✅ 파일 선택 즉시 OCR 자동 실행
@@ -224,7 +223,6 @@ export default function App() {
 
       const data = await resp.json();
       const txt = data.content?.find(c => c.type === "text")?.text || "{}";
-      setRawOcr(txt); 
       const cleaned = txt.replace(/```json|```/g, "").trim();
       let parsed = JSON.parse(cleaned);
 
@@ -248,8 +246,7 @@ export default function App() {
       setIssues(validate(result, allowed));
     } catch (err) {
       console.error("OCR Error:", err);
-      setRawOcr(err.message);
-      const mock = { date: new Date().toISOString().slice(0,10), time: "12:30", amount: "9800", category: "한식", storeName: "인식 실패 (시스템 에러 확인 필요)" };
+      const mock = { date: new Date().toISOString().slice(0,10), time: "12:30", amount: "9800", category: "한식", storeName: "인식 실패 (이미지 재촬영 필요)" };
       setOcr(mock); setIssues(validate(mock, allowed));
     }
     setLoading(false);
@@ -408,11 +405,6 @@ export default function App() {
                     <tr key={k}><td style={{ color: C.muted, padding: "3px 0", width: 56 }}>{k}</td><td style={{ fontWeight: 600, color: C.text }}>{v || <span style={{color:'#ccc'}}>인식불가</span>}</td></tr>
                   ))}
                 </table>
-              </div>
-            )}
-            {rawOcr && (
-              <div style={{ padding: 10, background: "#f8f8f8", borderRadius: 8, fontSize: 9, color: "#aaa", marginBottom: 14, wordBreak: "break-all" }}>
-                [System Log]: {rawOcr}
               </div>
             )}
             {issues.length === 0
