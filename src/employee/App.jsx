@@ -158,6 +158,7 @@ export default function App() {
   const [selMonth, setSelMonth] = useState(4);
   const [selWeek, setSelWeek] = useState(2);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [isImgModal, setIsImgModal] = useState(false);
   const [showFail, setShowFail] = useState(false);
   const [pick, setPick] = useState(null);
   const fileRef = useRef();
@@ -354,7 +355,6 @@ export default function App() {
         )}
 
         <div style={{ background: "#fff", borderRadius: 24, overflow: "hidden", boxShadow: "0 10px 30px rgba(0,0,0,0.05)", marginBottom: 20 }}>
-          {preview && <img src={preview} style={{ width: "100%", maxHeight: 300, objectFit: "cover" }} />}
           <div style={{ padding: "24px" }}>
             <table style={{ width: "100%", fontSize: 14, borderCollapse: "collapse" }}>
               <tbody>
@@ -363,6 +363,7 @@ export default function App() {
                 ))}
               </tbody>
             </table>
+            <button onClick={() => setIsImgModal(true)} style={{ width: "100%", marginTop: 16, padding: "14px", borderRadius: 12, border: "1.5px solid #eee", background: "#fafafa", color: "#666", fontWeight: 700, fontSize: 14 }}>영수증 보기</button>
           </div>
         </div>
       </div>
@@ -455,6 +456,16 @@ export default function App() {
           </div>
         )}
         {modal && <StatusModal type={modal} onClose={reset} />}
+        {isImgModal && (
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", zIndex: 10000, display: "flex", flexDirection: "column", padding: "40px 24px" }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
+              <button onClick={() => setIsImgModal(false)} style={{ background: "none", border: "none", color: "#fff", fontSize: 28, fontWeight: 300 }}>✕</button>
+            </div>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+              <img src={preview} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 8 }} />
+            </div>
+          </div>
+        )}
         <BottomSheetPicker isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)} year={selYear} month={selMonth} week={selWeek} onConfirm={(y, m, w) => { setSelYear(y); setSelMonth(m); setSelWeek(w); }} />
       </div>
     </div>
