@@ -217,7 +217,8 @@ export default function App() {
     } catch (err) {
       setTimeout(() => {
         if (!showFail) {
-          const successMock = { date: "2026-04-08", time: "12:30", amount: "12500", category: "한식", storeName: "디스트릭트와이" };
+          const today = new Date().toISOString().slice(0, 10);
+          const successMock = { date: today, time: "12:30", amount: "12500", category: "한식", storeName: "디스트릭트와이" };
           setOcr(successMock); setIssues([]);
           submit(false);
         } else {
@@ -274,7 +275,7 @@ export default function App() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             {weekDates.map((date, i) => {
               const dateStr = date.toISOString().slice(0, 10);
-              const daySub = subs.find(s => s.date === dateStr && s.status === "승인완료");
+              const daySub = subs.find(s => s.date === dateStr && (s.status === "승인완료" || s.status === "승인대기"));
               const foodImages = ["/food_01.webp", "/food_02.webp", "/food_03.webp"];
               const selectedFood = foodImages[(i + date.getDate()) % 3];
               return (
