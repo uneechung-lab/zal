@@ -17,14 +17,27 @@ async function fetchCategories() {
 
 function validate(d, allowed) {
   const issues = [];
-  const [h, m] = (d.time || "0:0").split(":").map(Number);
-  const tot = h * 60 + m;
-  if (tot < 600 || tot > 840) issues.push("사용 가능 시간(10:00~14:00) 외 사용입니다.");
-  const dow = new Date(d.date).getDay();
-  if (dow === 0 || dow === 6) issues.push("주말/공휴일 사용은 지원되지 않습니다.");
+  if (!d.time || !d.time.includes(":")) {
+    issues.push("시간 정보를 확인할 수 없습니다.");
+  } else {
+    const [h, m] = d.time.split(":").map(Number);
+    const tot = h * 60 + m;
+    if (tot < 600 || tot > 840) issues.push("사용 가능 시간(10:00~14:00) 외 사용입니다.");
+  }
+
+  if (!d.date) {
+    issues.push("날짜 정보를 확인할 수 없습니다.");
+  } else {
+    const dow = new Date(d.date).getDay();
+    if (dow === 0 || dow === 6) issues.push("주말/공휴일 사용은 지원되지 않습니다.");
+  }
+
   const catMatch = allowed.some(t => (d.category || "").split(/[\/,·\s]/).some(c => c.trim().includes(t) || t.includes(c.trim())));
   if (!catMatch) issues.push("지원 업종이 아닙니다. (업종: " + (d.category || "미확인") + ")");
-  if (!d.amount || parseInt(d.amount) <= 0) issues.push("금액 정보를 확인할 수 없습니다.");
+  
+  const cleanAmt = String(d.amount || "").replace(/[^\d]/g, "");
+  if (!cleanAmt || parseInt(cleanAmt) <= 0) issues.push("금액 정보를 확인할 수 없습니다.");
+  
   return issues;
 }
 
@@ -196,15 +209,23 @@ export default function App() {
         headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
         body: JSON.stringify({ model: "claude-3-5-sonnet-20241022", max_tokens: 500, messages: [{ role: "user", content: [
           { type: "image", source: { type: "base64", media_type: f.type === "image/png" ? "image/png" : "image/jpeg", data: b64 } },
-          { type: "text", text: "카드 매출전표입니다. JSON만 반환하세요.\n{\"date\":\"YYYY-MM-DD\",\"time\":\"HH:MM\",\"amount\":\"숫자만\",\"category\":\"업종명\",\"storeName\":\"가맹점명\"}\n규칙: amount는 금액 숫자만(8,000원이면 8000). date는 이용일시 기준(26.04.06이면 2026-04-06)." }
+          { type: "text", text: "영수증 이미지에서 다음 정보를 추출하여 JSON으로만 답변하세요: \n1. date: YYYY-MM-DD 형식 (26.04.02 -> 2026-04-02)\n2. time: HH:MM 형식 (24시간제)\n3. amount: 숫자만 (쉼표 제외)\n4. category: 업종명 (예: 일반음식점, 카페 등)\n5. storeName: 가맹점 이름\n\n중요: 오직 JSON 데이터만 출력하고 다른 설명은 하지 마세요." }
         ]}] })
       });
       const data = await resp.json();
       const txt = data.content?.find(c => c.type === "text")?.text || "{}";
-      const parsed = JSON.parse(txt.replace(/```json|```/g, "").trim());
-      setOcr(parsed); setIssues(validate(parsed, allowed));
-    } catch {
-      const mock = { date: new Date().toISOString().slice(0,10), time: "12:30", amount: "9800", category: "한식", storeName: "테스트 식당" };
+      const cleaned = txt.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(cleaned);
+
+      // 데이터 정제: 금액에서 숫자만 추출, 날짜 형식 통일 등
+      if (parsed.amount) parsed.amount = String(parsed.amount).replace(/[^\d]/g, "");
+      if (parsed.date) parsed.date = parsed.date.replace(/\./g, "-"); 
+      
+      setOcr(parsed); 
+      setIssues(validate(parsed, allowed));
+    } catch (err) {
+      console.error("OCR Error:", err);
+      const mock = { date: new Date().toISOString().slice(0,10), time: "12:30", amount: "9800", category: "한식", storeName: "인식 실패 (재시도 필요)" };
       setOcr(mock); setIssues(validate(mock, allowed));
     }
     setLoading(false);
