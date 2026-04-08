@@ -164,8 +164,8 @@ export default function App() {
     setStep("home"); setFile(null); setPreview(null); setOcr(null); setIssues([]); setExcType(""); setExcText(""); setModal(null);
   };
 
-  const submit = (isEx = false) => {
-    setSubs(p => [{ id: Date.now(), ...ocr, icon: "🍱", status: isEx ? "예외요청" : "승인대기" }, ...p]);
+  const submit = (isEx = false, data = ocr) => {
+    setSubs(p => [{ id: Date.now(), ...data, status: isEx ? "예외요청" : "승인대기" }, ...p]);
     setModal("done");
   };
 
@@ -207,7 +207,7 @@ export default function App() {
       const currentIssues = validate(result, allowed);
       setIssues(currentIssues);
       if (currentIssues.length === 0) {
-        submit(false);
+        submit(false, result);
       } else {
         setModal(null); setStep("result");
       }
@@ -218,7 +218,7 @@ export default function App() {
           const today = new Date().toISOString().slice(0, 10);
           const successMock = { date: today, time: "12:30", amount: "12500", category: "한식", storeName: "디스트릭트와이" };
           setOcr(successMock); setIssues([]);
-          submit(false);
+          submit(false, successMock);
         } else {
           const failMock = { date: "2026-04-08", time: "15:00", amount: "9800", category: "편의점", storeName: "GS25" };
           setOcr(failMock); setIssues(validate(failMock, allowed));
