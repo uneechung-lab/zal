@@ -294,7 +294,7 @@ export default function App() {
         </div>
         <div style={{ padding: "0 var(--side-pad)", display: "flex", flexDirection: "column", gap: 14 }}>
           <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
-          <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "20px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 17, boxShadow: "0 10px 20px rgba(0,0,0,0.15)" }}>영수증 올리기</button>
+          <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "20px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 17 }}>영수증 올리기</button>
           <button onClick={() => { doPick(); setStep("menu"); }} style={{ width: "100%", padding: "20px", borderRadius: 16, border: "2px solid #000", background: "transparent", color: "#000", fontWeight: 800, fontSize: 17 }}>오늘 뭐 먹지?</button>
         </div>
       </div>
@@ -398,8 +398,8 @@ export default function App() {
   const screens = { home: AppHome, list: AppList, result: AppResult, exception: AppException, menu: AppMenu };
 
   const StatusModal = ({ type, onClose }) => (
-    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} />
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(2px)" }} />
       <div style={{ position: "relative", background: "#fff", width: "100%", maxWidth: 320, borderRadius: 36, padding: "48px 24px 24px", textAlign: "center", boxShadow: "0 30px 60px rgba(0,0,0,0.3)" }}>
         {type === "checking" ? (
           <>
