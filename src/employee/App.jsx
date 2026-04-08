@@ -440,7 +440,7 @@ export default function App() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
           {screens[step] || AppHome}
         </div>
-        <img src="https://media.githubusercontent.com/media/uneechung-lab/zal/master/public/daum_logo.png" style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", width: 80, opacity: 0.15, pointerEvents: "none" }} alt="DAUM Logo" />
+        <img src="/daum_ci.png" style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", width: 80, opacity: 0.15, pointerEvents: "none" }} alt="DAUM Logo" />
         {modal && <StatusModal type={modal} onClose={reset} />}
         <BottomSheetPicker isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)} year={selYear} month={selMonth} week={selWeek} onConfirm={(y, m, w) => { setSelYear(y); setSelMonth(m); setSelWeek(w); }} />
       </div>
