@@ -298,6 +298,7 @@ export default function App() {
           </div>
         </div>
         <div style={{ padding: "0 var(--side-pad)", display: "flex", flexDirection: "column", gap: 14 }}>
+          <p style={{ textAlign: "center", fontSize: 13, color: "#888", fontWeight: 700, margin: "0 0 4px" }}>영수증을 올리면 음식이 채워집니다</p>
           <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
           <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "20px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 17 }}>영수증 올리기</button>
           <button onClick={() => { doPick(); setStep("menu"); }} style={{ width: "100%", padding: "20px", borderRadius: 16, border: "2px solid #000", background: "transparent", color: "#000", fontWeight: 800, fontSize: 17 }}>오늘 뭐 먹지?</button>
@@ -439,6 +440,7 @@ export default function App() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
           {screens[step] || AppHome}
         </div>
+        <img src="https://media.githubusercontent.com/media/uneechung-lab/zal/master/public/daum_logo.png" style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", width: 80, opacity: 0.15, pointerEvents: "none" }} alt="DAUM Logo" />
         {modal && <StatusModal type={modal} onClose={reset} />}
         <BottomSheetPicker isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)} year={selYear} month={selMonth} week={selWeek} onConfirm={(y, m, w) => { setSelYear(y); setSelMonth(m); setSelWeek(w); }} />
       </div>
