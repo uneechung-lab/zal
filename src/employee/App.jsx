@@ -149,7 +149,6 @@ export default function App() {
   const [preview, setPreview] = useState(null);
   const [ocr, setOcr] = useState(null);
   const [issues, setIssues] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [excType, setExcType] = useState("");
   const [excText, setExcText] = useState("");
   const [allowed, setAllowed] = useState([]);
@@ -159,6 +158,7 @@ export default function App() {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [showFail, setShowFail] = useState(false);
   const [modal, setModal] = useState(null); 
+  const [pick, setPick] = useState(null);
   const fileRef = useRef();
 
   useEffect(() => { fetchCategories().then(setAllowed); }, []);
@@ -167,13 +167,17 @@ export default function App() {
     setStep("home"); setFile(null); setPreview(null); setOcr(null); setIssues([]); setExcType(""); setExcText(""); setModal(null);
   };
 
+  const submit = (isEx = false) => {
+    setSubs(p => [{ id: Date.now(), ...ocr, icon: "🍱", status: isEx ? "예외요청" : "승인대기" }, ...p]);
+    setModal("done");
+  };
+
   const handleFile = async e => {
     const f = e.target.files[0]; if (!f) return;
     setFile(f);
     const r = new FileReader();
     r.onload = ev => setPreview(ev.target.result);
     r.readAsDataURL(f);
-    
     setModal("checking");
     try {
       const b64 = await new Promise((res, rej) => {
@@ -199,7 +203,7 @@ export default function App() {
         storeName: parsed.storeName || parsed.store || parsed.merchant || "",
         date: parsed.date || parsed.usageDate || "",
         time: parsed.time || parsed.usageTime || "",
-        amount: parsed.amount || parsed.totalAmount || parsed.total || "",
+        amount: String(parsed.amount || parsed.totalAmount || "").replace(/[^\d]/g, ""),
         category: parsed.category || parsed.businessType || ""
       };
       setOcr(result); 
@@ -236,13 +240,7 @@ export default function App() {
     { name: "바삭한 텐동", cat: "일식", emoji: "🍤" },
     { name: "뜨끈한 쌀국수", cat: "동남아", emoji: "🍜" },
   ];
-  const [pick, setPick] = useState(null);
   const doPick = () => setPick(MENUS[Math.floor(Math.random() * MENUS.length)]);
-
-  const submit = (isEx = false) => {
-    setSubs(p => [{ id: Date.now(), ...ocr, status: isEx ? "예외요청" : "승인대기" }, ...p]);
-    setModal("done");
-  };
 
   const approvedTotal = subs.filter(s => s.status === "승인완료").reduce((a, s) => a + parseInt(s.amount || 0), 0);
   const weekDates = getWeekDates(selYear, selMonth, selWeek);
@@ -276,11 +274,11 @@ export default function App() {
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             {weekDates.map((date, i) => {
               const dateStr = date.toISOString().slice(0, 10);
-              const daySub = subs.find(s => s.date === dateStr && s.status === "승인완료");
+              const daySub = subs.find(s => s.date === dateStr);
               return (
                 <div key={i} style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div style={{ height: 72, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {daySub ? "🍱" : "🍽️"}
+                  <div style={{ height: 72, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40 }}>
+                    {daySub ? (daySub.icon || "🍱") : "🍽️"}
                   </div>
                   <span style={{ fontSize: 13, fontWeight: 500 }}>{DAYS[i]} {date.getDate()}</span>
                 </div>
@@ -312,7 +310,7 @@ export default function App() {
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ fontSize: 12, color: C.muted }}>{s.date} · {s.category}</span>
-              <span style={{ fontSize: 14, fontWeight: 500 }}>₩{parseInt(s.amount).toLocaleString()}</span>
+              <span style={{ fontSize: 14, fontWeight: 500 }}>₩{parseInt(s.amount || 0).toLocaleString()}</span>
             </div>
           </div>
         ))}
@@ -331,9 +329,11 @@ export default function App() {
         {ocr && (
           <div style={{ background: "rgba(255,255,255,0.8)", borderRadius: 14, padding: "14px 16px", marginBottom: 14 }}>
             <table style={{ width: "100%", fontSize: 13 }}>
-              {[["가게명",ocr.storeName],["날짜",ocr.date],["시간",ocr.time],["금액","₩"+parseInt(ocr.amount||0).toLocaleString()],["업종",ocr.category]].map(([k,v]) => (
-                <tr key={k}><td style={{ color: C.muted, padding: "3px 0", width: 56 }}>{k}</td><td style={{ fontWeight: 600 }}>{v}</td></tr>
-              ))}
+              <tbody>
+                {[["가게명",ocr.storeName],["날짜",ocr.date],["시간",ocr.time],["금액","₩"+parseInt(ocr.amount||0).toLocaleString()],["업종",ocr.category]].map(([k,v]) => (
+                  <tr key={k}><td style={{ color: C.muted, padding: "3px 0", width: 56 }}>{k}</td><td style={{ fontWeight: 600 }}>{v}</td></tr>
+                ))}
+              </tbody>
             </table>
           </div>
         )}
@@ -348,6 +348,27 @@ export default function App() {
               <button onClick={() => setStep("exception")} style={{ width: "100%", marginTop: 16, padding: 16, borderRadius: 14, border: "none", background: "#E24B4A", color: "#fff", fontWeight: 500 }}>예외 요청하기 →</button>
             </div>
         }
+      </div>
+    </div>
+  );
+
+  const AppException = (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <div style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: 12 }}>
+        <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22 }}>←</button>
+        <span style={{ fontWeight: 500, fontSize: 17 }}>예외 요청</span>
+      </div>
+      <div style={{ flex: 1, padding: "0 24px 24px" }}>
+        <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 8 }}>사유 유형 *</label>
+        <select value={excType} onChange={e => setExcType(e.target.value)} style={{ width: "100%", marginBottom: 16, padding: 14, borderRadius: 12, border: "none", background: "rgba(255,255,255,0.8)" }}>
+          <option value="">선택하세요</option>
+          <option value="조기출근/야근">조기출근 / 야근</option>
+          <option value="외부 미팅">외부 미팅</option>
+          <option value="업무 연장">업무 연장</option>
+          <option value="기타">기타</option>
+        </select>
+        <textarea value={excText} onChange={e => setExcText(e.target.value)} placeholder="상세 사유 작성" style={{ width: "100%", minHeight: 110, padding: 14, borderRadius: 12, border: "none", background: "rgba(255,255,255,0.8)" }} />
+        <button onClick={() => submit(true)} disabled={!excType || !excText.trim()} style={{ width: "100%", marginTop: 16, padding: 16, borderRadius: 14, border: "none", background: excType && excText.trim() ? C.primary : "#aaa", color: "#fff" }}>예외 요청 제출 →</button>
       </div>
     </div>
   );
@@ -369,7 +390,7 @@ export default function App() {
 
   const screens = { home: AppHome, list: AppList, result: AppResult, exception: AppException, menu: AppMenu };
 
-  const Modal = ({ type, onClose }) => (
+  const StatusModal = ({ type, onClose }) => (
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)" }} />
       <div style={{ position: "relative", background: "#fff", width: "100%", maxWidth: 320, borderRadius: 32, padding: "40px 24px 24px", textAlign: "center", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
@@ -382,7 +403,8 @@ export default function App() {
         ) : (
           <>
             <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#EEF2FF", color: "#4F46E5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", fontSize: 18, fontWeight: 800 }}>i</div>
-            <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111", margin: "0 0 32px", lineHeight: 1.6 }}>제출이 완료되었습니다.<br/><span style={{ fontSize: 13, color: "#888", fontWeight: 500 }}>매월 22일에 입금됩니다.</span></h3>
+            <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111", margin: "0 0 12px", lineHeight: 1.4 }}>제출이 완료되었습니다.</h3>
+            <p style={{ fontSize: 13, color: "#888", fontWeight: 500, margin: "0 0 32px" }}>매월 22일에 입금됩니다.</p>
             <button onClick={onClose} style={{ width: "100%", padding: "18px", borderRadius: 16, border: "none", background: "#1A1C30", color: "#fff", fontWeight: 700, fontSize: 16 }}>확인</button>
           </>
         )}
@@ -394,14 +416,13 @@ export default function App() {
     <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "linear-gradient(180deg, #FFB100 0%, #FFD688 50%, #FFF5D6 100%)", fontFamily: "sans-serif" }}>
       <style>{`
         @media (max-width: 1060px) { .desktop-panel { display: none !important; } .app-container { width: 100% !important; border-left: none !important; } }
-        :root { --side-pad: 24px; --center-gap: 30px; --item-gap: 30px; --btn-top: 20px; --btn-bot: 40px; }
       `}</style>
       <div className="desktop-panel" style={{ width: 600, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 64px" }}>
-        <h1 style={{ fontSize: 48, fontWeight: 800 }}>점심 한 끼,<br /><span>10초</span>에 정산!</h1>
+        <h1 style={{ fontSize: 48, fontWeight: 800, color: "#000" }}>점심 한 끼,<br /><span>10초</span>에 정산!</h1>
       </div>
       <div className="app-container" style={{ width: 460, flexShrink: 0, height: "100%", boxShadow: "30px 30px 60px -15px rgba(0,0,0,0.12)", borderLeft: "1px solid #ddd", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
         {screens[step] || AppHome}
-        {modal && <Modal type={modal} onClose={reset} />}
+        {modal && <StatusModal type={modal} onClose={reset} />}
         <BottomSheetPicker isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)} year={selYear} month={selMonth} week={selWeek} onConfirm={(y, m, w) => { setSelYear(y); setSelMonth(m); setSelWeek(w); }} />
       </div>
     </div>
