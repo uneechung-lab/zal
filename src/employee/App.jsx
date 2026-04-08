@@ -149,6 +149,7 @@ export default function App() {
   const [preview, setPreview] = useState(null);
   const [ocr, setOcr] = useState(null);
   const [issues, setIssues] = useState([]);
+  const [modal, setModal] = useState(null);
   const [excType, setExcType] = useState("");
   const [excText, setExcText] = useState("");
   const [allowed, setAllowed] = useState([]);
@@ -157,7 +158,6 @@ export default function App() {
   const [selWeek, setSelWeek] = useState(2);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [showFail, setShowFail] = useState(false);
-  const [modal, setModal] = useState(null); 
   const [pick, setPick] = useState(null);
   const fileRef = useRef();
 
@@ -251,45 +251,51 @@ export default function App() {
   const AppHome = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, overflowY: "auto" }}>
       <div style={{ padding: "30px var(--side-pad) 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontWeight: 500, fontSize: 18 }}>ZAL:잘먹</span>
-        <button onClick={() => setStep("list")} style={{ fontSize: 14, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>내역보기</button>
+        <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: "-0.5px" }}>ZAL:잘먹</span>
+        <button onClick={() => setStep("list")} style={{ fontSize: 14, background: "none", border: "none", cursor: "pointer", fontWeight: 700, color: "#555" }}>내역보기</button>
       </div>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", paddingBottom: "var(--center-gap)" }}>
-        <div style={{ padding: "40px var(--side-pad) var(--item-gap)" }}>
-          <p style={{ margin: "0 0 32px", fontSize: 22, color: "#777", fontWeight: 500, lineHeight: 1.4 }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", paddingBottom: "var(--btn-bot)" }}>
+        <div style={{ padding: "0 var(--side-pad) var(--item-gap)" }}>
+          <p style={{ margin: "0 0 32px", fontSize: 24, color: "#777", fontWeight: 500, lineHeight: 1.45, letterSpacing: "-1px" }}>
             <span style={{ fontWeight: 800, color: "#000" }}>정다음</span>님, 맛있는 하루를<br/>다음정보시스템즈가 지원합니다!
           </p>
-          <div style={{ marginTop: 24 }}>
-            <p style={{ margin: "0 0 4px", fontSize: 13, color: "#333", fontWeight: 500 }}>{payDateStr} 입금 예정</p>
-            <p style={{ margin: 0, fontSize: 32, fontWeight: 800, color: "#000" }}>{approvedTotal.toLocaleString()}원</p>
+          <div style={{ marginTop: 40 }}>
+            <p style={{ margin: "0 0 8px", fontSize: 14, color: "#333", fontWeight: 600 }}>{payDateStr} 입금 예정</p>
+            <p style={{ margin: 0, fontSize: 36, fontWeight: 900, color: "#000", letterSpacing: "-1px" }}>{approvedTotal.toLocaleString()}원</p>
           </div>
         </div>
-        <div style={{ padding: "20px var(--side-pad) 30px" }}>
+        <div style={{ padding: "0 var(--side-pad) 32px" }}>
           <button onClick={() => setIsPickerOpen(true)} style={{ background: "none", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <span style={{ color: "#444", fontSize: 16, fontWeight: 600 }}>{String(selYear).slice(2)}년 {selMonth}월 {selWeek}주</span>
-            <span>▼</span>
+            <span style={{ color: "#444", fontSize: 16, fontWeight: 700 }}>{String(selYear).slice(2)}년 {selMonth}월 {selWeek}주</span>
+            <span style={{ fontSize: 10 }}>▼</span>
           </button>
         </div>
-        <div style={{ padding: "0 var(--side-pad) 40px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <div style={{ padding: "0 var(--side-pad) var(--item-gap)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             {weekDates.map((date, i) => {
               const dateStr = date.toISOString().slice(0, 10);
-              const daySub = subs.find(s => s.date === dateStr);
+              const daySub = subs.find(s => s.date === dateStr && s.status === "승인완료");
+              const foodImages = ["/food_01.webp", "/food_02.webp", "/food_03.webp"];
+              const selectedFood = foodImages[(i + date.getDate()) % 3];
               return (
-                <div key={i} style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div style={{ height: 72, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40 }}>
-                    {daySub ? (daySub.icon || "🍱") : "🍽️"}
+                <div key={i} style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 14 }}>
+                  <div style={{ height: 80, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {daySub ? (
+                      <img src={selectedFood} style={{ width: 80, height: 80, objectFit: "contain" }} alt="식단" />
+                    ) : (
+                      <img src="/food_00.png" style={{ width: 64, height: 64, opacity: 0.9 }} alt="빈함" />
+                    )}
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 500 }}>{DAYS[i]} {date.getDate()}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#888" }}>{DAYS[i]} {date.getDate()}</span>
                 </div>
               );
             })}
           </div>
         </div>
-        <div style={{ padding: "0 var(--side-pad)", display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ padding: "0 var(--side-pad)", display: "flex", flexDirection: "column", gap: 14 }}>
           <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
-          <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: 18, borderRadius: 12, border: "none", background: "#000", color: "#fff", fontWeight: 700, fontSize: 16 }}>영수증 올리기</button>
-          <button onClick={() => { doPick(); setStep("menu"); }} style={{ width: "100%", padding: 18, borderRadius: 12, border: "2px solid #000", background: "transparent", color: "#000", fontWeight: 700, fontSize: 16 }}>오늘 뭐 먹지?</button>
+          <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "20px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 17, boxShadow: "0 10px 20px rgba(0,0,0,0.15)" }}>영수증 올리기</button>
+          <button onClick={() => { doPick(); setStep("menu"); }} style={{ width: "100%", padding: "20px", borderRadius: 16, border: "2px solid #000", background: "transparent", color: "#000", fontWeight: 800, fontSize: 17 }}>오늘 뭐 먹지?</button>
         </div>
       </div>
     </div>
@@ -297,20 +303,20 @@ export default function App() {
 
   const AppList = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
-      <div style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: 12 }}>
-        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22 }}>←</button>
-        <span style={{ fontWeight: 500, fontSize: 17 }}>정산 내역</span>
+      <div style={{ padding: "24px", display: "flex", alignItems: "center", gap: 16 }}>
+        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
+        <span style={{ fontWeight: 800, fontSize: 18 }}>정산 내역</span>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 24px" }}>
         {subs.map(s => (
-          <div key={s.id} style={{ background: "rgba(255,255,255,0.8)", borderRadius: 14, padding: "14px 16px", marginBottom: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>{s.storeName}</span>
+          <div key={s.id} style={{ background: "#fff", borderRadius: 20, padding: "20px", marginBottom: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.03)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <span style={{ fontWeight: 800, fontSize: 16 }}>{s.storeName}</span>
               <Badge status={s.status} />
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 12, color: C.muted }}>{s.date} · {s.category}</span>
-              <span style={{ fontSize: 14, fontWeight: 500 }}>₩{parseInt(s.amount || 0).toLocaleString()}</span>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 13, color: "#888", fontWeight: 500 }}>{s.date} · {s.category}</span>
+              <span style={{ fontSize: 16, fontWeight: 800 }}>₩{parseInt(s.amount || 0).toLocaleString()}</span>
             </div>
           </div>
         ))}
@@ -320,32 +326,33 @@ export default function App() {
 
   const AppResult = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
-      <div style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: 12 }}>
-        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22 }}>←</button>
-        <span style={{ fontWeight: 500, fontSize: 17 }}>검증 결과</span>
+      <div style={{ padding: "24px", display: "flex", alignItems: "center", gap: 16 }}>
+        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
+        <span style={{ fontWeight: 800, fontSize: 18 }}>검증 결과</span>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 24px" }}>
-        {preview && <img src={preview} style={{ width: "100%", maxHeight: 400, objectFit: "contain", borderRadius: 14, marginBottom: 14, background: "#000" }} />}
+        {preview && <img src={preview} style={{ width: "100%", maxHeight: 400, objectFit: "contain", borderRadius: 24, marginBottom: 20, background: "#000", boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }} />}
         {ocr && (
-          <div style={{ background: "rgba(255,255,255,0.8)", borderRadius: 14, padding: "14px 16px", marginBottom: 14 }}>
-            <table style={{ width: "100%", fontSize: 13 }}>
+          <div style={{ background: "#fff", borderRadius: 24, padding: "24px", marginBottom: 20 }}>
+            <table style={{ width: "100%", fontSize: 14, borderCollapse: "collapse" }}>
               <tbody>
                 {[["가게명",ocr.storeName],["날짜",ocr.date],["시간",ocr.time],["금액","₩"+parseInt(ocr.amount||0).toLocaleString()],["업종",ocr.category]].map(([k,v]) => (
-                  <tr key={k}><td style={{ color: C.muted, padding: "3px 0", width: 56 }}>{k}</td><td style={{ fontWeight: 600 }}>{v}</td></tr>
+                  <tr key={k}><td style={{ color: "#888", padding: "8px 0", width: 70, fontWeight: 500 }}>{k}</td><td style={{ fontWeight: 800, padding: "8px 0", textAlign: "right" }}>{v}</td></tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
         {issues.length === 0
-          ? <div style={{ background: "#E8F7EE", borderRadius: 14, padding: "20px", textAlign: "center", marginBottom: 14 }}>
-              <p style={{ margin: "0 0 4px", fontWeight: 500, color: "#1E6B3A", fontSize: 16 }}>정산 가능합니다!</p>
-              <button onClick={() => submit(false)} style={{ width: "100%", marginTop: 16, padding: 16, borderRadius: 14, border: "none", background: C.primary, color: "#fff", fontWeight: 500 }}>제출하기 →</button>
+          ? <div style={{ background: "#E8F7EE", borderRadius: 24, padding: "32px 24px", textAlign: "center" }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+              <p style={{ margin: "0 0 4px", fontWeight: 800, color: "#1E6B3A", fontSize: 18 }}>정산 가능합니다!</p>
+              <button onClick={() => submit(false)} style={{ width: "100%", marginTop: 24, padding: "20px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 17 }}>제출하기 →</button>
             </div>
-          : <div style={{ background: "#FDECEA", borderRadius: 14, padding: "14px 16px", marginBottom: 14 }}>
-              <p style={{ margin: "0 0 8px", fontWeight: 500, color: "#C0392B" }}>⚠️ 규정 위반</p>
-              {issues.map((iss,i) => <p key={i} style={{ margin: "3px 0", fontSize: 12, color: "#C0392B" }}>• {iss}</p>)}
-              <button onClick={() => setStep("exception")} style={{ width: "100%", marginTop: 16, padding: 16, borderRadius: 14, border: "none", background: "#E24B4A", color: "#fff", fontWeight: 500 }}>예외 요청하기 →</button>
+          : <div style={{ background: "#FDECEA", borderRadius: 24, padding: "24px" }}>
+              <p style={{ margin: "0 0 12px", fontWeight: 800, color: "#C0392B", fontSize: 16 }}>⚠️ 규정 위반 항목</p>
+              {issues.map((iss,i) => <p key={i} style={{ margin: "6px 0", fontSize: 14, color: "#C0392B", fontWeight: 500 }}>• {iss}</p>)}
+              <button onClick={() => setStep("exception")} style={{ width: "100%", marginTop: 24, padding: "20px", borderRadius: 16, border: "none", background: "#E24B4A", color: "#fff", fontWeight: 800, fontSize: 17 }}>예외 요청하기 →</button>
             </div>
         }
       </div>
@@ -354,36 +361,36 @@ export default function App() {
 
   const AppException = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
-      <div style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: 12 }}>
-        <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22 }}>←</button>
-        <span style={{ fontWeight: 500, fontSize: 17 }}>예외 요청</span>
+      <div style={{ padding: "24px", display: "flex", alignItems: "center", gap: 16 }}>
+        <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
+        <span style={{ fontWeight: 800, fontSize: 18 }}>예외 사유 입력</span>
       </div>
       <div style={{ flex: 1, padding: "0 24px 24px" }}>
-        <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 8 }}>사유 유형 *</label>
-        <select value={excType} onChange={e => setExcType(e.target.value)} style={{ width: "100%", marginBottom: 16, padding: 14, borderRadius: 12, border: "none", background: "rgba(255,255,255,0.8)" }}>
-          <option value="">선택하세요</option>
+        <label style={{ fontSize: 14, fontWeight: 800, display: "block", marginBottom: 12 }}>사유 유형 *</label>
+        <select value={excType} onChange={e => setExcType(e.target.value)} style={{ width: "100%", marginBottom: 20, padding: "18px", borderRadius: 16, border: "none", background: "#fff", fontSize: 15, fontWeight: 600 }}>
+          <option value="">유형을 선택하세요</option>
           <option value="조기출근/야근">조기출근 / 야근</option>
           <option value="외부 미팅">외부 미팅</option>
           <option value="업무 연장">업무 연장</option>
           <option value="기타">기타</option>
         </select>
-        <textarea value={excText} onChange={e => setExcText(e.target.value)} placeholder="상세 사유 작성" style={{ width: "100%", minHeight: 110, padding: 14, borderRadius: 12, border: "none", background: "rgba(255,255,255,0.8)" }} />
-        <button onClick={() => submit(true)} disabled={!excType || !excText.trim()} style={{ width: "100%", marginTop: 16, padding: 16, borderRadius: 14, border: "none", background: excType && excText.trim() ? C.primary : "#aaa", color: "#fff" }}>예외 요청 제출 →</button>
+        <textarea value={excText} onChange={e => setExcText(e.target.value)} placeholder="상세 사유를 입력해주세요" style={{ width: "100%", minHeight: 150, padding: "20px", borderRadius: 16, border: "none", background: "#fff", fontSize: 15, lineHeight: 1.6 }} />
+        <button onClick={() => { submit(true); }} disabled={!excType || !excText.trim()} style={{ width: "100%", marginTop: 24, padding: "20px", borderRadius: 16, border: "none", background: excType && excText.trim() ? "#000" : "#ccc", color: "#fff", fontWeight: 800, fontSize: 17 }}>예외 요청 제출 →</button>
       </div>
     </div>
   );
 
   const AppMenu = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
-      <div style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: 12 }}>
-        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22 }}>←</button>
-        <span style={{ fontWeight: 500, fontSize: 17 }}>메뉴 추천</span>
+      <div style={{ padding: "24px", display: "flex", alignItems: "center", gap: 16 }}>
+        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
+        <span style={{ fontWeight: 800, fontSize: 18 }}>오늘의 점심 추천</span>
       </div>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
-        <div style={{ fontSize: 80, marginBottom: 20 }}>{pick?.emoji || "🤔"}</div>
-        <p style={{ fontSize: 14, color: C.muted, marginBottom: 8 }}>{pick?.cat}</p>
-        <h2 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 32px" }}>{pick?.name} 어떠세요?</h2>
-        <button onClick={doPick} style={{ padding: "14px 32px", borderRadius: 28, border: "none", background: C.brand, color: "#000", fontWeight: 800, fontSize: 15 }}>다른 메뉴 추천받기</button>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center" }}>
+        <div style={{ fontSize: 100, marginBottom: 32 }}>{pick?.emoji || "🤔"}</div>
+        <p style={{ fontSize: 16, color: "#888", marginBottom: 8, fontWeight: 600 }}>{pick?.cat}</p>
+        <h2 style={{ fontSize: 32, fontWeight: 900, margin: "0 0 48px", letterSpacing: "-1px" }}>{pick?.name} 어떠세요?</h2>
+        <button onClick={doPick} style={{ padding: "18px 48px", borderRadius: 32, border: "none", background: C.brand, color: "#000", fontWeight: 900, fontSize: 17, boxShadow: "0 8px 20px rgba(254,198,1,0.4)" }}>다른 메뉴 추천받기</button>
       </div>
     </div>
   );
@@ -392,20 +399,20 @@ export default function App() {
 
   const StatusModal = ({ type, onClose }) => (
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)" }} />
-      <div style={{ position: "relative", background: "#fff", width: "100%", maxWidth: 320, borderRadius: 32, padding: "40px 24px 24px", textAlign: "center", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} />
+      <div style={{ position: "relative", background: "#fff", width: "100%", maxWidth: 320, borderRadius: 36, padding: "48px 24px 24px", textAlign: "center", boxShadow: "0 30px 60px rgba(0,0,0,0.3)" }}>
         {type === "checking" ? (
           <>
-            <div style={{ fontSize: 44, marginBottom: 24 }}>🤖</div>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#111", margin: "0 0 12px" }}>확인 중입니다...</h3>
-            <p style={{ fontSize: 14, color: "#888", margin: 0, lineHeight: 1.5 }}>영수증 정보를 AI가<br/>분석하고 있습니다.</p>
+            <div style={{ fontSize: 56, marginBottom: 24 }}>🤖</div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: "#111", margin: "0 0 12px", letterSpacing: "-0.5px" }}>확인 중입니다...</h3>
+            <p style={{ fontSize: 15, color: "#666", margin: 0, lineHeight: 1.6, fontWeight: 500 }}>AI가 영수증 정보를<br/>꼼꼼하게 분석하고 있습니다.</p>
           </>
         ) : (
           <>
-            <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#EEF2FF", color: "#4F46E5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", fontSize: 18, fontWeight: 800 }}>i</div>
-            <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111", margin: "0 0 12px", lineHeight: 1.4 }}>제출이 완료되었습니다.</h3>
-            <p style={{ fontSize: 13, color: "#888", fontWeight: 500, margin: "0 0 32px" }}>매월 22일에 입금됩니다.</p>
-            <button onClick={onClose} style={{ width: "100%", padding: "18px", borderRadius: 16, border: "none", background: "#1A1C30", color: "#fff", fontWeight: 700, fontSize: 16 }}>확인</button>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#EEF2FF", color: "#4F46E5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 32px", fontSize: 24, fontWeight: 900 }}>i</div>
+            <h3 style={{ fontSize: 19, fontWeight: 800, color: "#111", margin: "0 0 12px", letterSpacing: "-0.5px" }}>제출이 완료되었습니다.</h3>
+            <p style={{ fontSize: 14, color: "#888", fontWeight: 600, margin: "0 0 40px" }}>매월 22일에 입금됩니다.</p>
+            <button onClick={onClose} style={{ width: "100%", padding: "20px", borderRadius: 20, border: "none", background: "#1A1C30", color: "#fff", fontWeight: 800, fontSize: 17, cursor: "pointer" }}>확인</button>
           </>
         )}
       </div>
@@ -413,15 +420,20 @@ export default function App() {
   );
 
   return (
-    <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "linear-gradient(180deg, #FFB100 0%, #FFD688 50%, #FFF5D6 100%)", fontFamily: "sans-serif" }}>
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "linear-gradient(180deg, #FFB100 0%, #FFD688 50%, #FFF5D6 100%)", fontFamily: "'Pretendard', sans-serif" }}>
       <style>{`
         @media (max-width: 1060px) { .desktop-panel { display: none !important; } .app-container { width: 100% !important; border-left: none !important; } }
+        :root { --side-pad: 32px; --item-gap: 64px; --btn-bot: 60px; }
+        @media (max-width: 480px) { :root { --side-pad: 24px; --item-gap: 40px; --btn-bot: 40px; } }
       `}</style>
       <div className="desktop-panel" style={{ width: 600, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 64px" }}>
-        <h1 style={{ fontSize: 48, fontWeight: 800, color: "#000" }}>점심 한 끼,<br /><span>10초</span>에 정산!</h1>
+        <h1 style={{ fontSize: 56, fontWeight: 900, lineHeight: 1.15, letterSpacing: "-2px", color: "#000" }}>점심 한 끼,<br /><span style={{ color: "#fff", textShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>10초</span>에 정산!</h1>
+        <p style={{ fontSize: 18, color: "rgba(0,0,0,0.6)", marginTop: 24, fontWeight: 600 }}>영수증 사진 한 장이면 충분합니다.</p>
       </div>
-      <div className="app-container" style={{ width: 460, flexShrink: 0, height: "100%", boxShadow: "30px 30px 60px -15px rgba(0,0,0,0.12)", borderLeft: "1px solid #ddd", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
-        {screens[step] || AppHome}
+      <div className="app-container" style={{ width: 460, flexShrink: 0, height: "100%", boxShadow: "30px 30px 60px -15px rgba(0,0,0,0.12)", borderLeft: "1px solid rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", background: "#FFFBF0" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
+          {screens[step] || AppHome}
+        </div>
         {modal && <StatusModal type={modal} onClose={reset} />}
         <BottomSheetPicker isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)} year={selYear} month={selMonth} week={selWeek} onConfirm={(y, m, w) => { setSelYear(y); setSelMonth(m); setSelWeek(w); }} />
       </div>
