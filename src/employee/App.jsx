@@ -32,7 +32,10 @@ function validate(d, allowed) {
     if (dow === 0 || dow === 6) issues.push("주말/공휴일 사용은 지원되지 않습니다.");
   }
 
-  const catMatch = allowed.some(t => (d.category || "").split(/[\/,·\s]/).some(c => c.trim().includes(t) || t.includes(c.trim())));
+  const catMatch = allowed.some(t => {
+    const cStr = (d.category || "").split(/[\/,·\s]/);
+    return cStr.some(c => c.trim().includes(t) || t.includes(c.trim()));
+  });
   if (!catMatch) issues.push("지원 업종이 아닙니다. (업종: " + (d.category || "미확인") + ")");
   
   const cleanAmt = String(d.amount || "").replace(/[^\d]/g, "");
@@ -154,12 +157,15 @@ export default function App() {
   const [selMonth, setSelMonth] = useState(4);
   const [selWeek, setSelWeek] = useState(2);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [showFail, setShowFail] = useState(false); // 시뮬레이션용 토글
+  const [showFail, setShowFail] = useState(false);
+  const [modal, setModal] = useState(null); 
   const fileRef = useRef();
 
   useEffect(() => { fetchCategories().then(setAllowed); }, []);
 
-  const reset = () => { setStep("home"); setFile(null); setPreview(null); setOcr(null); setIssues([]); setExcType(""); setExcText(""); };
+  const reset = () => { 
+    setStep("home"); setFile(null); setPreview(null); setOcr(null); setIssues([]); setExcType(""); setExcText(""); setModal(null);
+  };
 
   const handleFile = async e => {
     const f = e.target.files[0]; if (!f) return;
@@ -167,7 +173,8 @@ export default function App() {
     const r = new FileReader();
     r.onload = ev => setPreview(ev.target.result);
     r.readAsDataURL(f);
-    setLoading(true); setStep("result");
+    
+    setModal("checking");
     try {
       const b64 = await new Promise((res, rej) => {
         const rd = new FileReader();
@@ -198,34 +205,25 @@ export default function App() {
       setOcr(result); 
       const currentIssues = validate(result, allowed);
       setIssues(currentIssues);
-      
-      // ✅ [정산 가능 시 자동 제출]
       if (currentIssues.length === 0) {
-        setTimeout(() => submit(false), 800);
+        submit(false);
+      } else {
+        setModal(null); setStep("result");
       }
     } catch (err) {
-      console.error("OCR Error:", err);
-      // ✅ [시뮬레이션 토글 로직: 성공/실패 번갈아 가며 발생]
       setTimeout(() => {
         if (!showFail) {
-          // 1. 성공 케이스 (정상 시간, 정상 업종, 평일)
           const successMock = { date: "2026-04-08", time: "12:30", amount: "12500", category: "한식", storeName: "디스트릭트와이" };
-          setOcr(successMock); 
-          setIssues([]);
-          submit(false); // 자동 제출
+          setOcr(successMock); setIssues([]);
+          submit(false);
         } else {
-          // 2. 실패 케이스 (지원되지 않는 시간/업종 등)
           const failMock = { date: "2026-04-08", time: "15:00", amount: "9800", category: "편의점", storeName: "GS25" };
-          setOcr(failMock); 
-          const currentIssues = validate(failMock, allowed);
-          setIssues(currentIssues);
+          setOcr(failMock); setIssues(validate(failMock, allowed));
+          setModal(null); setStep("result");
         }
-        setShowFail(!showFail); // 다음 시도를 위해 토글
-        setLoading(false);
+        setShowFail(!showFail); 
       }, 1500);
-      return; 
     }
-    setLoading(false);
   };
 
   const MENUS = [
@@ -239,14 +237,11 @@ export default function App() {
     { name: "뜨끈한 쌀국수", cat: "동남아", emoji: "🍜" },
   ];
   const [pick, setPick] = useState(null);
-  const doPick = () => {
-    const r = MENUS[Math.floor(Math.random() * MENUS.length)];
-    setPick(r);
-  };
+  const doPick = () => setPick(MENUS[Math.floor(Math.random() * MENUS.length)]);
 
   const submit = (isEx = false) => {
     setSubs(p => [{ id: Date.now(), ...ocr, status: isEx ? "예외요청" : "승인대기" }, ...p]);
-    setStep("done");
+    setModal("done");
   };
 
   const approvedTotal = subs.filter(s => s.status === "승인완료").reduce((a, s) => a + parseInt(s.amount || 0), 0);
@@ -282,12 +277,10 @@ export default function App() {
             {weekDates.map((date, i) => {
               const dateStr = date.toISOString().slice(0, 10);
               const daySub = subs.find(s => s.date === dateStr && s.status === "승인완료");
-              const foodImages = ["/food_01.webp", "/food_02.webp", "/food_03.webp"];
-              const selectedFood = foodImages[(i + date.getDate()) % 3];
               return (
                 <div key={i} style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 10 }}>
                   <div style={{ height: 72, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {daySub ? <img src={selectedFood} style={{ width: 72, height: 72, objectFit: "contain" }} /> : <img src="/food_00.png" style={{ width: 56, height: 56, opacity: 0.9 }} />}
+                    {daySub ? "🍱" : "🍽️"}
                   </div>
                   <span style={{ fontSize: 13, fontWeight: 500 }}>{DAYS[i]} {date.getDate()}</span>
                 </div>
@@ -296,13 +289,11 @@ export default function App() {
           </div>
         </div>
         <div style={{ padding: "0 var(--side-pad)", display: "flex", flexDirection: "column", gap: 12 }}>
-          <p style={{ margin: "0 0 4px", fontSize: 13, color: "#888", textAlign: "center", fontWeight: 500 }}>영수증이 업로드 되면 음식이 채워집니다.</p>
           <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
           <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: 18, borderRadius: 12, border: "none", background: "#000", color: "#fff", fontWeight: 700, fontSize: 16 }}>영수증 올리기</button>
           <button onClick={() => { doPick(); setStep("menu"); }} style={{ width: "100%", padding: 18, borderRadius: 12, border: "2px solid #000", background: "transparent", color: "#000", fontWeight: 700, fontSize: 16 }}>오늘 뭐 먹지?</button>
         </div>
       </div>
-      <div style={{ paddingBottom: 32, textAlign: "center", color: "#B3B3B3", fontSize: 13 }}>다음정보시스템</div>
     </div>
   );
 
@@ -335,70 +326,29 @@ export default function App() {
         <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22 }}>←</button>
         <span style={{ fontWeight: 500, fontSize: 17 }}>검증 결과</span>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 24px", minHeight: 0 }}>
-        {loading ? (
-          <div style={{ textAlign: "center", padding: "60px 0" }}>
-            <div style={{ fontSize: 48, marginBottom: 20 }}>🤖</div>
-            <p style={{ fontWeight: 500, fontSize: 17 }}>확인 중입니다...</p>
+      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 24px" }}>
+        {preview && <img src={preview} style={{ width: "100%", maxHeight: 400, objectFit: "contain", borderRadius: 14, marginBottom: 14, background: "#000" }} />}
+        {ocr && (
+          <div style={{ background: "rgba(255,255,255,0.8)", borderRadius: 14, padding: "14px 16px", marginBottom: 14 }}>
+            <table style={{ width: "100%", fontSize: 13 }}>
+              {[["가게명",ocr.storeName],["날짜",ocr.date],["시간",ocr.time],["금액","₩"+parseInt(ocr.amount||0).toLocaleString()],["업종",ocr.category]].map(([k,v]) => (
+                <tr key={k}><td style={{ color: C.muted, padding: "3px 0", width: 56 }}>{k}</td><td style={{ fontWeight: 600 }}>{v}</td></tr>
+              ))}
+            </table>
           </div>
-        ) : (
-          <>
-            {preview && <img src={preview} style={{ width: "100%", maxHeight: 400, objectFit: "contain", borderRadius: 14, marginBottom: 14, background: "#000" }} />}
-            {ocr && (
-              <div style={{ background: "rgba(255,255,255,0.8)", borderRadius: 14, padding: "14px 16px", marginBottom: 14 }}>
-                <p style={{ margin: "0 0 10px", fontSize: 12, color: C.muted, fontWeight: 600 }}>AI 인식 결과</p>
-                <table style={{ width: "100%", fontSize: 13 }}>
-                  {[["가게명",ocr.storeName],["날짜",ocr.date],["시간",ocr.time],["금액","₩"+parseInt(ocr.amount||0).toLocaleString()],["업종",ocr.category]].map(([k,v]) => (
-                    <tr key={k}><td style={{ color: C.muted, padding: "3px 0", width: 56 }}>{k}</td><td style={{ fontWeight: 600 }}>{v}</td></tr>
-                  ))}
-                </table>
-              </div>
-            )}
-            {issues.length === 0
-              ? <div style={{ background: "#E8F7EE", borderRadius: 14, padding: "20px", textAlign: "center", marginBottom: 14 }}>
-                  <div style={{ fontSize: 36, marginBottom: 8 }}>✅</div>
-                  <p style={{ margin: "0 0 4px", fontWeight: 500, color: "#1E6B3A", fontSize: 16 }}>정산 가능합니다!</p>
-                  <button onClick={() => submit(false)} style={{ width: "100%", marginTop: 16, padding: 16, borderRadius: 14, border: "none", background: C.primary, color: "#fff", fontWeight: 500 }}>제출하기 →</button>
-                </div>
-              : <div style={{ background: "#FDECEA", borderRadius: 14, padding: "14px 16px", marginBottom: 14 }}>
-                  <p style={{ margin: "0 0 8px", fontWeight: 500, color: "#C0392B" }}>⚠️ 규정 위반</p>
-                  {issues.map((iss,i) => <p key={i} style={{ margin: "3px 0", fontSize: 12, color: "#C0392B" }}>• {iss}</p>)}
-                  <button onClick={() => setStep("exception")} style={{ width: "100%", marginTop: 16, padding: 16, borderRadius: 14, border: "none", background: "#E24B4A", color: "#fff", fontWeight: 500 }}>예외 요청하기 →</button>
-                </div>
-            }
-          </>
         )}
+        {issues.length === 0
+          ? <div style={{ background: "#E8F7EE", borderRadius: 14, padding: "20px", textAlign: "center", marginBottom: 14 }}>
+              <p style={{ margin: "0 0 4px", fontWeight: 500, color: "#1E6B3A", fontSize: 16 }}>정산 가능합니다!</p>
+              <button onClick={() => submit(false)} style={{ width: "100%", marginTop: 16, padding: 16, borderRadius: 14, border: "none", background: C.primary, color: "#fff", fontWeight: 500 }}>제출하기 →</button>
+            </div>
+          : <div style={{ background: "#FDECEA", borderRadius: 14, padding: "14px 16px", marginBottom: 14 }}>
+              <p style={{ margin: "0 0 8px", fontWeight: 500, color: "#C0392B" }}>⚠️ 규정 위반</p>
+              {issues.map((iss,i) => <p key={i} style={{ margin: "3px 0", fontSize: 12, color: "#C0392B" }}>• {iss}</p>)}
+              <button onClick={() => setStep("exception")} style={{ width: "100%", marginTop: 16, padding: 16, borderRadius: 14, border: "none", background: "#E24B4A", color: "#fff", fontWeight: 500 }}>예외 요청하기 →</button>
+            </div>
+        }
       </div>
-    </div>
-  );
-
-  const AppException = (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
-      <div style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: 12 }}>
-        <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22 }}>←</button>
-        <span style={{ fontWeight: 500, fontSize: 17 }}>예외 요청</span>
-      </div>
-      <div style={{ flex: 1, padding: "0 24px 24px" }}>
-        <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 8 }}>사유 유형 *</label>
-        <select value={excType} onChange={e => setExcType(e.target.value)} style={{ width: "100%", marginBottom: 16, padding: 14, borderRadius: 12, border: "none", background: "rgba(255,255,255,0.8)" }}>
-          <option value="">선택하세요</option>
-          <option value="조기출근/야근">조기출근 / 야근</option>
-          <option value="외부 미팅">외부 미팅</option>
-          <option value="업무 연장">업무 연장</option>
-          <option value="기타">기타</option>
-        </select>
-        <textarea value={excText} onChange={e => setExcText(e.target.value)} placeholder="상세 사유 작성" style={{ width: "100%", minHeight: 110, padding: 14, borderRadius: 12, border: "none", background: "rgba(255,255,255,0.8)" }} />
-        <button onClick={() => submit(true)} disabled={!excType || !excText.trim()} style={{ width: "100%", marginTop: 16, padding: 16, borderRadius: 14, border: "none", background: excType && excText.trim() ? C.primary : "#aaa", color: "#fff" }}>제외 요청 제출 →</button>
-      </div>
-    </div>
-  );
-
-  const AppDone = (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 28, textAlign: "center", background: C.bg }}>
-      <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
-      <h2 style={{ fontSize: 24, fontWeight: 600, margin: "0 0 8px" }}>제출 완료!</h2>
-      <p style={{ color: C.muted, fontSize: 14, margin: "0 0 32px" }}>매월 22일 입금됩니다</p>
-      <button onClick={reset} style={{ padding: "14px 36px", borderRadius: 28, border: "none", background: C.primary, color: "#fff" }}>홈으로 →</button>
     </div>
   );
 
@@ -409,44 +359,49 @@ export default function App() {
         <span style={{ fontWeight: 500, fontSize: 17 }}>메뉴 추천</span>
       </div>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
-        <div style={{ fontSize: 80, marginBottom: 20, animation: "bounce 2s infinite" }}>{pick?.emoji || "🤔"}</div>
+        <div style={{ fontSize: 80, marginBottom: 20 }}>{pick?.emoji || "🤔"}</div>
         <p style={{ fontSize: 14, color: C.muted, marginBottom: 8 }}>{pick?.cat}</p>
         <h2 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 32px" }}>{pick?.name} 어떠세요?</h2>
-        <button onClick={doPick} style={{ padding: "14px 32px", borderRadius: 28, border: "none", background: C.brand, color: "#000", fontWeight: 800, fontSize: 15, cursor: "pointer", boxShadow: "0 4px 12px rgba(254,198,1,0.3)" }}>다른 메뉴 추천받기</button>
+        <button onClick={doPick} style={{ padding: "14px 32px", borderRadius: 28, border: "none", background: C.brand, color: "#000", fontWeight: 800, fontSize: 15 }}>다른 메뉴 추천받기</button>
       </div>
-      <style>{`
-        @keyframes bounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-20px); }
-        }
-      `}</style>
     </div>
   );
 
-  const screens = { home: AppHome, list: AppList, result: AppResult, exception: AppException, done: AppDone, menu: AppMenu };
+  const screens = { home: AppHome, list: AppList, result: AppResult, exception: AppException, menu: AppMenu };
+
+  const Modal = ({ type, onClose }) => (
+    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)" }} />
+      <div style={{ position: "relative", background: "#fff", width: "100%", maxWidth: 320, borderRadius: 32, padding: "40px 24px 24px", textAlign: "center", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
+        {type === "checking" ? (
+          <>
+            <div style={{ fontSize: 44, marginBottom: 24 }}>🤖</div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#111", margin: "0 0 12px" }}>확인 중입니다...</h3>
+            <p style={{ fontSize: 14, color: "#888", margin: 0, lineHeight: 1.5 }}>영수증 정보를 AI가<br/>분석하고 있습니다.</p>
+          </>
+        ) : (
+          <>
+            <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#EEF2FF", color: "#4F46E5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", fontSize: 18, fontWeight: 800 }}>i</div>
+            <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111", margin: "0 0 32px", lineHeight: 1.6 }}>제출이 완료되었습니다.<br/><span style={{ fontSize: 13, color: "#888", fontWeight: 500 }}>매월 22일에 입금됩니다.</span></h3>
+            <button onClick={onClose} style={{ width: "100%", padding: "18px", borderRadius: 16, border: "none", background: "#1A1C30", color: "#fff", fontWeight: 700, fontSize: 16 }}>확인</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "linear-gradient(180deg, #FFB100 0%, #FFD688 50%, #FFF5D6 100%)", fontFamily: "sans-serif" }}>
       <style>{`
-        :root { --side-pad: 48px; --center-gap: 120px; --item-gap: 60px; --btn-top: 40px; --btn-bot: 80px; }
-        @media (max-width: 1060px) {
-          .desktop-panel { display: none !important; }
-          .app-container { width: 100% !important; border-left: none !important; }
-          :root { --side-pad: 24px; --center-gap: 30px; --item-gap: 30px; --btn-top: 20px; --btn-bot: 40px; }
-        }
+        @media (max-width: 1060px) { .desktop-panel { display: none !important; } .app-container { width: 100% !important; border-left: none !important; } }
+        :root { --side-pad: 24px; --center-gap: 30px; --item-gap: 30px; --btn-top: 20px; --btn-bot: 40px; }
       `}</style>
       <div className="desktop-panel" style={{ width: 600, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 64px" }}>
-        <div style={{ position: "fixed", top: 28, left: 36, display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800 }}>잘</div>
-          <span style={{ fontWeight: 800, fontSize: 18 }}>ZAL : 잘</span>
-        </div>
-        <div>
-          <h1 style={{ margin: "0 0 18px", fontSize: 48, fontWeight: 800, lineHeight: 1.1 }}>점심 한 끼,<br /><span>10초</span>에 정산!</h1>
-          <p style={{ fontSize: 15, color: "rgba(0,0,0,0.6)", lineHeight: 1.8 }}>영수증 사진 한 장이면 충분합니다.</p>
-        </div>
+        <h1 style={{ fontSize: 48, fontWeight: 800 }}>점심 한 끼,<br /><span>10초</span>에 정산!</h1>
       </div>
       <div className="app-container" style={{ width: 460, flexShrink: 0, height: "100%", boxShadow: "30px 30px 60px -15px rgba(0,0,0,0.12)", borderLeft: "1px solid #ddd", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
         {screens[step] || AppHome}
+        {modal && <Modal type={modal} onClose={reset} />}
         <BottomSheetPicker isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)} year={selYear} month={selMonth} week={selWeek} onConfirm={(y, m, w) => { setSelYear(y); setSelMonth(m); setSelWeek(w); }} />
       </div>
     </div>
