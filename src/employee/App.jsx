@@ -46,7 +46,6 @@ function validate(d, allowed) {
 
 const DEMO = [
   { id: 1, date: "2026-04-07", time: "12:15", amount: "9500", category: "한식", storeName: "김밥나라", status: "승인완료" },
-  { id: 2, date: "2026-04-08", time: "13:00", amount: "10500", category: "일식", storeName: "스시로", status: "승인완료" },
 ];
 
 const C = {
@@ -217,8 +216,8 @@ export default function App() {
     } catch (err) {
       setTimeout(() => {
         if (!showFail) {
-          const today = new Date().toISOString().slice(0, 10);
-          const successMock = { date: today, time: "12:30", amount: "12500", category: "한식", storeName: "디스트릭트와이" };
+          // ✅ [테스트용] 빈 칸인 '금요일(4월 10일)'로 데이터가 들어가게 설정하여 변화를 확인합니다.
+          const successMock = { date: "2026-04-10", time: "12:30", amount: "12500", category: "한식", storeName: "디스트릭트와이" };
           setOcr(successMock); setIssues([]);
           submit(false);
         } else {
