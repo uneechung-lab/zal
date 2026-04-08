@@ -216,6 +216,12 @@ export default function App() {
           { type: "text", text: "이 이미지는 모바일 카드 앱의 결제 상세 내역 스크린샷입니다. 다음 정보를 정확히 찾아 JSON으로만 답변하세요:\n\n1. storeName: '가맹점명' 항목 옆의 이름\n2. date: '이용일시'에 적힌 날짜 (YYYY-MM-DD 형식으로 변환)\n3. time: '이용일시'에 적힌 시간 (HH:MM 형식)\n4. amount: '합계' 또는 '이용금액' (숫자만 추출)\n5. category: '업종' 항목 옆의 텍스트\n\n결과는 반드시 { \"storeName\": \"...\", \"date\": \"...\", \"time\": \"...\", \"amount\": \"...\", \"category\": \"...\" } 형식의 JSON이어야 하며, 다른 설명은 절대 하지 마세요." }
         ]}] })
       });
+
+      if (!resp.ok) {
+        const errJson = await resp.json();
+        throw new Error(`API Error: ${resp.status} - ${JSON.stringify(errJson)}`);
+      }
+
       const data = await resp.json();
       const txt = data.content?.find(c => c.type === "text")?.text || "{}";
       setRawOcr(txt); // 원문 저장
@@ -242,6 +248,7 @@ export default function App() {
       setIssues(validate(result, allowed));
     } catch (err) {
       console.error("OCR Error:", err);
+      setRawOcr(err.message); // 에러 메시지를 디버그 창에 표시
       const mock = { date: new Date().toISOString().slice(0,10), time: "12:30", amount: "9800", category: "한식", storeName: "인식 실패 (이미지 재촬영 필요)" };
       setOcr(mock); setIssues(validate(mock, allowed));
     }
