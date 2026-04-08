@@ -207,25 +207,37 @@ export default function App() {
       const resp = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-        body: JSON.stringify({ model: "claude-3-5-sonnet-20241022", max_tokens: 500, messages: [{ role: "user", content: [
+        body: JSON.stringify({ model: "claude-3-5-sonnet-20241022", max_tokens: 1000, messages: [{ role: "user", content: [
           { type: "image", source: { type: "base64", media_type: f.type === "image/png" ? "image/png" : "image/jpeg", data: b64 } },
-          { type: "text", text: "영수증 이미지에서 다음 정보를 추출하여 JSON으로만 답변하세요: \n1. date: YYYY-MM-DD 형식 (26.04.02 -> 2026-04-02)\n2. time: HH:MM 형식 (24시간제)\n3. amount: 숫자만 (쉼표 제외)\n4. category: 업종명 (예: 일반음식점, 카페 등)\n5. storeName: 가맹점 이름\n\n중요: 오직 JSON 데이터만 출력하고 다른 설명은 하지 마세요." }
+          { type: "text", text: "이 이미지는 모바일 카드 앱의 결제 상세 내역 스크린샷입니다. 다음 정보를 정확히 찾아 JSON으로만 답변하세요:\n\n1. storeName: '가맹점명' 항목 옆의 이름\n2. date: '이용일시'에 적힌 날짜 (YYYY-MM-DD 형식으로 변환)\n3. time: '이용일시'에 적힌 시간 (HH:MM 형식)\n4. amount: '합계' 또는 '이용금액' (숫자만 추출)\n5. category: '업종' 항목 옆의 텍스트\n\n결과는 반드시 { \"storeName\": \"...\", \"date\": \"...\", \"time\": \"...\", \"amount\": \"...\", \"category\": \"...\" } 형식의 JSON이어야 하며, 다른 설명은 절대 하지 마세요." }
         ]}] })
       });
       const data = await resp.json();
       const txt = data.content?.find(c => c.type === "text")?.text || "{}";
       const cleaned = txt.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(cleaned);
+      let parsed = JSON.parse(cleaned);
 
-      // 데이터 정제: 금액에서 숫자만 추출, 날짜 형식 통일 등
-      if (parsed.amount) parsed.amount = String(parsed.amount).replace(/[^\d]/g, "");
-      if (parsed.date) parsed.date = parsed.date.replace(/\./g, "-"); 
+      // AI가 다른 키 이름을 사용할 경우를 대비한 매핑
+      const result = {
+        storeName: parsed.storeName || parsed.store || parsed.merchant || "",
+        date: parsed.date || parsed.usageDate || "",
+        time: parsed.time || parsed.usageTime || "",
+        amount: parsed.amount || parsed.totalAmount || parsed.total || "",
+        category: parsed.category || parsed.businessType || ""
+      };
+
+      // 데이터 정제
+      if (result.amount) result.amount = String(result.amount).replace(/[^\d]/g, "");
+      if (result.date) {
+        result.date = result.date.replace(/\./g, "-");
+        if (result.date.startsWith("26")) result.date = "20" + result.date; // 26.04.02 처리
+      }
       
-      setOcr(parsed); 
-      setIssues(validate(parsed, allowed));
+      setOcr(result); 
+      setIssues(validate(result, allowed));
     } catch (err) {
       console.error("OCR Error:", err);
-      const mock = { date: new Date().toISOString().slice(0,10), time: "12:30", amount: "9800", category: "한식", storeName: "인식 실패 (재시도 필요)" };
+      const mock = { date: new Date().toISOString().slice(0,10), time: "12:30", amount: "9800", category: "한식", storeName: "인식 실패 (이미지 재촬영 필요)" };
       setOcr(mock); setIssues(validate(mock, allowed));
     }
     setLoading(false);
