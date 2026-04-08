@@ -241,7 +241,7 @@ export default function App() {
   ];
   const doPick = () => setPick(MENUS[Math.floor(Math.random() * MENUS.length)]);
 
-  const approvedTotal = subs.filter(s => s.status === "승인완료").reduce((a, s) => a + parseInt(s.amount || 0), 0);
+  const approvedTotal = subs.filter(s => s.status === "승인완료" || s.status === "승인대기").reduce((a, s) => a + parseInt(s.amount || 0), 0);
   const weekDates = getWeekDates(selYear, selMonth, selWeek);
   const payMonth = selMonth === 12 ? 1 : selMonth + 1;
   const payYear = selMonth === 12 ? selYear + 1 : selYear;
