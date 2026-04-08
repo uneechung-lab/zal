@@ -176,6 +176,7 @@ export default function App() {
   const [excText, setExcText] = useState("");
   const [detail, setDetail] = useState(null);
   const [allowed, setAllowed] = useState([]);
+  const [rawOcr, setRawOcr] = useState(""); // 디버깅용 원문 저장
   const [selYear, setSelYear] = useState(2026);
   const [selMonth, setSelMonth] = useState(4);
   const [selWeek, setSelWeek] = useState(2);
@@ -184,7 +185,10 @@ export default function App() {
 
   useEffect(() => { fetchCategories().then(setAllowed); }, []);
 
-  const reset = () => { setStep("home"); setFile(null); setPreview(null); setOcr(null); setIssues([]); setExcType(""); setExcText(""); };
+  const reset = () => { 
+    setStep("home"); setFile(null); setPreview(null); setOcr(null); 
+    setIssues([]); setExcType(""); setExcText(""); setRawOcr("");
+  };
 
   // ✅ 파일 선택 즉시 OCR 자동 실행
   const handleFile = async e => {
@@ -214,6 +218,7 @@ export default function App() {
       });
       const data = await resp.json();
       const txt = data.content?.find(c => c.type === "text")?.text || "{}";
+      setRawOcr(txt); // 원문 저장
       const cleaned = txt.replace(/```json|```/g, "").trim();
       let parsed = JSON.parse(cleaned);
 
@@ -387,15 +392,20 @@ export default function App() {
           </div>
         ) : (
           <>
-            {preview && <img src={preview} style={{ width: "100%", borderRadius: 14, maxHeight: 180, objectFit: "cover", marginBottom: 14 }} alt="" />}
+            {preview && <img src={preview} style={{ width: "100%", borderRadius: 14, marginBottom: 14, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }} alt="영수증 원본" />}
             {ocr && (
               <div style={{ background: "rgba(255,255,255,0.8)", borderRadius: 14, padding: "14px 16px", marginBottom: 14 }}>
                 <p style={{ margin: "0 0 10px", fontSize: 12, color: C.muted, fontWeight: 600 }}>AI 인식 결과</p>
                 <table style={{ width: "100%", fontSize: 13 }}>
-                  {[["가게명",ocr.storeName],["날짜",ocr.date],["시간",ocr.time],["금액","₩"+parseInt(ocr.amount||0).toLocaleString()],["업종",ocr.category]].filter(([,v])=>v).map(([k,v]) => (
-                    <tr key={k}><td style={{ color: C.muted, padding: "3px 0", width: 56 }}>{k}</td><td style={{ fontWeight: 600, color: C.text }}>{v}</td></tr>
+                  {[["가게명",ocr.storeName],["날짜",ocr.date],["시간",ocr.time],["금액","₩"+parseInt(ocr.amount||0).toLocaleString()],["업종",ocr.category]].map(([k,v]) => (
+                    <tr key={k}><td style={{ color: C.muted, padding: "3px 0", width: 56 }}>{k}</td><td style={{ fontWeight: 600, color: C.text }}>{v || <span style={{color:'#ccc'}}>인식불가</span>}</td></tr>
                   ))}
                 </table>
+              </div>
+            )}
+            {rawOcr && (
+              <div style={{ padding: 10, background: "#f0f0f0", borderRadius: 8, fontSize: 10, color: "#999", marginBottom: 14, wordBreak: "break-all", maxHeight: 100, overflow: "auto" }}>
+                [Debug Raw Info]: {rawOcr}
               </div>
             )}
             {issues.length === 0
