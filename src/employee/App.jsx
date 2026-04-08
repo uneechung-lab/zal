@@ -303,9 +303,6 @@ export default function App() {
           <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "20px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 17 }}>영수증 올리기</button>
           <button onClick={() => { doPick(); setStep("menu"); }} style={{ width: "100%", padding: "20px", borderRadius: 16, border: "2px solid #000", background: "transparent", color: "#000", fontWeight: 800, fontSize: 17 }}>오늘 뭐 먹지?</button>
         </div>
-        <div style={{ padding: "40px 0 20px", textAlign: "center", fontSize: 12, color: "#999", fontWeight: 700, letterSpacing: "-0.5px" }}>
-          ⓒ 다음정보시스템즈
-        </div>
       </div>
     </div>
   );
@@ -452,6 +449,11 @@ export default function App() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative", height: "100%", overflow: "hidden" }}>
           {screens[step] || AppHome}
         </div>
+        {step === "" && (
+          <div style={{ position: "absolute", bottom: 15, left: "50%", transform: "translateX(-50%)", fontSize: 11, color: "#999", fontWeight: 700, whiteSpace: "nowrap", letterSpacing: "1px", pointerEvents: "none" }}>
+            ⓒ 다음정보시스템즈
+          </div>
+        )}
         {modal && <StatusModal type={modal} onClose={reset} />}
         <BottomSheetPicker isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)} year={selYear} month={selMonth} week={selWeek} onConfirm={(y, m, w) => { setSelYear(y); setSelMonth(m); setSelWeek(w); }} />
       </div>
