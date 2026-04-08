@@ -303,6 +303,9 @@ export default function App() {
           <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "20px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 17 }}>영수증 올리기</button>
           <button onClick={() => { doPick(); setStep("menu"); }} style={{ width: "100%", padding: "20px", borderRadius: 16, border: "2px solid #000", background: "transparent", color: "#000", fontWeight: 800, fontSize: 17 }}>오늘 뭐 먹지?</button>
         </div>
+        <div style={{ padding: "40px 0 20px", textAlign: "center", fontSize: 12, color: "#999", fontWeight: 700, letterSpacing: "1px" }}>
+          ⓒ 다음정보시스템즈
+        </div>
       </div>
     </div>
   );
@@ -313,7 +316,7 @@ export default function App() {
         <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
         <span style={{ fontWeight: 800, fontSize: 18 }}>정산 내역</span>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 24px", minHeight: 0 }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 140px", minHeight: 0 }}>
         {subs.map(s => (
           <div key={s.id} style={{ background: "#fff", borderRadius: 20, padding: "20px", marginBottom: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.03)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -336,7 +339,7 @@ export default function App() {
         <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
       </div>
       
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 100px", minHeight: 0 }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 140px", minHeight: 0 }}>
         <div style={{ textAlign: "center", padding: "20px 0 40px" }}>
           <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#E5E7EB", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, margin: "0 auto 16px", fontWeight: 800 }}>!</div>
           <h2 style={{ fontSize: 28, fontWeight: 900, margin: "0 0 8px", color: "#111" }}>검증 실패</h2>
@@ -367,7 +370,7 @@ export default function App() {
         </div>
       </div>
 
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "20px 24px 40px", background: "linear-gradient(to top, #FFFBF0 80%, transparent)", display: "flex", gap: 12 }}>
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "30px 24px 40px", background: "linear-gradient(to top, #FFFBF0 60%, transparent)", display: "flex", gap: 12, zIndex: 100 }}>
         <button onClick={reset} style={{ flex: 1, padding: "18px", borderRadius: 16, border: "2px solid #E5E7EB", background: "#fff", color: "#333", fontWeight: 800, fontSize: 16 }}>홈으로</button>
         <button onClick={() => setStep("exception")} style={{ flex: 2, padding: "18px", borderRadius: 16, border: "none", background: "#E24B4A", color: "#fff", fontWeight: 800, fontSize: 16 }}>예외 요청하기</button>
       </div>
@@ -380,7 +383,7 @@ export default function App() {
         <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
         <span style={{ fontWeight: 800, fontSize: 18 }}>예외 사유 입력</span>
       </div>
-      <div style={{ flex: 1, padding: "0 24px 24px", minHeight: 0, overflowY: "auto" }}>
+      <div style={{ flex: 1, padding: "0 24px 140px", minHeight: 0, overflowY: "auto" }}>
         <label style={{ fontSize: 14, fontWeight: 800, display: "block", marginBottom: 12 }}>사유 유형 *</label>
         <select value={excType} onChange={e => setExcType(e.target.value)} style={{ width: "100%", marginBottom: 20, padding: "18px", borderRadius: 16, border: "none", background: "#fff", fontSize: 15, fontWeight: 600 }}>
           <option value="">유형을 선택하세요</option>
@@ -448,9 +451,6 @@ export default function App() {
       <div className="app-container" style={{ width: 460, flexShrink: 0, height: "100%", boxShadow: "30px 30px 60px -15px rgba(0,0,0,0.12)", borderLeft: "1px solid rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", background: "#FFFBF0" }}>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
           {screens[step] || AppHome}
-        </div>
-        <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", fontSize: 12, color: "#999", fontWeight: 700, whiteSpace: "nowrap", letterSpacing: "-0.5px" }}>
-          ⓒ 다음정보시스템즈
         </div>
         {modal && <StatusModal type={modal} onClose={reset} />}
         <BottomSheetPicker isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)} year={selYear} month={selMonth} week={selWeek} onConfirm={(y, m, w) => { setSelYear(y); setSelMonth(m); setSelWeek(w); }} />
