@@ -380,7 +380,7 @@ export default function App() {
         <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, color: C.text, padding: 0 }}>←</button>
         <span style={{ fontWeight: 500, fontSize: 17, color: C.text }}>검증 결과</span>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 24px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 24px", minHeight: 0 }}>
         {loading ? (
           <div style={{ textAlign: "center", padding: "60px 0" }}>
             <div style={{ fontSize: 48, marginBottom: 20 }}>🤖</div>
@@ -392,7 +392,7 @@ export default function App() {
           </div>
         ) : (
           <>
-            {preview && <img src={preview} style={{ width: "100%", borderRadius: 14, marginBottom: 14, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }} alt="영수증 원본" />}
+            {preview && <img src={preview} style={{ width: "100%", maxHeight: 400, objectFit: "contain", borderRadius: 14, marginBottom: 14, background: "#000", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }} alt="영수증 원본" />}
             {ocr && (
               <div style={{ background: "rgba(255,255,255,0.8)", borderRadius: 14, padding: "14px 16px", marginBottom: 14 }}>
                 <p style={{ margin: "0 0 10px", fontSize: 12, color: C.muted, fontWeight: 600 }}>AI 인식 결과</p>
