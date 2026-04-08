@@ -306,7 +306,7 @@ export default function App() {
         <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
         <span style={{ fontWeight: 800, fontSize: 18 }}>정산 내역</span>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 24px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 24px", minHeight: 0 }}>
         {subs.map(s => (
           <div key={s.id} style={{ background: "#fff", borderRadius: 20, padding: "20px", marginBottom: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.03)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -329,7 +329,7 @@ export default function App() {
         <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
         <span style={{ fontWeight: 800, fontSize: 18 }}>검증 결과</span>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 24px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 24px", minHeight: 0 }}>
         {preview && <img src={preview} style={{ width: "100%", maxHeight: 400, objectFit: "contain", borderRadius: 24, marginBottom: 20, background: "#000", boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }} />}
         {ocr && (
           <div style={{ background: "#fff", borderRadius: 24, padding: "24px", marginBottom: 20 }}>
@@ -364,7 +364,7 @@ export default function App() {
         <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
         <span style={{ fontWeight: 800, fontSize: 18 }}>예외 사유 입력</span>
       </div>
-      <div style={{ flex: 1, padding: "0 24px 24px" }}>
+      <div style={{ flex: 1, padding: "0 24px 24px", minHeight: 0, overflowY: "auto" }}>
         <label style={{ fontSize: 14, fontWeight: 800, display: "block", marginBottom: 12 }}>사유 유형 *</label>
         <select value={excType} onChange={e => setExcType(e.target.value)} style={{ width: "100%", marginBottom: 20, padding: "18px", borderRadius: 16, border: "none", background: "#fff", fontSize: 15, fontWeight: 600 }}>
           <option value="">유형을 선택하세요</option>
