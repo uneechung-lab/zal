@@ -379,6 +379,7 @@ export default function App() {
         <button onClick={() => {
           if (issues.some(i => i.includes("시간"))) setExcType("업무 연장");
           else if (issues.some(i => i.includes("업종"))) setExcType("기타");
+          setExcText("업무 미팅 지연");
           setStep("exception");
         }} style={{ flex: 2, padding: "18px", borderRadius: 16, border: "none", background: "#E24B4A", color: "#fff", fontWeight: 800, fontSize: 16 }}>예외 요청하기</button>
       </div>
@@ -400,8 +401,8 @@ export default function App() {
           <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
         </div>
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 24px 240px", minHeight: 0 }}>
-          <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#f5f5f5", color: "#ccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, marginBottom: 32 }}>✏️</div>
-          <div style={{ padding: "0 0 32px", textAlign: "left" }}>
+          <img src="/pencil.webp" style={{ width: 62, height: 62, borderRadius: "50%", background: "#F3F4F6", marginBottom: 32, objectFit: "cover" }} />
+          <div style={{ padding: "0 0 48px", textAlign: "left" }}>
             <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111", lineHeight: 1.4, letterSpacing: "-0.5px" }}>{summary}의<br/>상세 사유를 작성해주세요.</p>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-start", gap: 8, marginBottom: 24 }}>
@@ -414,7 +415,7 @@ export default function App() {
               value={excText} 
               onChange={e => setExcText(e.target.value.slice(0, 200))} 
               placeholder="예: 프로젝트 마감으로 인해 점심 식사가 늦어졌습니다." 
-              style={{ width: "100%", minHeight: 160, padding: "20px", borderRadius: 16, border: "none", background: "#fff", fontSize: 15, lineHeight: 1.6, resize: "none" }} 
+              style={{ width: "100%", minHeight: 180, padding: "20px", borderRadius: 24, border: "none", background: "#fff", fontSize: 16, lineHeight: 1.6, resize: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }} 
             />
             <span style={{ position: "absolute", bottom: 12, right: 16, fontSize: 12, color: "#bbb", fontWeight: 600 }}>({excText.length}/200)</span>
           </div>
@@ -430,7 +431,7 @@ export default function App() {
               background: !excText.trim() ? "#E5E7EB" : "#000", 
               color: !excText.trim() ? "#9CA3AF" : "#fff", 
               fontWeight: 800, fontSize: 17, 
-              boxShadow: !excText.trim() ? "none" : "0 8px 20px rgba(0,0,0,0.15)",
+              boxShadow: "none",
               transition: "0.2s"
             }}
           >
