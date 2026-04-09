@@ -157,6 +157,7 @@ export default function App() {
   const [selMonth, setSelMonth] = useState(4);
   const [selWeek, setSelWeek] = useState(2);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [selectedSub, setSelectedSub] = useState(null);
   const [isImgModal, setIsImgModal] = useState(false);
   const [showFail, setShowFail] = useState(false);
   const [pick, setPick] = useState(null);
@@ -375,9 +376,8 @@ export default function App() {
                     <div style={{ display: "flex", gap: 8 }}>
                       <button 
                         onClick={() => {
-                          setOcr(s);
-                          setIssues(validate(s, allowed, subs.filter(it => it.id !== s.id)));
-                          setStep("exception");
+                          setSelectedSub(s);
+                          setStep("detail");
                         }}
                         style={{ padding: "6px 12px", borderRadius: 8, background: "#f5f5f5", color: "#666", fontSize: 12, fontWeight: 700, border: "none" }}
                       >
@@ -399,6 +399,84 @@ export default function App() {
               </div>
             ))
           )}
+        </div>
+      </div>
+    );
+  })();
+
+  const AppDetail = (() => {
+    const s = selectedSub;
+    if (!s) return null;
+
+    const [replyText, setReplyText] = useState("");
+    const MOCK_MGR_REPLY = s.status === "반려" ? "정산 기준 시간(14:00)을 1시간 이상 초과하여 반려되었습니다. 소명이 더 필요한 경우 답변 남겨주세요." : "검토 중입니다. 추가 문의 사항이 있으시면 댓글을 남겨주세요.";
+
+    return (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden", position: "relative" }}>
+        <div style={{ padding: "24px 24px 0", display: "flex", alignItems: "center", gap: 16 }}>
+          <button onClick={() => setStep("list")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
+          <span style={{ fontWeight: 800, fontSize: 18 }}>요청 상세</span>
+        </div>
+
+        <div style={{ flex: 1, overflowY: "auto", padding: "24px 24px 200px", minHeight: 0 }}>
+          <div style={{ background: "#fff", borderRadius: 24, padding: "24px", marginBottom: 24, boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+              <div>
+                <p style={{ margin: "0 0 4px", fontSize: 12, color: "#999", fontWeight: 600 }}>{s.date} · {s.category}</p>
+                <p style={{ margin: 0, fontSize: 20, fontWeight: 900, color: "#111" }}>{s.storeName}</p>
+              </div>
+              <Badge status={s.status} />
+            </div>
+            <p style={{ margin: 0, fontSize: 20, fontWeight: 900 }}>₩{parseInt(s.amount || 0).toLocaleString()}</p>
+          </div>
+
+          <div style={{ marginBottom: 32 }}>
+            <h4 style={{ fontSize: 14, fontWeight: 800, color: "#999", marginBottom: 16 }}>요청 내용 및 대화</h4>
+            
+            {/* User Message */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", marginBottom: 20 }}>
+              <div style={{ background: "#000", color: "#fff", padding: "14px 18px", borderRadius: "18px 2px 18px 18px", maxWidth: "85%", fontSize: 15, lineHeight: 1.5, fontWeight: 500 }}>
+                {s.excText || "재정산 요청드립니다."}
+              </div>
+              <span style={{ fontSize: 11, color: "#bbb", marginTop: 6, fontWeight: 600 }}>방금 전</span>
+            </div>
+
+            {/* Manager Message */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", marginBottom: 20 }}>
+              <div style={{ background: "#fff", color: "#333", padding: "14px 18px", borderRadius: "2px 18px 18px 18px", maxWidth: "85%", fontSize: 15, lineHeight: 1.5, fontWeight: 500, border: "1.5px solid #eee" }}>
+                {MOCK_MGR_REPLY}
+              </div>
+              <span style={{ fontSize: 11, color: "#bbb", marginTop: 6, fontWeight: 600 }}>관리자 · 5분 전</span>
+            </div>
+          </div>
+
+          <div style={{ position: "relative" }}>
+            <textarea 
+              value={replyText}
+              onChange={e => setReplyText(e.target.value)}
+              placeholder="답변을 입력하세요..."
+              style={{ width: "100%", minHeight: 100, padding: "16px", borderRadius: 16, border: "1.5px solid #eee", background: "#fff", fontSize: 14, lineHeight: 1.5, resize: "none", outline: "none" }}
+            />
+            <button 
+              disabled={!replyText.trim()}
+              style={{ position: "absolute", bottom: 12, right: 12, background: replyText.trim() ? "#000" : "#eee", color: replyText.trim() ? "#fff" : "#aaa", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, transition: "0.2s" }}
+            >
+              전송
+            </button>
+          </div>
+        </div>
+
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "40px 24px 40px", background: "linear-gradient(to top, #FFFBF0 70%, transparent)", z_index: 9999 }}>
+          <button 
+            onClick={() => {
+              setOcr(s);
+              setIssues(validate(s, allowed, subs.filter(it => it.id !== s.id)));
+              setStep("exception");
+            }}
+            style={{ width: "100%", padding: "20px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 17 }}
+          >
+            재신청 하기
+          </button>
         </div>
       </div>
     );
@@ -530,7 +608,7 @@ export default function App() {
     </div>
   );
 
-  const screens = { home: AppHome, list: AppList, result: AppResult, exception: AppException, menu: AppMenu };
+  const screens = { home: AppHome, list: AppList, result: AppResult, exception: AppException, menu: AppMenu, detail: AppDetail };
 
   const StatusModal = ({ type, onClose }) => (
     <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
