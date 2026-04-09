@@ -439,6 +439,7 @@ export default function App() {
     <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "linear-gradient(180deg, #FFB100 0%, #FFD688 50%, #FFF5D6 100%)", fontFamily: "'Pretendard', sans-serif", letterSpacing: "-0.5px" }}>
       <style>{`
         @media (max-width: 1060px) { .desktop-panel { display: none !important; } .app-container { width: 100% !important; border-left: none !important; } }
+        @media (max-height: 820px) { .footer-copy { display: none !important; } }
         :root { --side-pad: 32px; --item-gap: 64px; --btn-bot: 60px; }
         @media (max-width: 480px) { :root { --side-pad: 24px; --item-gap: 40px; --btn-bot: 40px; } }
       `}</style>
@@ -451,7 +452,7 @@ export default function App() {
           {screens[step] || AppHome}
         </div>
         {step === "home" && (
-          <div style={{ padding: "12px 0 24px", textAlign: "center", background: "#FFFBF0", fontSize: 11, color: "#999", fontWeight: 700, whiteSpace: "nowrap", letterSpacing: "-0.3px", pointerEvents: "none" }}>
+          <div className="footer-copy" style={{ position: "absolute", bottom: 15, left: "50%", transform: "translateX(-50%)", fontSize: 11, color: "#999", fontWeight: 700, whiteSpace: "nowrap", letterSpacing: "-0.3px", pointerEvents: "none" }}>
             ⓒ 다음정보시스템즈
           </div>
         )}
