@@ -337,8 +337,8 @@ export default function App() {
         <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
       </div>
       
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 160px", minHeight: 0 }}>
-        <div style={{ textAlign: "center", padding: "20px 0 40px" }}>
+      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 24px 180px", minHeight: 0 }}>
+        <div style={{ textAlign: "center", padding: "40px 0" }}>
           <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#FEE2E2", color: "#E24B4A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, margin: "0 auto 20px", fontWeight: 800 }}>!</div>
           <p style={{ fontSize: 22, color: "#111", fontWeight: 900, marginBottom: 16 }}>정산 기준에 맞지 않는 영수증이에요</p>
           {issues.map((iss, i) => (
@@ -359,8 +359,10 @@ export default function App() {
                 ].map(([k, v, isBad]) => (
                   <tr key={k}>
                     <td style={{ color: "#888", padding: "10px 0", width: 70, fontWeight: 500 }}>{k}</td>
-                    <td style={{ fontWeight: isBad ? 900 : 800, padding: "10px 0", textAlign: "right", color: isBad ? "#E24B4A" : "#333" }}>
-                      {isBad && <span style={{ marginRight: 4 }}>⚠️</span>}
+                    <td style={{ fontWeight: isBad ? 900 : 800, padding: "10px 0", textAlign: "right", color: isBad ? "#E24B4A" : "#333", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+                      {isBad && (
+                        <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#E24B4A", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, marginRight: 6 }}>!</div>
+                      )}
                       {v}
                     </td>
                   </tr>
