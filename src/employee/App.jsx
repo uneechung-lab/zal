@@ -376,31 +376,79 @@ export default function App() {
 
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "40px 24px 40px", background: "linear-gradient(to top, #FFFBF0 70%, transparent)", display: "flex", gap: 12, zIndex: 9999 }}>
         <button onClick={() => { reset(); setTimeout(() => fileRef.current?.click(), 100); }} style={{ flex: 1, padding: "18px", borderRadius: 16, border: "2px solid #E5E7EB", background: "#fff", color: "#333", fontWeight: 800, fontSize: 16 }}>다시 제출</button>
-        <button onClick={() => setStep("exception")} style={{ flex: 2, padding: "18px", borderRadius: 16, border: "none", background: "#E24B4A", color: "#fff", fontWeight: 800, fontSize: 16 }}>예외 요청하기</button>
+        <button onClick={() => {
+          if (issues.some(i => i.includes("시간"))) setExcType("업무 연장");
+          else if (issues.some(i => i.includes("업종"))) setExcType("기타");
+          setStep("exception");
+        }} style={{ flex: 2, padding: "18px", borderRadius: 16, border: "none", background: "#E24B4A", color: "#fff", fontWeight: 800, fontSize: 16 }}>예외 요청하기</button>
       </div>
     </div>
   );
 
-  const AppException = (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden", position: "relative" }}>
-      <div style={{ padding: "24px", display: "flex", alignItems: "center", gap: 16 }}>
-        <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
-        <span style={{ fontWeight: 800, fontSize: 18 }}>예외 사유 입력</span>
+  const AppException = (() => {
+    const mainIssue = issues[0] || "";
+    let summary = "예외 정산 신청 건";
+    if (mainIssue.includes("시간")) summary = `[시간 외 사용] ${ocr?.time} 결제 건`;
+    else if (mainIssue.includes("날짜") || mainIssue.includes("주말")) summary = `[사용 일자] ${ocr?.date} 결제 건`;
+    else if (mainIssue.includes("업종")) summary = `[지원 외 업종] ${ocr?.category} 결제 건`;
+
+    const CHIPS = ["업무 미팅 지연", "야근 후 늦은 점심", "식당 결제 시스템 오류", "외부 미팅 연장"];
+
+    return (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden", position: "relative" }}>
+        <div style={{ padding: "24px", display: "flex", alignItems: "center", gap: 16 }}>
+          <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
+          <span style={{ fontWeight: 800, fontSize: 18 }}>예외 사유 입력</span>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 180px", minHeight: 0 }}>
+          <div style={{ background: "#fff", padding: 16, borderRadius: 16, marginBottom: 32, border: "1px solid #eee" }}>
+            <p style={{ margin: "0 0 4px", fontSize: 12, color: "#888", fontWeight: 600 }}>선택된 위반 항목</p>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#111" }}>{summary}</p>
+          </div>
+
+          <label style={{ fontSize: 14, fontWeight: 800, display: "block", marginBottom: 12 }}>사유 유형 *</label>
+          <select value={excType} onChange={e => setExcType(e.target.value)} style={{ width: "100%", marginBottom: 24, padding: "18px", borderRadius: 16, border: "none", background: "#fff", fontSize: 15, fontWeight: 600, appearance: "none", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
+            <option value="">유형을 선택하세요</option>
+            <option value="조기출근/야근">조기출근 / 야근</option>
+            <option value="외부 미팅">외부 미팅</option>
+            <option value="업무 연장">업무 연장</option>
+            <option value="기타">기타</option>
+          </select>
+
+          <label style={{ fontSize: 14, fontWeight: 800, display: "block", marginBottom: 12 }}>상세 사유 *</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+            {CHIPS.map(c => (
+              <button key={c} onClick={() => setExcText(c)} style={{ padding: "8px 14px", borderRadius: 20, border: "1.5px solid #eee", background: excText === c ? "#000" : "#fff", color: excText === c ? "#fff" : "#666", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{c}</button>
+            ))}
+          </div>
+          <div style={{ position: "relative" }}>
+            <textarea 
+              value={excText} 
+              onChange={e => setExcText(e.target.value.slice(0, 200))} 
+              placeholder="예: 프로젝트 마감으로 인해 점심 식사가 늦어졌습니다." 
+              style={{ width: "100%", minHeight: 160, padding: "20px", borderRadius: 16, border: "none", background: "#fff", fontSize: 15, lineHeight: 1.6, resize: "none" }} 
+            />
+            <span style={{ position: "absolute", bottom: 12, right: 16, fontSize: 12, color: "#bbb", fontWeight: 600 }}>({excText.length}/200)</span>
+          </div>
+
+          <button 
+            onClick={() => { submit(true); }} 
+            disabled={!excType || !excText.trim()} 
+            style={{ 
+              width: "100%", marginTop: 32, padding: "20px", borderRadius: 16, border: "none", 
+              background: (!excType || !excText.trim()) ? "#E5E7EB" : "#FEC601", 
+              color: (!excType || !excText.trim()) ? "#9CA3AF" : "#000", 
+              fontWeight: 800, fontSize: 17, 
+              boxShadow: (!excType || !excText.trim()) ? "none" : "0 8px 20px rgba(254,198,1,0.3)",
+              transition: "0.2s"
+            }}
+          >
+            예외 요청 제출 →
+          </button>
+        </div>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 180px", minHeight: 0 }}>
-        <label style={{ fontSize: 14, fontWeight: 800, display: "block", marginBottom: 12 }}>사유 유형 *</label>
-        <select value={excType} onChange={e => setExcType(e.target.value)} style={{ width: "100%", marginBottom: 20, padding: "18px", borderRadius: 16, border: "none", background: "#fff", fontSize: 15, fontWeight: 600 }}>
-          <option value="">유형을 선택하세요</option>
-          <option value="조기출근/야근">조기출근 / 야근</option>
-          <option value="외부 미팅">외부 미팅</option>
-          <option value="업무 연장">업무 연장</option>
-          <option value="기타">기타</option>
-        </select>
-        <textarea value={excText} onChange={e => setExcText(e.target.value)} placeholder="상세 사유를 입력해주세요" style={{ width: "100%", minHeight: 150, padding: "20px", borderRadius: 16, border: "none", background: "#fff", fontSize: 15, lineHeight: 1.6 }} />
-        <button onClick={() => { submit(true); }} disabled={!excType || !excText.trim()} style={{ width: "100%", marginTop: 24, padding: "20px", borderRadius: 16, border: "none", background: excType && excText.trim() ? "#000" : "#ccc", color: "#fff", fontWeight: 800, fontSize: 17 }}>예외 요청 제출 →</button>
-      </div>
-    </div>
-  );
+    );
+  })();
 
   const AppMenu = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
