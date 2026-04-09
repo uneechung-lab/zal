@@ -436,7 +436,7 @@ export default function App() {
   );
 
   return (
-    <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "linear-gradient(180deg, #FFB100 0%, #FFD688 50%, #FFF5D6 100%)", fontFamily: "'Pretendard', sans-serif" }}>
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "linear-gradient(180deg, #FFB100 0%, #FFD688 50%, #FFF5D6 100%)", fontFamily: "'Pretendard', sans-serif", letterSpacing: "-0.5px" }}>
       <style>{`
         @media (max-width: 1060px) { .desktop-panel { display: none !important; } .app-container { width: 100% !important; border-left: none !important; } }
         :root { --side-pad: 32px; --item-gap: 64px; --btn-bot: 60px; }
@@ -451,7 +451,7 @@ export default function App() {
           {screens[step] || AppHome}
         </div>
         {step === "home" && (
-          <div style={{ position: "absolute", bottom: 15, left: "50%", transform: "translateX(-50%)", fontSize: 11, color: "#999", fontWeight: 700, whiteSpace: "nowrap", letterSpacing: "1px", pointerEvents: "none" }}>
+          <div style={{ padding: "12px 0 24px", textAlign: "center", background: "#FFFBF0", fontSize: 11, color: "#999", fontWeight: 700, whiteSpace: "nowrap", letterSpacing: "-0.3px", pointerEvents: "none" }}>
             ⓒ 다음정보시스템즈
           </div>
         )}
