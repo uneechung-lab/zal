@@ -340,7 +340,6 @@ export default function App() {
       <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 160px", minHeight: 0 }}>
         <div style={{ textAlign: "center", padding: "20px 0 40px" }}>
           <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#E5E7EB", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, margin: "0 auto 16px", fontWeight: 800 }}>!</div>
-          <h2 style={{ fontSize: 28, fontWeight: 900, margin: "0 0 8px", color: "#111" }}>검증 실패</h2>
           <p style={{ fontSize: 15, color: "#666", lineHeight: 1.5, margin: 0, fontWeight: 500 }}>정산 기준에 맞지 않는 영수증이에요</p>
         </div>
 
