@@ -401,7 +401,7 @@ export default function App() {
           <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
         </div>
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 24px 240px", minHeight: 0 }}>
-          <img src="/pencil.webp" style={{ width: 52, height: 52, marginBottom: 32 }} alt="pencil" />
+          <img src="/pencil.webp" style={{ width: 52, height: 52, marginBottom: 32, marginLeft: 5 }} alt="pencil" />
           <div style={{ padding: "0 0 48px", textAlign: "left" }}>
             <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111", lineHeight: 1.4, letterSpacing: "-0.5px" }}>{summary}의<br/>상세 사유를 작성해주세요.</p>
           </div>
@@ -415,7 +415,7 @@ export default function App() {
               value={excText} 
               onChange={e => setExcText(e.target.value.slice(0, 200))} 
               placeholder="예: 프로젝트 마감으로 인해 점심 식사가 늦어졌습니다." 
-              style={{ width: "100%", minHeight: 180, padding: "20px", borderRadius: 24, border: "none", background: "#fff", fontSize: 16, lineHeight: 1.6, resize: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }} 
+              style={{ width: "100%", minHeight: 195, padding: "20px", borderRadius: 24, border: "none", background: "#fff", fontSize: 16, lineHeight: 1.6, resize: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }} 
             />
             <span style={{ position: "absolute", bottom: 12, right: 16, fontSize: 12, color: "#bbb", fontWeight: 600 }}>({excText.length}/200)</span>
           </div>
