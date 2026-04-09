@@ -97,9 +97,8 @@ function getWeekCount(year, month) {
 
 function Badge({ status }) {
   const map = {
-    "승인대기": { bg: "#E8F0FD", color: "#3B6FD4", label: "승인 대기" },
-    "승인완료": { bg: "#E2F5EC", color: "#1E8A4A", label: "승인 완료" },
-    "예외요청": { bg: "#FEF3E2", color: "#B87020", label: "예외 요청" },
+    "승인완료": { bg: "#E2F5EC", color: "#1E8A4A", label: "승인" },
+    "예외요청": { bg: "#FEF3E2", color: "#B87020", label: "보류" },
     "반려": { bg: "#FDECEA", color: "#C0392B", label: "반려" },
   };
   const s = map[status] || map["승인대기"];
@@ -170,7 +169,7 @@ export default function App() {
   };
 
   const submit = (isEx = false, data = ocr) => {
-    setSubs(p => [{ id: Date.now(), ...data, status: isEx ? "예외요청" : "승인대기" }, ...p]);
+    setSubs(p => [{ id: Date.now(), ...data, status: isEx ? "예외요청" : "승인완료" }, ...p]);
     setModal(isEx ? "done_ex" : "done_normal");
   };
 
@@ -284,7 +283,7 @@ export default function App() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             {weekDates.map((date, i) => {
               const dateStr = date.toISOString().slice(0, 10);
-              const daySub = subs.find(s => s.date === dateStr && (s.status === "승인완료" || s.status === "승인대기" || s.status === "예외요청"));
+              const daySub = subs.find(s => s.date === dateStr && (s.status === "승인완료" || s.status === "예외요청"));
               const foodImages = ["/food_01.webp", "/food_02.webp", "/food_03.webp"];
               const selectedFood = foodImages[(i + date.getDate()) % 3];
               return (
@@ -317,28 +316,93 @@ export default function App() {
     </div>
   );
 
-  const AppList = (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden" }}>
-      <div style={{ padding: "24px", display: "flex", alignItems: "center", gap: 16 }}>
-        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
-        <span style={{ fontWeight: 800, fontSize: 18 }}>정산 내역</span>
+  const AppList = (() => {
+    const [filter, setFilter] = useState("전체");
+    
+    const statusMapForFilter = {
+      "승인": "승인완료",
+      "보류": "예외요청",
+      "반려": "반려"
+    };
+
+    const filtered = subs.filter(s => {
+      if (filter === "전체") return true;
+      return s.status === statusMapForFilter[filter];
+    });
+
+    return (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden" }}>
+        <div style={{ padding: "24px", display: "flex", alignItems: "center", gap: 16 }}>
+          <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
+          <span style={{ fontWeight: 800, fontSize: 18 }}>정산 내역</span>
+        </div>
+        
+        <div style={{ display: "flex", gap: 12, padding: "0 24px 20px", overflowX: "auto", msOverflowStyle: "none", scrollbarWidth: "none" }}>
+          {["전체", "승인", "보류", "반려"].map(f => (
+            <button 
+              key={f} 
+              onClick={() => setFilter(f)}
+              style={{ 
+                padding: "8px 20px", borderRadius: 20, border: "none", whiteSpace: "nowrap",
+                background: filter === f ? "#000" : "#fff",
+                color: filter === f ? "#fff" : "#888",
+                fontWeight: 700, fontSize: 13, transition: "0.2s"
+              }}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 180px", minHeight: 0 }}>
+          {filtered.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "80px 0", color: "#bbb", fontWeight: 600 }}>내역이 없습니다.</div>
+          ) : (
+            filtered.map(s => (
+              <div key={s.id} style={{ background: "#fff", borderRadius: 24, padding: "24px", marginBottom: 16, boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                  <div>
+                    <p style={{ margin: "0 0 4px", fontSize: 12, color: "#999", fontWeight: 600 }}>{s.date} · {s.category}</p>
+                    <p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "#111" }}>{s.storeName}</p>
+                  </div>
+                  <Badge status={s.status} />
+                </div>
+                
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                  <p style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>₩{parseInt(s.amount || 0).toLocaleString()}</p>
+                  
+                  {(s.status === "예외요청" || s.status === "반려") && (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button 
+                        onClick={() => {
+                          setOcr(s);
+                          setIssues(validate(s, allowed, subs.filter(it => it.id !== s.id)));
+                          setStep("exception");
+                        }}
+                        style={{ padding: "6px 12px", borderRadius: 8, background: "#f5f5f5", color: "#666", fontSize: 12, fontWeight: 700, border: "none" }}
+                      >
+                        수정
+                      </button>
+                      <button 
+                        onClick={() => {
+                          if (confirm("정말 삭제하시겠습니까?")) {
+                            setSubs(p => p.filter(it => it.id !== s.id));
+                          }
+                        }}
+                        style={{ padding: "6px 12px", borderRadius: 8, background: "#FFF0F0", color: "#E24B4A", fontSize: 12, fontWeight: 700, border: "none" }}
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 180px", minHeight: 0 }}>
-        {subs.map(s => (
-          <div key={s.id} style={{ background: "#fff", borderRadius: 20, padding: "20px", marginBottom: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.03)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <span style={{ fontWeight: 800, fontSize: 16 }}>{s.storeName}</span>
-              <Badge status={s.status} />
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 13, color: "#888", fontWeight: 500 }}>{s.date} · {s.category}</span>
-              <span style={{ fontSize: 16, fontWeight: 800 }}>₩{parseInt(s.amount || 0).toLocaleString()}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+    );
+  })();
 
   const AppResult = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden", position: "relative" }}>
