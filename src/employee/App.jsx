@@ -339,29 +339,31 @@ export default function App() {
       
       <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 160px", minHeight: 0 }}>
         <div style={{ textAlign: "center", padding: "20px 0 40px" }}>
-          <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#E5E7EB", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, margin: "0 auto 16px", fontWeight: 800 }}>!</div>
-          <p style={{ fontSize: 15, color: "#666", lineHeight: 1.5, margin: 0, fontWeight: 500 }}>정산 기준에 맞지 않는 영수증이에요</p>
+          <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#FEE2E2", color: "#E24B4A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, margin: "0 auto 20px", fontWeight: 800 }}>!</div>
+          <p style={{ fontSize: 22, color: "#111", fontWeight: 900, marginBottom: 16 }}>정산 기준에 맞지 않는 영수증이에요</p>
+          {issues.map((iss, i) => (
+            <p key={i} style={{ fontSize: 14, color: "#666", lineHeight: 1.6, margin: "2px 0", fontWeight: 500 }}>{iss}</p>
+          ))}
         </div>
-
-        {issues.length > 0 && (
-          <div style={{ background: "#F3F4F6", borderRadius: 16, padding: "20px", marginBottom: 32, textAlign: "center" }}>
-            <p style={{ margin: "0 0 8px", fontSize: 14, color: "#444", fontWeight: 700 }}>규정 위반 항목</p>
-            {issues.map((iss, i) => (
-              <div key={i} style={{ margin: "6px 0", fontSize: 13, color: "#E24B4A", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-                <span style={{ fontSize: 12 }}>⚠️</span>
-                <span dangerouslySetInnerHTML={{ __html: iss.replace(/(\([^)]+\))/, '<strong style="color: #E24B4A; font-weight: 900; text-decoration: underline;">$1</strong>') }} />
-              </div>
-            ))}
-            <p style={{ marginTop: 12, fontSize: 12, color: "#888", fontWeight: 500 }}>정산이 필요할 경우 하단 [예외 요청]을 이용해주세요.</p>
-          </div>
-        )}
 
         <div style={{ background: "#fff", borderRadius: 24, overflow: "hidden", boxShadow: "0 10px 30px rgba(0,0,0,0.05)", marginBottom: 20 }}>
           <div style={{ padding: "24px" }}>
             <table style={{ width: "100%", fontSize: 14, borderCollapse: "collapse" }}>
               <tbody>
-                {[["가게명",ocr?.storeName],["날짜",ocr?.date],["시간",ocr?.time],["금액","₩"+parseInt(ocr?.amount||0).toLocaleString()],["업종",ocr?.category]].map(([k,v]) => (
-                  <tr key={k}><td style={{ color: "#888", padding: "10px 0", width: 70, fontWeight: 500 }}>{k}</td><td style={{ fontWeight: 800, padding: "10px 0", textAlign: "right", color: "#333" }}>{v}</td></tr>
+                {[
+                  ["가게명", ocr?.storeName, false],
+                  ["날짜", ocr?.date, issues.some(iss => iss.includes("날짜") || iss.includes("주말"))],
+                  ["시간", ocr?.time, issues.some(iss => iss.includes("시간"))],
+                  ["금액", "₩" + parseInt(ocr?.amount || 0).toLocaleString(), issues.some(iss => iss.includes("금액"))],
+                  ["업종", ocr?.category, issues.some(iss => iss.includes("업종"))]
+                ].map(([k, v, isBad]) => (
+                  <tr key={k}>
+                    <td style={{ color: "#888", padding: "10px 0", width: 70, fontWeight: 500 }}>{k}</td>
+                    <td style={{ fontWeight: isBad ? 900 : 800, padding: "10px 0", textAlign: "right", color: isBad ? "#E24B4A" : "#333" }}>
+                      {isBad && <span style={{ marginRight: 4 }}>⚠️</span>}
+                      {v}
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>
