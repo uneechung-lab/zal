@@ -398,24 +398,11 @@ export default function App() {
       <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden", position: "relative" }}>
         <div style={{ padding: "24px", display: "flex", alignItems: "center", gap: 16 }}>
           <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
-          <span style={{ fontWeight: 800, fontSize: 18 }}>예외 사유 입력</span>
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 180px", minHeight: 0 }}>
-          <div style={{ background: "#fff", padding: 16, borderRadius: 16, marginBottom: 32, border: "1px solid #eee" }}>
-            <p style={{ margin: "0 0 4px", fontSize: 12, color: "#888", fontWeight: 600 }}>선택된 위반 항목</p>
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#111" }}>{summary}</p>
+          <div style={{ padding: "8px 0 32px" }}>
+            <p style={{ margin: 0, fontSize: 20, fontWeight: 900, color: "#111", lineHeight: 1.4, letterSpacing: "-0.5px" }}>{summary}의<br/>상세 사유를 작성해주세요.</p>
           </div>
-
-          <label style={{ fontSize: 14, fontWeight: 800, display: "block", marginBottom: 12 }}>사유 유형 *</label>
-          <select value={excType} onChange={e => setExcType(e.target.value)} style={{ width: "100%", marginBottom: 24, padding: "18px", borderRadius: 16, border: "none", background: "#fff", fontSize: 15, fontWeight: 600, appearance: "none", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
-            <option value="">유형을 선택하세요</option>
-            <option value="조기출근/야근">조기출근 / 야근</option>
-            <option value="외부 미팅">외부 미팅</option>
-            <option value="업무 연장">업무 연장</option>
-            <option value="기타">기타</option>
-          </select>
-
-          <label style={{ fontSize: 14, fontWeight: 800, display: "block", marginBottom: 12 }}>상세 사유 *</label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
             {CHIPS.map(c => (
               <button key={c} onClick={() => setExcText(c)} style={{ padding: "8px 14px", borderRadius: 20, border: "1.5px solid #eee", background: excText === c ? "#000" : "#fff", color: excText === c ? "#fff" : "#666", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{c}</button>
@@ -433,13 +420,13 @@ export default function App() {
 
           <button 
             onClick={() => { submit(true); }} 
-            disabled={!excType || !excText.trim()} 
+            disabled={!excText.trim()} 
             style={{ 
               width: "100%", marginTop: 32, padding: "20px", borderRadius: 16, border: "none", 
-              background: (!excType || !excText.trim()) ? "#E5E7EB" : "#FEC601", 
-              color: (!excType || !excText.trim()) ? "#9CA3AF" : "#000", 
+              background: !excText.trim() ? "#E5E7EB" : "#000", 
+              color: !excText.trim() ? "#9CA3AF" : "#fff", 
               fontWeight: 800, fontSize: 17, 
-              boxShadow: (!excType || !excText.trim()) ? "none" : "0 8px 20px rgba(254,198,1,0.3)",
+              boxShadow: !excText.trim() ? "none" : "0 8px 20px rgba(0,0,0,0.15)",
               transition: "0.2s"
             }}
           >
