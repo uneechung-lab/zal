@@ -171,7 +171,7 @@ export default function App() {
 
   const submit = (isEx = false, data = ocr) => {
     setSubs(p => [{ id: Date.now(), ...data, status: isEx ? "예외요청" : "승인대기" }, ...p]);
-    setModal("done");
+    setModal(isEx ? "done_ex" : "done_normal");
   };
 
   const handleFile = async e => {
@@ -482,7 +482,13 @@ export default function App() {
           <>
             <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#E2F5EC", color: "#1E8A4A", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 32px", fontSize: 24, fontWeight: 900 }}>✓</div>
             <h3 style={{ fontSize: 19, fontWeight: 800, color: "#111", margin: "0 0 12px", letterSpacing: "-0.5px" }}>제출이 완료되었습니다.</h3>
-            <p style={{ fontSize: 13, color: "#999", fontWeight: 600, margin: "0 0 40px", lineHeight: 1.5 }}>승인 여부는 담당자 확인 후<br/>결정됩니다.</p>
+            <p style={{ fontSize: 13, color: "#999", fontWeight: 600, margin: "0 0 40px", lineHeight: 1.5 }}>
+              {type === "done_ex" ? (
+                <>승인 여부는 담당자 확인 후<br/>결정됩니다.</>
+              ) : (
+                "매월 22일에 입금됩니다."
+              )}
+            </p>
             <button onClick={onClose} style={{ width: "100%", padding: "20px", borderRadius: 20, border: "none", background: "#1A1C30", color: "#fff", fontWeight: 800, fontSize: 17, cursor: "pointer" }}>확인</button>
           </>
         )}
