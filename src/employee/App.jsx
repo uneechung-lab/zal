@@ -399,13 +399,13 @@ export default function App() {
         <div style={{ padding: "24px", display: "flex", alignItems: "center", gap: 16 }}>
           <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
         </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 180px", minHeight: 0 }}>
-          <div style={{ padding: "8px 0 32px" }}>
-            <p style={{ margin: 0, fontSize: 20, fontWeight: 900, color: "#111", lineHeight: 1.4, letterSpacing: "-0.5px" }}>{summary}의<br/>상세 사유를 작성해주세요.</p>
+        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 24px 240px", minHeight: 0 }}>
+          <div style={{ padding: "0 0 32px", textAlign: "center" }}>
+            <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111", lineHeight: 1.4, letterSpacing: "-0.5px" }}>{summary}의<br/>상세 사유를 작성해주세요.</p>
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8, marginBottom: 20 }}>
             {CHIPS.map(c => (
-              <button key={c} onClick={() => setExcText(c)} style={{ padding: "8px 14px", borderRadius: 20, border: "1.5px solid #eee", background: excText === c ? "#000" : "#fff", color: excText === c ? "#fff" : "#666", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{c}</button>
+              <button key={c} onClick={() => setExcText(c)} style={{ padding: "10px 16px", borderRadius: 20, border: "1.5px solid #eee", background: excText === c ? "#000" : "#fff", color: excText === c ? "#fff" : "#666", fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "0.2s" }}>{c}</button>
             ))}
           </div>
           <div style={{ position: "relative" }}>
@@ -418,11 +418,14 @@ export default function App() {
             <span style={{ position: "absolute", bottom: 12, right: 16, fontSize: 12, color: "#bbb", fontWeight: 600 }}>({excText.length}/200)</span>
           </div>
 
+        </div>
+
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "40px 24px 40px", background: "linear-gradient(to top, #FFFBF0 70%, transparent)", zIndex: 9999 }}>
           <button 
             onClick={() => { submit(true); }} 
             disabled={!excText.trim()} 
             style={{ 
-              width: "100%", marginTop: 32, padding: "20px", borderRadius: 16, border: "none", 
+              width: "100%", padding: "20px", borderRadius: 16, border: "none", 
               background: !excText.trim() ? "#E5E7EB" : "#000", 
               color: !excText.trim() ? "#9CA3AF" : "#fff", 
               fontWeight: 800, fontSize: 17, 
@@ -430,7 +433,7 @@ export default function App() {
               transition: "0.2s"
             }}
           >
-            예외 요청 제출 →
+            예외 신청하기
           </button>
         </div>
       </div>
