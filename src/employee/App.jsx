@@ -401,7 +401,7 @@ export default function App() {
           <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
         </div>
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 24px 240px", minHeight: 0 }}>
-          <img src="/pencil.webp" style={{ width: 62, height: 62, borderRadius: "50%", background: "#F3F4F6", marginBottom: 32, objectFit: "cover" }} />
+          <img src="/pencil.webp" style={{ width: 52, height: 52, marginBottom: 32 }} alt="pencil" />
           <div style={{ padding: "0 0 48px", textAlign: "left" }}>
             <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111", lineHeight: 1.4, letterSpacing: "-0.5px" }}>{summary}의<br/>상세 사유를 작성해주세요.</p>
           </div>
