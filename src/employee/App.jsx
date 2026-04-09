@@ -26,7 +26,7 @@ function validate(d, allowed, existingSubs = []) {
   } else {
     const [h, m] = d.time.split(":").map(Number);
     const tot = h * 60 + m;
-    if (tot < 600 || tot > 840) issues.push("사용 가능 시간(10:00~14:00) 외 사용입니다.");
+    if (tot < 600 || tot > 840) issues.push(`결제 시간(${d.time})이 정산 허용 시간(10:00~14:00)을 지났습니다.`);
   }
 
   if (!d.date) {
@@ -341,14 +341,17 @@ export default function App() {
         <div style={{ textAlign: "center", padding: "20px 0 40px" }}>
           <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#E5E7EB", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, margin: "0 auto 16px", fontWeight: 800 }}>!</div>
           <h2 style={{ fontSize: 28, fontWeight: 900, margin: "0 0 8px", color: "#111" }}>검증 실패</h2>
-          <p style={{ fontSize: 15, color: "#666", lineHeight: 1.5, margin: 0, fontWeight: 500 }}>입력된 영수증 정보 중 일부가<br/>회사 정산 규정에 맞지 않습니다.</p>
+          <p style={{ fontSize: 15, color: "#666", lineHeight: 1.5, margin: 0, fontWeight: 500 }}>정산 기준에 맞지 않는 영수증이에요</p>
         </div>
 
         {issues.length > 0 && (
           <div style={{ background: "#F3F4F6", borderRadius: 16, padding: "20px", marginBottom: 32, textAlign: "center" }}>
             <p style={{ margin: "0 0 8px", fontSize: 14, color: "#444", fontWeight: 700 }}>규정 위반 항목</p>
             {issues.map((iss, i) => (
-              <p key={i} style={{ margin: "4px 0", fontSize: 13, color: "#E24B4A", fontWeight: 800 }}>{iss}</p>
+              <div key={i} style={{ margin: "6px 0", fontSize: 13, color: "#E24B4A", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                <span style={{ fontSize: 12 }}>⚠️</span>
+                <span dangerouslySetInnerHTML={{ __html: iss.replace(/(\([^)]+\))/, '<strong style="color: #E24B4A; font-weight: 900; text-decoration: underline;">$1</strong>') }} />
+              </div>
             ))}
             <p style={{ marginTop: 12, fontSize: 12, color: "#888", fontWeight: 500 }}>정산이 필요할 경우 하단 [예외 요청]을 이용해주세요.</p>
           </div>
