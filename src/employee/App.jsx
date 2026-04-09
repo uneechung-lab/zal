@@ -249,6 +249,7 @@ export default function App() {
   const doPick = () => setPick(MENUS[Math.floor(Math.random() * MENUS.length)]);
 
   const approvedTotal = subs.filter(s => s.status === "승인완료" || s.status === "승인대기").reduce((a, s) => a + parseInt(s.amount || 0), 0);
+  const pendingTotal = subs.filter(s => s.status === "예외요청").reduce((a, s) => a + parseInt(s.amount || 0), 0);
   const weekDates = getWeekDates(selYear, selMonth, selWeek);
   const payMonth = selMonth === 12 ? 1 : selMonth + 1;
   const payYear = selMonth === 12 ? selYear + 1 : selYear;
@@ -267,7 +268,10 @@ export default function App() {
           </p>
           <div style={{ marginTop: 40 }}>
             <p style={{ margin: "0 0 8px", fontSize: 14, color: "#333", fontWeight: 600 }}>{payDateStr} 입금 예정</p>
-            <p style={{ margin: 0, fontSize: 36, fontWeight: 900, color: "#000", letterSpacing: "-1px" }}>{approvedTotal.toLocaleString()}원</p>
+            <p style={{ margin: 0, fontSize: 36, fontWeight: 900, color: "#000", letterSpacing: "-1px" }}>
+              {approvedTotal.toLocaleString()}원
+              {pendingTotal > 0 && <span style={{ fontSize: 16, color: "#999", fontWeight: 600, marginLeft: 10 }}>(+{pendingTotal.toLocaleString()} 보류)</span>}
+            </p>
           </div>
         </div>
         <div style={{ padding: "0 var(--side-pad) 32px" }}>
@@ -280,14 +284,19 @@ export default function App() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             {weekDates.map((date, i) => {
               const dateStr = date.toISOString().slice(0, 10);
-              const daySub = subs.find(s => s.date === dateStr && (s.status === "승인완료" || s.status === "승인대기"));
+              const daySub = subs.find(s => s.date === dateStr && (s.status === "승인완료" || s.status === "승인대기" || s.status === "예외요청"));
               const foodImages = ["/food_01.webp", "/food_02.webp", "/food_03.webp"];
               const selectedFood = foodImages[(i + date.getDate()) % 3];
               return (
                 <div key={i} style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 14 }}>
                   <div style={{ height: 80, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {daySub ? (
-                      <img src={selectedFood} style={{ width: 80, height: 80, objectFit: "contain" }} alt="식단" />
+                      <div style={{ position: "relative" }}>
+                        <img src={selectedFood} style={{ width: 80, height: 80, objectFit: "contain" }} alt="식단" />
+                        {daySub.status === "예외요청" && (
+                          <div style={{ position: "absolute", top: 0, right: -4, background: "#E24B4A", color: "#fff", fontSize: 10, fontWeight: 900, padding: "3px 6px", borderRadius: 10, border: "2px solid #FFFBF0" }}>보류</div>
+                        )}
+                      </div>
                     ) : (
                       <img src="/food_00.png" style={{ width: 64, height: 64, opacity: 0.9 }} alt="빈함" />
                     )}
@@ -473,7 +482,7 @@ export default function App() {
           <>
             <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#E2F5EC", color: "#1E8A4A", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 32px", fontSize: 24, fontWeight: 900 }}>✓</div>
             <h3 style={{ fontSize: 19, fontWeight: 800, color: "#111", margin: "0 0 12px", letterSpacing: "-0.5px" }}>제출이 완료되었습니다.</h3>
-            <p style={{ fontSize: 14, color: "#888", fontWeight: 600, margin: "0 0 40px" }}>매월 22일에 입금됩니다.</p>
+            <p style={{ fontSize: 13, color: "#999", fontWeight: 600, margin: "0 0 40px", lineHeight: 1.5 }}>승인 여부는 담당자 확인 후<br/>결정됩니다.</p>
             <button onClick={onClose} style={{ width: "100%", padding: "20px", borderRadius: 20, border: "none", background: "#1A1C30", color: "#fff", fontWeight: 800, fontSize: 17, cursor: "pointer" }}>확인</button>
           </>
         )}
