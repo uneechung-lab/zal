@@ -392,18 +392,19 @@ export default function App() {
     else if (mainIssue.includes("날짜") || mainIssue.includes("주말")) summary = `[사용 일자] ${ocr?.date} 결제 건`;
     else if (mainIssue.includes("업종")) summary = `[지원 외 업종] ${ocr?.category} 결제 건`;
 
-    const CHIPS = ["업무 미팅 지연", "야근 후 늦은 점심", "식당 결제 시스템 오류", "외부 미팅 연장"];
+    const CHIPS = ["업무 미팅 지연", "야근 후 늦은 점심", "식당 결제 시스템 오류", "외부 미팅 연장", "기타"];
 
     return (
       <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden", position: "relative" }}>
-        <div style={{ padding: "24px", display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ padding: "24px 24px 0", display: "flex", alignItems: "center", gap: 16 }}>
           <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
         </div>
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 24px 240px", minHeight: 0 }}>
-          <div style={{ padding: "0 0 32px", textAlign: "center" }}>
+          <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#f5f5f5", color: "#ccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, marginBottom: 32 }}>✏️</div>
+          <div style={{ padding: "0 0 32px", textAlign: "left" }}>
             <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111", lineHeight: 1.4, letterSpacing: "-0.5px" }}>{summary}의<br/>상세 사유를 작성해주세요.</p>
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8, marginBottom: 20 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-start", gap: 8, marginBottom: 24 }}>
             {CHIPS.map(c => (
               <button key={c} onClick={() => setExcText(c)} style={{ padding: "10px 16px", borderRadius: 20, border: "1.5px solid #eee", background: excText === c ? "#000" : "#fff", color: excText === c ? "#fff" : "#666", fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "0.2s" }}>{c}</button>
             ))}
