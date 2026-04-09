@@ -450,17 +450,12 @@ export default function App() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative", height: "100%", overflow: "hidden" }}>
           {screens[step] || AppHome}
         </div>
-        {step === "" && (
+        {step === "home" && (
           <div style={{ position: "absolute", bottom: 15, left: "50%", transform: "translateX(-50%)", fontSize: 11, color: "#999", fontWeight: 700, whiteSpace: "nowrap", letterSpacing: "1px", pointerEvents: "none" }}>
             ⓒ 다음정보시스템즈
           </div>
         )}
         {modal && <StatusModal type={modal} onClose={reset} />}
-        {step === "" && (
-          <div style={{ position: "absolute", bottom: 15, left: "50%", transform: "translateX(-50%)", fontSize: 11, color: "#999", fontWeight: 700, whiteSpace: "nowrap", letterSpacing: "1px", pointerEvents: "none" }}>
-            ⓒ 다음정보시스템즈
-          </div>
-        )}
         {isImgModal && (
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", zIndex: 10000, display: "flex", flexDirection: "column", padding: "40px 24px" }}>
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
