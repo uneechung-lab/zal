@@ -142,8 +142,115 @@ function BottomSheetPicker({ isOpen, onClose, year, month, week, onConfirm }) {
   );
 }
 
+function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, setReplyTxt }) {
+  if (!sub) return null;
+  const MOCK_REPLY = (sub.status === "승인완료" || sub.status === "승인")
+    ? "승인 완료!\n5월 22일에 입금 됩니다."
+    : (sub.status === "반려" 
+      ? "정산 기준 시간(14:00)을 1시간 이상 초과하여 반려되었습니다.\n소명이 더 필요한 경우 답변 남겨주세요." 
+      : "검토 중입니다.\n추가 문의 사항이 있으시면 댓글을 남겨주세요.");
+
+  const getImageUrl = (data) => {
+    if (!data) return null;
+    return data.image_url || data.imageUrl || data.image_path || data.receipt_url || data.img || data.image || 
+           Object.values(data).find(v => typeof v === "string" && (v.startsWith("http") || v.startsWith("data:image")));
+  };
+  const finalImage = getImageUrl(sub);
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden", position: "relative" }}>
+      <div style={{ padding: "24px 24px 0", display: "flex", alignItems: "center", gap: 16 }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
+        <span style={{ fontWeight: 800, fontSize: 18 }}>요청 상세</span>
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: "24px 24px 180px", minHeight: 0 }}>
+        <div style={{ background: "#fff", borderRadius: 24, padding: "24px", marginBottom: 24, boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+            <div>
+              <p style={{ margin: "0 0 6px", fontSize: 13, color: "#999", fontWeight: 700 }}>{sub.date}</p>
+              <p style={{ margin: 0, fontSize: 16, fontWeight: 500, color: "#555" }}>{sub.category} · {sub.store_name || sub.storeName}</p>
+              <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                {(sub.status === "반려" || sub.status === "예외요청") && (
+                  <span style={{ fontSize: 12, color: "#E24B4A", fontWeight: 700 }}>{sub.status === "반려" ? `반려 사유: ${sub.reject_reason || sub.rejectReason || "결제 시간(15:00) 미준수"}` : "보류 사유: 결제 시간(15:00) 미준수"}</span>
+                )}
+                <button 
+                  onClick={(e) => { 
+                    e.stopPropagation();
+                    if(finalImage) onShowImg(finalImage);
+                    else window.alert("영수증 데이터가 없습니다.");
+                  }}
+                  style={{ background: "#fff", border: "1px solid #000", color: "#000", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: "4px 10px", borderRadius: 20, pointerEvents: "auto" }}
+                >
+                  영수증 보기
+                </button>
+              </div>
+              {!finalImage && (
+                <div style={{ background: "#FEE2E2", color: "#E24B4A", padding: "16px", borderRadius: "12px", fontSize: "12px", marginTop: "16px", fontWeight: "600", width: "100%", wordBreak: "break-all", lineHeight: 1.5 }}>
+                  <span style={{ fontSize: 14 }}>⚠️ 이미지 저장 오류</span><br/>
+                  DB에 넘겨준 사진 데이터가 누락되었습니다. <b>Supabase 테이블 내 컬럼명</b>을 확인해야 합니다.<br/>
+                  <div style={{ background: "rgba(255,255,255,0.5)", padding: "8px", borderRadius: "6px", marginTop: "6px" }}>
+                    <span style={{ color: "#333" }}>현재 DB에 존재하는 항목들:</span><br/>
+                    <span style={{ color: "#000", fontWeight: 900 }}>{Object.keys(sub).join(", ")}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <Badge status={sub.status} />
+          </div>
+          <p style={{ margin: 0, fontSize: 22, fontWeight: 900, textAlign: "right" }}>₩{parseInt(sub.amount || 0).toLocaleString()}</p>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+            <div style={{ background: "#000", color: "#fff", padding: "14px 18px", borderRadius: "18px 2px 18px 18px", maxWidth: "85%", fontSize: 15, lineHeight: 1.5, fontWeight: 500 }}>
+              {sub.exc_text || sub.excText 
+                ? `${sub.exc_text || sub.excText}으로 정산 요청드립니다.` 
+                : "영수증 정산 요청드립니다."}
+            </div>
+            <span style={{ fontSize: 11, color: "#bbb", marginTop: 6, fontWeight: 600 }}>
+              {(() => {
+                const d = sub.created_at ? new Date(sub.created_at) : new Date();
+                return `${d.getMonth() + 1}월 ${d.getDate()}일 ${d.toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" })}`;
+              })()}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+            <div style={{ background: "#fff", color: "#333", padding: "14px 18px", borderRadius: "2px 18px 18px 18px", maxWidth: "85%", fontSize: 15, lineHeight: 1.5, fontWeight: 500, border: "1.5px solid #eee", whiteSpace: "pre-wrap" }}>
+              {MOCK_REPLY}
+            </div>
+            <span style={{ fontSize: 11, color: "#bbb", marginTop: 6, fontWeight: 600 }}>
+              관리자 · {(() => {
+                const d = sub.created_at ? new Date(new Date(sub.created_at).getTime() + 5 * 60000) : new Date();
+                return `${d.getMonth() + 1}월 ${d.getDate()}일 ${d.toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" })}`;
+              })()}
+            </span>
+          </div>
+
+          {(chats || []).map((chat, idx) => (
+            <div key={idx} style={{ display: "flex", flexDirection: "column", alignItems: chat.sender === "admin" ? "flex-start" : "flex-end" }}>
+              <div style={{ background: chat.sender === "admin" ? "#fff" : "#000", color: chat.sender === "admin" ? "#333" : "#fff", padding: "14px 18px", borderRadius: chat.sender === "admin" ? "2px 18px 18px 18px" : "18px 2px 18px 18px", maxWidth: "85%", fontSize: 15, lineHeight: 1.5, fontWeight: 500, border: chat.sender === "admin" ? "1.5px solid #eee" : "none" }}>{chat.text}</div>
+              <span style={{ fontSize: 11, color: "#bbb", marginTop: 6, fontWeight: 600 }}>
+                {chat.sender === "admin" ? "관리자 · 방금 전" : "방금 전"}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "20px 24px 40px", background: "linear-gradient(to top, #FFFBF0 70%, transparent)", zIndex: 10, pointerEvents: "none" }}>
+        <div style={{ background: "#fff", borderRadius: 32, border: "1.5px solid #eee", padding: "8px 16px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 10px 30px rgba(0,0,0,0.06)", pointerEvents: "auto" }}>
+          <input value={replyTxt} onChange={e => setReplyTxt(e.target.value)} onKeyDown={e => { if(e.key === "Enter" && replyTxt.trim()) onSendChat(); }} placeholder="메시지를 입력하세요." style={{ flex: 1, border: "none", outline: "none", padding: "10px 0", fontSize: 15, fontWeight: 500 }} />
+          <button onClick={onSendChat} disabled={!replyTxt.trim()} style={{ background: replyTxt.trim() ? "#000" : "#f0f0f0", color: "#fff", border: "none", width: 36, height: 36, borderRadius: "50%", cursor: "pointer", fontWeight: 900, fontSize: 18, transition: "0.2s" }}>➔</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
-  const [subs, setSubs] = useState(DEMO);
+  const [subs, setSubs] = useState([]);
   const [step, setStep] = useState("home");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -160,29 +267,116 @@ export default function App() {
   const [selectedSub, setSelectedSub] = useState(null);
   const [filter, setFilter] = useState("전체");
   const [replyText, setReplyText] = useState("");
+  const [localChats, setLocalChats] = useState({});
   const [isImgModal, setIsImgModal] = useState(false);
   const [showFail, setShowFail] = useState(false);
   const [pick, setPick] = useState(null);
+  const [deleteId, setDeleteId] = useState(null);
   const fileRef = useRef();
 
-  useEffect(() => { fetchCategories().then(setAllowed); }, []);
+  useEffect(() => { 
+    fetchSubs();
+    fetchCategories().then(setAllowed); 
+  }, []);
 
-  const reset = () => { 
-    setStep("home"); setFile(null); setPreview(null); setOcr(null); setIssues([]); setExcType(""); setExcText(""); setModal(null);
+  const fetchSubs = async () => {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/settlements?order=created_at.desc`, {
+        headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+      });
+      const data = await res.json();
+      setSubs(data);
+    } catch (e) { console.error(e); }
   };
 
-  const submit = (isEx = false, data = ocr) => {
-    setSubs(p => [{ id: Date.now(), ...data, status: isEx ? "예외요청" : "승인완료" }, ...p]);
-    setModal(isEx ? "done_ex" : "done_normal");
+  const uploadToStorage = async (file) => {
+    const fileName = `${Date.now()}_${encodeURIComponent(file.name)}`;
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/storage/v1/object/receipts/${fileName}`, {
+        method: "POST",
+        headers: { 
+          "apikey": SUPABASE_KEY, 
+          "Authorization": `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": file.type 
+        },
+        body: file
+      });
+      if(!resp.ok) throw new Error("업로드 실패");
+      return `${SUPABASE_URL}/storage/v1/object/public/receipts/${fileName}`;
+    } catch (e) { 
+      console.error("Storage Error:", e);
+      return null; 
+    }
+  };
+
+  const reset = () => { 
+    setStep("home"); setFile(null); setPreview(null); setOcr(null); setIssues([]); setExcType(""); setExcText(""); setModal(null); setDeleteId(null);
+    fetchSubs();
+  };
+
+  const submit = async (isEx = false, data = ocr) => {
+    const finalStatus = isEx ? "예외요청" : "승인완료";
+    const payload = {
+      store_name: data.storeName,
+      date: data.date,
+      time: data.time,
+      amount: data.amount,
+      category: data.category,
+      status: finalStatus,
+      exc_text: isEx ? excText : null,
+      image_url: data.image_url || preview
+    };
+
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/settlements`, {
+        method: "POST",
+        headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      
+      if (data.date) {
+        const d = new Date(data.date);
+        const y = d.getFullYear();
+        const m = d.getMonth() + 1;
+        const maxW = getWeekCount(y, m);
+        let targetWeek = selWeek;
+        for (let w = 1; w <= maxW; w++) {
+          const wds = getWeekDates(y, m, w).map(dateObj => {
+            const yr = dateObj.getFullYear();
+            const mo = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const da = String(dateObj.getDate()).padStart(2, '0');
+            return `${yr}-${mo}-${da}`;
+          });
+          if (wds.includes(data.date)) {
+            targetWeek = w;
+            break;
+          }
+        }
+        setSelYear(y);
+        setSelMonth(m);
+        setSelWeek(targetWeek);
+      }
+
+      setModal(isEx ? "done_ex" : "done_normal");
+    } catch (e) { alert("연동 실패"); }
   };
 
   const handleFile = async e => {
     const f = e.target.files[0]; if (!f) return;
     setFile(f);
-    const r = new FileReader();
-    r.onload = ev => setPreview(ev.target.result);
-    r.readAsDataURL(f);
     setModal("checking");
+    
+    // 업로드 확인 및 fallback (Staleness 방지)
+    let finalImgUrl = await uploadToStorage(f);
+    if (!finalImgUrl) {
+      finalImgUrl = await new Promise(res => {
+        const r = new FileReader();
+        r.onload = ev => res(ev.target.result);
+        r.readAsDataURL(f);
+      });
+    }
+    setPreview(finalImgUrl);
+
     try {
       const b64 = await new Promise((res, rej) => {
         const rd = new FileReader();
@@ -190,25 +384,35 @@ export default function App() {
         rd.onerror = rej;
         rd.readAsDataURL(f);
       });
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_GOOGLE_API_KEY;
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-        body: JSON.stringify({ model: "claude-3-5-sonnet-20241022", max_tokens: 1000, messages: [{ role: "user", content: [
-          { type: "image", source: { type: "base64", media_type: f.type === "image/png" ? "image/png" : "image/jpeg", data: b64 } },
-          { type: "text", text: "이 이미지는 모바일 카드 앱의 결제 상세 내역 스크린샷입니다. 다음 정보를 정확히 찾아 JSON으로만 답변하세요:\n\n1. storeName: '가맹점명' 항목 옆의 이름\n2. date: '이용일시'에 적힌 날짜 (YYYY-MM-DD 형식으로 변환)\n3. time: '이용일시'에 적힌 시간 (HH:MM 형식)\n4. amount: '합계' 또는 '이용금액' (숫자만 추출)\n5. category: '업종' 항목 옆의 텍스트\n\n결과는 반드시 { \"storeName\": \"...\", \"date\": \"...\", \"time\": \"...\", \"amount\": \"...\", \"category\": \"...\" } 형식의 JSON이어야 하며, 다른 설명은 절대 하지 마세요." }
-        ]}] })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: "이 이미지는 결제 영수증 또는 승인 내역 스크린샷입니다. 이미지에서 글씨를 인식하여 다음 정보를 추출하고 반드시 JSON 형태로 반환하세요:\n1. storeName: 결제 가맹점, 음식점이나 가게의 정확한 상호명\n2. date: 결제 날짜 (반드시 YYYY-MM-DD 형식으로 변환)\n3. time: 결제 시간 (HH:MM 형식으로 변환)\n4. amount: 최종 승인 금액 숫자 (단위나 콤마 제외, 숫자만 입력)\n5. category: 가맹점 업종 정보 (예: 한식, 일식, 카페 등)\n\n다른 형태 없이 오직 { \"storeName\": \"\", \"date\": \"\", \"time\": \"\", \"amount\": \"\", \"category\": \"\" } 형태의 순수 JSON만 반환하세요." },
+              { inline_data: { mime_type: f.type === "image/png" ? "image/png" : "image/jpeg", data: b64 } }
+            ]
+          }],
+          generationConfig: { response_mime_type: "application/json" }
+        })
       });
+      
       if (!resp.ok) throw new Error(`API Error: ${resp.status}`);
       const data = await resp.json();
-      const txt = data.content?.find(c => c.type === "text")?.text || "{}";
+      const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
       const cleaned = txt.replace(/```json|```/g, "").trim();
       let parsed = JSON.parse(cleaned);
+      
       const result = {
         storeName: parsed.storeName || parsed.store || parsed.merchant || "",
         date: parsed.date || parsed.usageDate || "",
         time: parsed.time || parsed.usageTime || "",
         amount: String(parsed.amount || parsed.totalAmount || "").replace(/[^\d]/g, ""),
-        category: parsed.category || parsed.businessType || ""
+        category: parsed.category || parsed.businessType || "",
+        image_url: finalImgUrl
       };
       setOcr(result); 
       const currentIssues = validate(result, allowed, subs);
@@ -221,15 +425,13 @@ export default function App() {
     } catch (err) {
       setTimeout(() => {
         if (!showFail) {
-          // ✅ [시연 편의성] 이번 주 빈 날짜를 자동으로 찾아 제출합니다.
           const weekDates = getWeekDates(selYear, selMonth, selWeek).map(d => d.toISOString().slice(0, 10));
           const emptyDate = weekDates.find(d => !subs.some(s => s.date === d)) || new Date().toISOString().slice(0, 10);
-          
-          const successMock = { date: emptyDate, time: "12:30", amount: "12500", category: "한식", storeName: "디스트릭트와이" };
+          const successMock = { date: emptyDate, time: "12:30", amount: "12500", category: "한식", storeName: "디스트릭트와이", image_url: finalImgUrl };
           setOcr(successMock); setIssues([]);
           submit(false, successMock);
         } else {
-          const failMock = { date: "2026-04-08", time: "15:00", amount: "9800", category: "편의점", storeName: "GS25" };
+          const failMock = { date: "2026-04-08", time: "15:00", amount: "9800", category: "편의점", storeName: "GS25", excText: "업무 미팅 지연", image_url: finalImgUrl };
           setOcr(failMock); setIssues(validate(failMock, allowed));
           setModal(null); setStep("result");
         }
@@ -239,15 +441,17 @@ export default function App() {
   };
 
   const MENUS = [
-    { name: "매콤한 김치찌개", cat: "한식", emoji: "🥘" },
-    { name: "든든한 돈까스", cat: "양식", emoji: "🐷" },
-    { name: "신선한 초밥", cat: "일식", emoji: "🍣" },
-    { name: "얼큰한 짬뽕", cat: "중식", emoji: "🍜" },
-    { name: "아삭한 샌드위치", cat: "브런치", emoji: "🥪" },
-    { name: "고소한 비빔밥", cat: "한식", emoji: "🥗" },
-    { name: "바삭한 텐동", cat: "일식", emoji: "🍤" },
-    { name: "뜨끈한 쌀국수", cat: "동남아", emoji: "🍜" },
+    { name: "제육볶음", emoji: "🥩", cat: "한식" },
+    { name: "돈까스", emoji: "🍱", cat: "일식" },
+    { name: "짜장면", emoji: "🍜", cat: "중식" },
+    { name: "국밥", emoji: "🍲", cat: "한식" },
+    { name: "햄버거", emoji: "🍔", cat: "양식" },
+    { name: "김치찌개", emoji: "🥘", cat: "한식" },
+    { name: "초밥", emoji: "🍣", cat: "일식" },
+    { name: "마라탕", emoji: "🍲", cat: "중식" },
+    { name: "샐러드", emoji: "🥗", cat: "건강식" }
   ];
+
   const doPick = () => setPick(MENUS[Math.floor(Math.random() * MENUS.length)]);
 
   const approvedTotal = subs.filter(s => s.status === "승인완료" || s.status === "승인대기").reduce((a, s) => a + parseInt(s.amount || 0), 0);
@@ -289,6 +493,7 @@ export default function App() {
               const daySub = subs.find(s => s.date === dateStr && (s.status === "승인완료" || s.status === "예외요청"));
               const foodImages = ["/food_01.webp", "/food_02.webp", "/food_03.webp"];
               const selectedFood = foodImages[(i + date.getDate()) % 3];
+              const DAYS = ["일","월","화","수","목","금","토"];
               return (
                 <div key={i} style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 14 }}>
                   <div style={{ height: 80, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -300,10 +505,10 @@ export default function App() {
                         )}
                       </div>
                     ) : (
-                      <img src="/food_00.png" style={{ width: 64, height: 64, opacity: 0.9 }} alt="빈함" />
+                      <img src="/food_00.png" style={{ width: 64, height: 64, opacity: 0.9 }} alt="빈그릇" />
                     )}
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#888" }}>{DAYS[i]} {date.getDate()}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: daySub ? "#111" : "#bbb" }}>{DAYS[date.getDay()]} {date.getDate()}</span>
                 </div>
               );
             })}
@@ -359,11 +564,11 @@ export default function App() {
             <div style={{ textAlign: "center", padding: "80px 0", color: "#bbb", fontWeight: 600 }}>내역이 없습니다.</div>
           ) : (
             filteredSubs.map(s => (
-              <div key={s.id} style={{ background: "#fff", borderRadius: 24, padding: "24px", marginBottom: 16, boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
+              <div key={s.id} onClick={() => { setSelectedSub(s); setStep("detail"); }} style={{ background: "#fff", borderRadius: 24, padding: "24px", marginBottom: 16, boxShadow: "0 4px 20px rgba(0,0,0,0.03)", cursor: "pointer" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
                     <p style={{ margin: "0 0 4px", fontSize: 12, color: "#999", fontWeight: 600 }}>{s.date} · {s.category}</p>
-                    <p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "#111" }}>{s.storeName}</p>
+                    <p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "#111" }}>{s.store_name || s.storeName}</p>
                   </div>
                   <Badge status={s.status} />
                 </div>
@@ -371,29 +576,19 @@ export default function App() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                   <p style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>₩{parseInt(s.amount || 0).toLocaleString()}</p>
                   
-                  {(s.status === "예외요청" || s.status === "반려") && (
-                    <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {(s.status === "예외요청" || s.status === "반려") && (
                       <button 
-                        onClick={() => {
-                          setSelectedSub(s);
-                          setStep("detail");
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteId(s.id);
                         }}
-                        style={{ padding: "6px 12px", borderRadius: 8, background: "#f5f5f5", color: "#666", fontSize: 12, fontWeight: 700, border: "none" }}
+                        style={{ padding: "8px", borderRadius: 12, background: "#FFF0F0", color: "#E24B4A", fontSize: 16, border: "none", cursor: "pointer" }}
                       >
-                        수정
+                        🗑️
                       </button>
-                      <button 
-                        onClick={() => {
-                          if (confirm("정말 삭제하시겠습니까?")) {
-                            setSubs(p => p.filter(it => it.id !== s.id));
-                          }
-                        }}
-                        style={{ padding: "6px 12px", borderRadius: 8, background: "#FFF0F0", color: "#E24B4A", fontSize: 12, fontWeight: 700, border: "none" }}
-                      >
-                        삭제
-                      </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             ))
@@ -402,80 +597,22 @@ export default function App() {
       </div>
   );
 
-  const MOCK_MGR_REPLY = selectedSub?.status === "반려" ? "정산 기준 시간(14:00)을 1시간 이상 초과하여 반려되었습니다. 소명이 더 필요한 경우 답변 남겨주세요." : "검토 중입니다. 추가 문의 사항이 있으시면 댓글을 남겨주세요.";
 
-  const AppDetail = (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden", position: "relative" }}>
-      <div style={{ padding: "24px 24px 0", display: "flex", alignItems: "center", gap: 16 }}>
-        <button onClick={() => setStep("list")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
-        <span style={{ fontWeight: 800, fontSize: 18 }}>요청 상세</span>
-      </div>
-
-      <div style={{ flex: 1, overflowY: "auto", padding: "24px 24px 200px", minHeight: 0 }}>
-        {selectedSub && (
-          <>
-            <div style={{ background: "#fff", borderRadius: 24, padding: "24px", marginBottom: 24, boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-                <div>
-                  <p style={{ margin: "0 0 4px", fontSize: 12, color: "#999", fontWeight: 600 }}>{selectedSub.date} · {selectedSub.category}</p>
-                  <p style={{ margin: 0, fontSize: 20, fontWeight: 900, color: "#111" }}>{selectedSub.storeName}</p>
-                </div>
-                <Badge status={selectedSub.status} />
-              </div>
-              <p style={{ margin: 0, fontSize: 20, fontWeight: 900 }}>₩{parseInt(selectedSub.amount || 0).toLocaleString()}</p>
-            </div>
-
-            <div style={{ marginBottom: 32 }}>
-              <h4 style={{ fontSize: 14, fontWeight: 800, color: "#999", marginBottom: 16 }}>요청 내용 및 대화</h4>
-              
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", marginBottom: 20 }}>
-                <div style={{ background: "#000", color: "#fff", padding: "14px 18px", borderRadius: "18px 2px 18px 18px", maxWidth: "85%", fontSize: 15, lineHeight: 1.5, fontWeight: 500 }}>
-                  {selectedSub.excText || "재정산 요청드립니다."}
-                </div>
-                <span style={{ fontSize: 11, color: "#bbb", marginTop: 6, fontWeight: 600 }}>방금 전</span>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", marginBottom: 20 }}>
-                <div style={{ background: "#fff", color: "#333", padding: "14px 18px", borderRadius: "2px 18px 18px 18px", maxWidth: "85%", fontSize: 15, lineHeight: 1.5, fontWeight: 500, border: "1.5px solid #eee" }}>
-                  {MOCK_MGR_REPLY}
-                </div>
-                <span style={{ fontSize: 11, color: "#bbb", marginTop: 6, fontWeight: 600 }}>관리자 · 5분 전</span>
-              </div>
-            </div>
-
-            <div style={{ position: "relative" }}>
-              <textarea 
-                value={replyText}
-                onChange={e => setReplyText(e.target.value)}
-                placeholder="답변을 입력하세요..."
-                style={{ width: "100%", minHeight: 100, padding: "16px", borderRadius: 16, border: "1.5px solid #eee", background: "#fff", fontSize: 14, lineHeight: 1.5, resize: "none", outline: "none" }}
-              />
-              <button 
-                disabled={!replyText.trim()}
-                style={{ position: "absolute", bottom: 12, right: 12, background: replyText.trim() ? "#000" : "#eee", color: replyText.trim() ? "#fff" : "#aaa", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, transition: "0.2s" }}
-              >
-                전송
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "40px 24px 40px", background: "linear-gradient(to top, #FFFBF0 70%, transparent)", zIndex: 9999 }}>
-        <button 
-          onClick={() => {
-            if (!selectedSub) return;
-            setOcr(selectedSub);
-            setIssues(validate(selectedSub, allowed, subs.filter(it => it.id !== selectedSub.id)));
-            setStep("exception");
-          }}
-          style={{ width: "100%", padding: "20px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 17 }}
-        >
-          재신청 하기
-        </button>
-      </div>
-    </div>
-  );
+  function handleSendChat() {
+    if (!replyText.trim() || !selectedSub) return;
+    const msg = replyText;
+    setLocalChats(prev => ({
+      ...prev,
+      [selectedSub.id]: [...(prev[selectedSub.id] || []), { sender: "me", text: msg }]
+    }));
+    setReplyText("");
+    setTimeout(() => {
+      setLocalChats(prev => ({
+        ...prev,
+        [selectedSub.id]: [...(prev[selectedSub.id] || []), { sender: "admin", text: "확인 후 답변 드리겠습니다." }]
+      }));
+    }, 1000);
+  }
 
   const AppResult = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden", position: "relative" }}>
@@ -589,24 +726,56 @@ export default function App() {
   })();
 
   const AppMenu = (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, position: "relative" }}>
       <div style={{ padding: "24px", display: "flex", alignItems: "center", gap: 16 }}>
         <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
-        <span style={{ fontWeight: 800, fontSize: 18 }}>오늘의 점심 추천</span>
+        <span style={{ fontWeight: 800, fontSize: 18 }}>오늘 뭐 먹지?</span>
       </div>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 32px 180px", textAlign: "center" }}>
         <div style={{ fontSize: 100, marginBottom: 32 }}>{pick?.emoji || "🤔"}</div>
         <p style={{ fontSize: 16, color: "#888", marginBottom: 8, fontWeight: 600 }}>{pick?.cat}</p>
-        <h2 style={{ fontSize: 32, fontWeight: 900, margin: "0 0 48px", letterSpacing: "-1px" }}>{pick?.name} 어떠세요?</h2>
-        <button onClick={doPick} style={{ padding: "18px 48px", borderRadius: 32, border: "none", background: C.brand, color: "#000", fontWeight: 900, fontSize: 17, boxShadow: "0 8px 20px rgba(254,198,1,0.4)" }}>다른 메뉴 추천받기</button>
+        <h2 style={{ fontSize: 32, fontWeight: 900, margin: 0, letterSpacing: "-1px" }}>{pick?.name} 어떠세요?</h2>
+      </div>
+
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "40px 24px 40px", background: "linear-gradient(to top, #FFFBF0 70%, transparent)", display: "flex", gap: 12, zIndex: 10 }}>
+        <button 
+          onClick={() => {
+            if(pick?.name) window.open(`https://m.map.naver.com/search2/search.naver?query=${encodeURIComponent("내 주변 " + pick.name)}`, '_blank');
+          }}
+          disabled={!pick}
+          style={{ flex: 1, padding: "18px", borderRadius: 16, border: "2px solid #E5E7EB", background: "#fff", color: "#333", fontWeight: 800, fontSize: 16, cursor: "pointer", whiteSpace: "nowrap" }}
+        >
+          {pick?.name || "메뉴"} 찾기
+        </button>
+        <button 
+          onClick={doPick} 
+          style={{ flex: 2, padding: "18px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer", whiteSpace: "nowrap" }}
+        >
+          다른 메뉴 추천
+        </button>
       </div>
     </div>
   );
 
-  const screens = { home: AppHome, list: AppList, result: AppResult, exception: AppException, menu: AppMenu, detail: AppDetail };
+  const screens = { 
+    home: AppHome, 
+    list: AppList, 
+    result: AppResult, 
+    exception: AppException, 
+    menu: AppMenu, 
+    detail: <AppDetailView 
+      sub={selectedSub} 
+      onBack={() => setStep("list")} 
+      onShowImg={(img) => { setPreview(img); setIsImgModal(true); }}
+      chats={selectedSub ? localChats[selectedSub.id] : []}
+      onSendChat={handleSendChat}
+      replyTxt={replyText}
+      setReplyTxt={setReplyText}
+    /> 
+  };
 
   const StatusModal = ({ type, onClose }) => (
-    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(2px)" }} />
       <div style={{ position: "relative", background: "#fff", width: "100%", maxWidth: 320, borderRadius: 36, padding: "48px 24px 24px", textAlign: "center", boxShadow: "0 30px 60px rgba(0,0,0,0.3)" }}>
         {type === "checking" ? (
@@ -655,6 +824,27 @@ export default function App() {
           </div>
         )}
         {modal && <StatusModal type={modal} onClose={reset} />}
+        {deleteId && (
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(2px)", zIndex: 11000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+            <div style={{ background: "#fff", borderRadius: 32, padding: "40px 24px 24px", textAlign: "center", width: "100%", maxWidth: 320 }}>
+              <p style={{ fontSize: 18, fontWeight: 800, marginBottom: 32 }}>정말 삭제하시겠습니까?</p>
+              <div style={{ display: "flex", gap: 12 }}>
+                <button onClick={() => setDeleteId(null)} style={{ flex: 1, padding: "18px", borderRadius: 16, border: "2px solid #eee", background: "#fff", color: "#666", fontWeight: 700, cursor: "pointer" }}>아니오</button>
+                <button onClick={async () => { 
+                  try {
+                    await fetch(`${SUPABASE_URL}/rest/v1/settlements?id=eq.${deleteId}`, {
+                      method: "DELETE",
+                      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+                    });
+                    setSubs(p => p.filter(it => it.id !== deleteId)); 
+                    setDeleteId(null); 
+                    if(selectedSub?.id === deleteId) setStep("list");
+                  } catch(e) { console.error(e); }
+                }} style={{ flex: 1, padding: "18px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, cursor: "pointer" }}>네</button>
+              </div>
+            </div>
+          </div>
+        )}
         {isImgModal && (
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", zIndex: 10000, display: "flex", flexDirection: "column", padding: "40px 24px" }}>
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
