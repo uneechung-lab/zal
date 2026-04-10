@@ -399,7 +399,7 @@ export default function App() {
           contents: [{
             parts: [
               { text: "이 이미지는 결제 영수증 또는 승인 내역 스크린샷입니다. 이미지에서 글씨를 인식하여 다음 정보를 추출하고 반드시 JSON 형태로 반환하세요:\n1. storeName: 결제 가맹점, 음식점이나 가게의 정확한 상호명\n2. date: 결제 날짜 (반드시 YYYY-MM-DD 형식으로 변환)\n3. time: 결제 시간 (HH:MM 형식으로 변환)\n4. amount: 최종 승인 금액 숫자 (단위나 콤마 제외, 숫자만 입력)\n5. category: 가맹점 업종 정보 (예: 한식, 일식, 카페 등)\n\n다른 형태 없이 오직 { \"storeName\": \"\", \"date\": \"\", \"time\": \"\", \"amount\": \"\", \"category\": \"\" } 형태의 순수 JSON만 반환하세요." },
-              { inline_data: { mime_type: f.type === "image/png" ? "image/png" : "image/jpeg", data: b64 } }
+              { inline_data: { mime_type: f.type || "image/jpeg", data: b64 } }
             ]
           }],
           generationConfig: { response_mime_type: "application/json" }
@@ -412,9 +412,13 @@ export default function App() {
       const cleaned = txt.replace(/```json|```/g, "").trim();
       let parsed = JSON.parse(cleaned);
       
+      let rawDate = parsed.date || parsed.usageDate || "";
+      if (/^\d{2}\.\d{2}\.\d{2}/.test(rawDate)) rawDate = "20" + rawDate;
+      const safeDate = rawDate.replace(/\./g, "-").trim().split(" ")[0] || "";
+
       const result = {
         storeName: parsed.storeName || parsed.store || parsed.merchant || "",
-        date: parsed.date || parsed.usageDate || "",
+        date: safeDate,
         time: parsed.time || parsed.usageTime || "",
         amount: String(parsed.amount || parsed.totalAmount || "").replace(/[^\d]/g, ""),
         category: parsed.category || parsed.businessType || "",
@@ -430,7 +434,7 @@ export default function App() {
       }
     } catch (err) {
       console.error("OCR Parse Error:", err);
-      alert("영수증 이미지 분석에 실패했습니다. 텍스트가 잘 보이는지 확인 후 다시 시도해주세요.");
+      alert(`영수증 이미지 분석에 실패했습니다. (${err.message})\n텍스트가 잘 보이는지 확인 후 다시 시도해주세요.`);
       setModal(null);
       setFile(null);
     }
