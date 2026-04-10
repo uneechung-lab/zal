@@ -335,26 +335,33 @@ export default function App() {
       });
       
       if (data.date) {
-        const d = new Date(data.date);
-        const y = d.getFullYear();
-        const m = d.getMonth() + 1;
-        const maxW = getWeekCount(y, m);
-        let targetWeek = selWeek;
-        for (let w = 1; w <= maxW; w++) {
-          const wds = getWeekDates(y, m, w).map(dateObj => {
-            const yr = dateObj.getFullYear();
-            const mo = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const da = String(dateObj.getDate()).padStart(2, '0');
-            return `${yr}-${mo}-${da}`;
-          });
-          if (wds.includes(data.date)) {
-            targetWeek = w;
-            break;
+        // Try to handle dot-notation dates like "26.04.07" or "2026.04.07" to "2026-04-07"
+        let safeDateStr = data.date;
+        if (/^\d{2}\.\d{2}\.\d{2}/.test(safeDateStr)) safeDateStr = "20" + safeDateStr; // Prepend 20
+        safeDateStr = safeDateStr.replace(/\./g, "-").trim();
+        
+        const d = new Date(safeDateStr);
+        if (!isNaN(d.getTime())) {
+          const y = d.getFullYear();
+          const m = d.getMonth() + 1;
+          const maxW = getWeekCount(y, m);
+          let targetWeek = selWeek;
+          for (let w = 1; w <= maxW; w++) {
+            const wds = getWeekDates(y, m, w).map(dateObj => {
+              const yr = dateObj.getFullYear();
+              const mo = String(dateObj.getMonth() + 1).padStart(2, '0');
+              const da = String(dateObj.getDate()).padStart(2, '0');
+              return `${yr}-${mo}-${da}`;
+            });
+            if (wds.includes(safeDateStr.split(" ")[0])) {
+              targetWeek = w;
+              break;
+            }
           }
+          setSelYear(y);
+          setSelMonth(m);
+          setSelWeek(targetWeek);
         }
-        setSelYear(y);
-        setSelMonth(m);
-        setSelWeek(targetWeek);
       }
 
       setModal(isEx ? "done_ex" : "done_normal");
