@@ -269,7 +269,6 @@ export default function App() {
   const [replyText, setReplyText] = useState("");
   const [localChats, setLocalChats] = useState({});
   const [isImgModal, setIsImgModal] = useState(false);
-  const [showFail, setShowFail] = useState(false);
   const [pick, setPick] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const fileRef = useRef();
@@ -430,20 +429,10 @@ export default function App() {
         setModal(null); setStep("result");
       }
     } catch (err) {
-      setTimeout(() => {
-        if (!showFail) {
-          const weekDates = getWeekDates(selYear, selMonth, selWeek).map(d => d.toISOString().slice(0, 10));
-          const emptyDate = weekDates.find(d => !subs.some(s => s.date === d)) || new Date().toISOString().slice(0, 10);
-          const successMock = { date: emptyDate, time: "12:30", amount: "12500", category: "한식", storeName: "디스트릭트와이", image_url: finalImgUrl };
-          setOcr(successMock); setIssues([]);
-          submit(false, successMock);
-        } else {
-          const failMock = { date: "2026-04-08", time: "15:00", amount: "9800", category: "편의점", storeName: "GS25", excText: "업무 미팅 지연", image_url: finalImgUrl };
-          setOcr(failMock); setIssues(validate(failMock, allowed));
-          setModal(null); setStep("result");
-        }
-        setShowFail(!showFail); 
-      }, 1500);
+      console.error("OCR Parse Error:", err);
+      alert("영수증 이미지 분석에 실패했습니다. 텍스트가 잘 보이는지 확인 후 다시 시도해주세요.");
+      setModal(null);
+      setFile(null);
     }
   };
 
