@@ -482,6 +482,12 @@ export default function App() {
       });
       
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        alert("API 키가 설정되지 않았습니다. Vercel 대시보드의 환경 변수를 확인해주세요.");
+        setModal(null);
+        return;
+      }
+
       const payload = {
         contents: [{
           parts: [
@@ -491,15 +497,16 @@ export default function App() {
         }]
       };
 
-      let resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      // v1 정식 엔드포인트 사용 (안정성 강화)
+      let resp = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
       
-      // 503 에러 등 서버 부하 시 안정적인 1.5-flash로 자동 재시도
+      // 503 에러 등 서버 부하 시 재시도 (v1beta 2.5-flash 시도)
       if (resp.status >= 500) {
-        resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
