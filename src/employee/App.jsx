@@ -105,38 +105,112 @@ function Badge({ status }) {
   return <span style={{ background: s.bg, color: s.color, fontSize: 11, fontWeight: 500, padding: "3px 10px", borderRadius: 20 }}>{s.label}</span>;
 }
 
+const Icon = {
+  Back: ({ color = "#111", size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>,
+  ChevronLeft: ({ color = "#111", size = 20 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>,
+  ChevronRight: ({ color = "#111", size = 20 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>,
+  ChevronDown: ({ color = "#111", size = 12 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>,
+  Send: ({ color = "#fff", size = 20 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>,
+  Close: ({ color = "#999", size = 20 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>,
+  Trash: ({ color = "#666", size = 20 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7H6V19ZM19 4H15.5L14.5 3H9.5L8.5 4H5V6H19V4Z" fill={color}/>
+    </svg>
+  )
+};
+
 function BottomSheetPicker({ isOpen, onClose, year, month, week, onConfirm }) {
   const [tempY, setTempY] = useState(year);
   const [tempM, setTempM] = useState(month);
   const [tempW, setTempW] = useState(week);
-  useEffect(() => { if (isOpen) { setTempY(year); setTempM(month); setTempW(week); } }, [isOpen, year, month, week]);
+
+  useEffect(() => { 
+    if (isOpen) { 
+      setTempY(year); setTempM(month); setTempW(week); 
+    } 
+  }, [isOpen, year, month, week]);
+
+  const now = new Date();
+  const limitDate = new Date();
+  limitDate.setMonth(now.getMonth() - 3);
+
+  const years = [2024, 2025, 2026, 2027].filter(y => y >= limitDate.getFullYear() && y <= now.getFullYear());
+  const months = Array.from({length: 12}, (_, i) => i + 1).filter(m => {
+    const firstDay = new Date(tempY, m - 1, 1);
+    const lastDay = new Date(tempY, m, 0);
+    return lastDay >= limitDate && firstDay <= now;
+  });
   const wCnt = getWeekCount(tempY, tempM);
-  useEffect(() => { if (isOpen && tempW > wCnt) setTempW(1); }, [tempM, tempY, wCnt, tempW, isOpen]);
+  const weeks = Array.from({length: wCnt}, (_, i) => i + 1).filter(w => {
+    const dates = getWeekDates(tempY, tempM, w);
+    return dates.some(d => d >= limitDate && d <= now);
+  });
+
+  useEffect(() => { if (isOpen && !months.includes(tempM)) setTempM(months[months.length - 1] || 1); }, [tempY, isOpen, months, tempM]);
+  useEffect(() => { if (isOpen && !weeks.includes(tempW)) setTempW(weeks[weeks.length - 1] || 1); }, [tempM, tempY, isOpen, weeks, tempW]);
+
   if (!isOpen) return null;
-  const Col = ({ options, selected, onSelect }) => (
-    <div style={{ flex: 1, height: 180, overflowY: "auto", scrollBehavior: "smooth", display: "flex", flexDirection: "column", padding: "70px 0" }}>
-      {options.map(opt => (
-        <div key={opt.val} onClick={() => onSelect(opt.val)} style={{ minHeight: 40, lineHeight: "40px", textAlign: "center", fontSize: selected === opt.val ? 20 : 16, fontWeight: selected === opt.val ? 800 : 500, color: selected === opt.val ? "#111" : "#bbb", cursor: "pointer", transition: "0.2s" }}>
-          {opt.label}
-        </div>
-      ))}
-    </div>
-  );
+
+  const Col = ({ options, selected, onSelect }) => {
+    const listRef = useRef();
+
+    useEffect(() => {
+      if (isOpen && listRef.current) {
+        const idx = options.findIndex(o => o.val === selected);
+        if (idx !== -1) listRef.current.scrollTop = idx * 40;
+      }
+    }, [isOpen]);
+
+    const handleScroll = (e) => {
+      const idx = Math.round(e.target.scrollTop / 40);
+      const val = options[idx]?.val;
+      if (val !== undefined && val !== selected) onSelect(val);
+    };
+
+    return (
+      <div 
+        ref={listRef}
+        onScroll={handleScroll}
+        className="no-scrollbar" 
+        style={{ flex: 1, height: 210, overflowY: "auto", display: "flex", flexDirection: "column", padding: "85px 0", scrollSnapType: "y mandatory" }}
+      >
+        {options.map(opt => (
+          <div 
+            key={opt.val} 
+            onClick={() => {
+              onSelect(opt.val);
+              listRef.current.scrollTo({ top: options.findIndex(o => o.val === opt.val) * 40, behavior: 'smooth' });
+            }}
+            style={{ minHeight: 40, height: 40, lineHeight: "40px", textAlign: "center", fontSize: selected === opt.val ? 24 : 19, fontWeight: selected === opt.val ? 800 : 500, color: selected === opt.val ? "#000" : "#ccc", cursor: "pointer", transition: "0.2s", scrollSnapAlign: "center" }}
+          >
+            {opt.label}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
-    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", animation: "fadeIn 0.2s" }} />
-      <div style={{ position: "relative", background: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: "24px 24px 32px", animation: "slideUp 0.3s ease-out" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <span style={{ fontSize: 18, fontWeight: 600, color: "#111" }}>날짜 선택</span>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 24, cursor: "pointer", color: "#111", padding: 0, lineHeight: 1 }}>✕</button>
+    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }} />
+      <div style={{ position: "relative", background: "#fff", borderTopLeftRadius: 36, borderTopRightRadius: 36, padding: "40px 28px 48px", animation: "slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <h3 style={{ fontSize: 24, fontWeight: 900, color: "#111", margin: 0 }}>날짜 선택</h3>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Icon.Close /></button>
         </div>
-        <div style={{ position: "relative", display: "flex", gap: 16 }}>
-          <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 40, marginTop: -20, borderTop: "1px solid #eee", borderBottom: "1px solid #eee", pointerEvents: "none" }} />
-          <Col options={[2024,2025,2026,2027].map(y => ({val:y, label:`${String(y).slice(2)}년`}))} selected={tempY} onSelect={setTempY} />
-          <Col options={Array.from({length:12},(_,i)=>({val:i+1, label:`${i+1}월`}))} selected={tempM} onSelect={setTempM} />
-          <Col options={Array.from({length:wCnt},(_,i)=>({val:i+1, label:`${i+1}주`}))} selected={tempW} onSelect={setTempW} />
+        <p style={{ fontSize: 13, color: "#aaa", margin: "4px 0 32px", fontWeight: 600 }}>최근 3개월간의 내역만 확인이 가능합니다.</p>
+        <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 0 }}>
+          <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 48, marginTop: -24, borderTop: "1.5px solid #f5f5f5", borderBottom: "1.5px solid #f5f5f5", pointerEvents: "none" }} />
+          <Col options={years.map(y => ({val:y, label:`${y}년`}))} selected={tempY} onSelect={setTempY} isOpen={isOpen} />
+          <div style={{ width: 1.5, height: 160, background: "#f5f5f5" }} />
+          <Col options={months.map(m => ({val:m, label:`${m}월`}))} selected={tempM} onSelect={setTempM} isOpen={isOpen} />
+          <div style={{ width: 1.5, height: 160, background: "#f5f5f5" }} />
+          <Col options={weeks.map(w => ({val:w, label:`${w}주`}))} selected={tempW} onSelect={setTempW} isOpen={isOpen} />
         </div>
-        <button onClick={() => { onConfirm(tempY, tempM, tempW); onClose(); }} style={{ width: "100%", padding: 18, background: "#0A84FF", color: "#fff", fontWeight: 600, fontSize: 16, border: "none", borderRadius: 12, cursor: "pointer", marginTop: 24 }}>확인</button>
+        <div style={{ display: "flex", gap: 14, marginTop: 40 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "18px", background: "#fff", color: "#000", fontWeight: 800, fontSize: 17, border: "1.5px solid #000", borderRadius: 20, cursor: "pointer" }}>취소</button>
+          <button onClick={() => { onConfirm(tempY, tempM, tempW); onClose(); }} style={{ flex: 1.6, padding: "18px", background: "#000", color: "#fff", fontWeight: 800, fontSize: 17, border: "none", borderRadius: 20, cursor: "pointer" }}>확인</button>
+        </div>
       </div>
     </div>
   );
@@ -159,12 +233,12 @@ function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, se
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden", position: "relative" }}>
-      <div style={{ padding: "24px 24px 0", display: "flex", alignItems: "center", gap: 16 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
+      <div style={{ padding: "24px 28px 0", display: "flex", alignItems: "center", gap: 16 }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Icon.Back /></button>
         <span style={{ fontWeight: 800, fontSize: 18 }}>요청 상세</span>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "24px 24px 180px", minHeight: 0 }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px 180px", minHeight: 0 }}>
         <div style={{ background: "#fff", borderRadius: 24, padding: "24px", marginBottom: 24, boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
             <div>
@@ -239,10 +313,10 @@ function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, se
         </div>
       </div>
 
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "20px 24px 40px", background: "linear-gradient(to top, #FFFBF0 70%, transparent)", zIndex: 10, pointerEvents: "none" }}>
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "20px 28px 40px", background: "linear-gradient(to top, #FFFBF0 70%, transparent)", zIndex: 10, pointerEvents: "none" }}>
         <div style={{ background: "#fff", borderRadius: 32, border: "1.5px solid #eee", padding: "8px 16px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 10px 30px rgba(0,0,0,0.06)", pointerEvents: "auto" }}>
           <input value={replyTxt} onChange={e => setReplyTxt(e.target.value)} onKeyDown={e => { if(e.key === "Enter" && replyTxt.trim()) onSendChat(); }} placeholder="메시지를 입력하세요." style={{ flex: 1, border: "none", outline: "none", padding: "10px 0", fontSize: 15, fontWeight: 500 }} />
-          <button onClick={onSendChat} disabled={!replyTxt.trim()} style={{ background: replyTxt.trim() ? "#000" : "#f0f0f0", color: "#fff", border: "none", width: 36, height: 36, borderRadius: "50%", cursor: "pointer", fontWeight: 900, fontSize: 18, transition: "0.2s" }}>➔</button>
+          <button onClick={onSendChat} disabled={!replyTxt.trim()} style={{ background: replyTxt.trim() ? "#000" : "#f5f5f5", color: "#fff", border: "none", width: 36, height: 36, borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "0.2s" }}><Icon.Send /></button>
         </div>
       </div>
     </div>
@@ -260,9 +334,25 @@ export default function App() {
   const [excType, setExcType] = useState("");
   const [excText, setExcText] = useState("");
   const [allowed, setAllowed] = useState([]);
-  const [selYear, setSelYear] = useState(2026);
-  const [selMonth, setSelMonth] = useState(4);
-  const [selWeek, setSelWeek] = useState(2);
+  const getInitialWeek = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    const maxW = getWeekCount(y, m);
+    let targetW = 1;
+    for (let w = 1; w <= maxW; w++) {
+      const dates = getWeekDates(y, m, w).map(d => d.toISOString().slice(0, 10));
+      if (dates.includes(now.toISOString().slice(0, 10))) { targetW = w; break; }
+    }
+    return { y, m, w: targetW };
+  };
+
+  const initialWeek = getInitialWeek();
+  const [selYear, setSelYear] = useState(initialWeek.y);
+  const [selMonth, setSelMonth] = useState(initialWeek.m);
+  const [selWeek, setSelWeek] = useState(initialWeek.w);
+  const [myYear, setMyYear] = useState(initialWeek.y);
+  const [myMonth, setMyMonth] = useState(initialWeek.m);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [selectedSub, setSelectedSub] = useState(null);
   const [filter, setFilter] = useState("전체");
@@ -391,7 +481,7 @@ export default function App() {
         rd.readAsDataURL(f);
       });
       
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyCpARHc--ssO6JSInpn9ouRq4f6pvzopSQ";
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -399,10 +489,9 @@ export default function App() {
           contents: [{
             parts: [
               { text: "이 이미지는 결제 영수증 또는 승인 내역 스크린샷입니다. 이미지에서 글씨를 인식하여 다음 정보를 추출하고 반드시 JSON 형태로 반환하세요:\n1. storeName: 결제 가맹점, 음식점이나 가게의 정확한 상호명\n2. date: 결제 날짜 (반드시 YYYY-MM-DD 형식으로 변환)\n3. time: 결제 시간 (HH:MM 형식으로 변환)\n4. amount: 최종 승인 금액 숫자 (단위나 콤마 제외, 숫자만 입력)\n5. category: 가맹점 업종 정보 (예: 한식, 일식, 카페 등)\n\n다른 형태 없이 오직 { \"storeName\": \"\", \"date\": \"\", \"time\": \"\", \"amount\": \"\", \"category\": \"\" } 형태의 순수 JSON만 반환하세요." },
-              { inline_data: { mime_type: f.type || "image/jpeg", data: b64 } }
+              { inlineData: { mimeType: f.type || "image/jpeg", data: b64 } }
             ]
-          }],
-          generationConfig: { response_mime_type: "application/json" }
+          }]
         })
       });
       
@@ -427,6 +516,13 @@ export default function App() {
       setOcr(result); 
       const currentIssues = validate(result, allowed, subs);
       setIssues(currentIssues);
+
+      const holidayIssue = currentIssues.find(iss => iss.includes("주말") || iss.includes("공휴일"));
+      if (holidayIssue) {
+        setModal("holiday_error");
+        return;
+      }
+
       if (currentIssues.length === 0) {
         submit(false, result);
       } else {
@@ -451,78 +547,120 @@ export default function App() {
     { name: "마라탕", emoji: "🍲", cat: "중식" },
     { name: "샐러드", emoji: "🥗", cat: "건강식" }
   ];
-
   const doPick = () => setPick(MENUS[Math.floor(Math.random() * MENUS.length)]);
 
-  const approvedTotal = subs.filter(s => s.status === "승인완료" || s.status === "승인대기").reduce((a, s) => a + parseInt(s.amount || 0), 0);
-  const pendingTotal = subs.filter(s => s.status === "예외요청").reduce((a, s) => a + parseInt(s.amount || 0), 0);
-  const weekDates = getWeekDates(selYear, selMonth, selWeek);
-  const payMonth = selMonth === 12 ? 1 : selMonth + 1;
-  const payYear = selMonth === 12 ? selYear + 1 : selYear;
-  const payDateStr = `${String(payYear).slice(2)}.${String(payMonth).padStart(2,"0")}.22`;
+  const AppHome = () => {
+    const [tX, setTX] = useState(0);
 
-  const AppHome = (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, overflowY: "auto" }}>
-      <div style={{ padding: "30px var(--side-pad) 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: "-0.5px" }}>ZAL:잘먹</span>
-        <button onClick={() => setStep("list")} style={{ fontSize: 14, background: "none", border: "none", cursor: "pointer", fontWeight: 700, color: "#555" }}>내역보기</button>
-      </div>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", paddingBottom: "var(--btn-bot)" }}>
-        <div style={{ padding: "0 var(--side-pad) var(--item-gap)" }}>
-          <p style={{ margin: "0 0 32px", fontSize: 24, color: "#777", fontWeight: 500, lineHeight: 1.45, letterSpacing: "-1px" }}>
-            <span style={{ fontWeight: 800, color: "#000" }}>정다음</span>님, 맛있는 하루를<br/>다음정보시스템즈가 지원합니다!
-          </p>
-          <div style={{ marginTop: 40 }}>
-            <p style={{ margin: "0 0 8px", fontSize: 14, color: "#333", fontWeight: 600 }}>{payDateStr} 입금 예정</p>
-            <p style={{ margin: 0, fontSize: 36, fontWeight: 900, color: "#000", letterSpacing: "-1px" }}>
-              {approvedTotal.toLocaleString()}원
-              {pendingTotal > 0 && <span style={{ fontSize: 16, color: "#999", fontWeight: 600, marginLeft: 10 }}>(+{pendingTotal.toLocaleString()} 보류)</span>}
+    const shiftWeek = (dir) => {
+      let nw = selWeek + dir;
+      let nm = selMonth;
+      let ny = selYear;
+      if (nw > getWeekCount(ny, nm)) { nw = 1; nm++; if (nm > 12) { nm = 1; ny++; } }
+      else if (nw < 1) { nm--; if (nm < 1) { nm = 12; ny--; } nw = getWeekCount(ny, nm); }
+      
+      const target = getWeekDates(ny, nm, nw)[0];
+      const now = new Date();
+      const min = new Date(); min.setMonth(min.getMonth() - 3);
+      if (target >= min && target <= now) { setSelYear(ny); setSelMonth(nm); setSelWeek(nw); }
+    };
+
+    const monthFilter = (s) => {
+      if (!s.date) return false;
+      const p = s.date.split("-");
+      return parseInt(p[0]) === selYear && parseInt(p[1]) === selMonth;
+    };
+    const approvedTotal = subs.filter(s => monthFilter(s) && (s.status === "승인완료" || s.status === "승인대기")).reduce((a, s) => a + parseInt(s.amount || 0), 0);
+    const pendingTotal = subs.filter(s => monthFilter(s) && (s.status === "예외요청")).reduce((a, s) => a + parseInt(s.amount || 0), 0);
+    const weekDates = getWeekDates(selYear, selMonth, selWeek);
+    const payMonth = selMonth === 12 ? 1 : selMonth + 1;
+    const payYear = selMonth === 12 ? selYear + 1 : selYear;
+    const payDateStr = `${String(payYear).slice(2)}.${String(payMonth).padStart(2,"0")}.22`;
+
+    return (
+      <div 
+        style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, overflowY: "auto" }}
+        onTouchStart={e => setTX(e.touches[0].clientX)}
+        onTouchEnd={e => {
+          const diff = tX - e.changedTouches[0].clientX;
+          if (Math.abs(diff) > 50) shiftWeek(diff > 0 ? 1 : -1);
+        }}
+      >
+        <div style={{ padding: "30px 28px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <img src="/bi_zaleat.png" style={{ width: 48, height: 48, objectFit: "contain" }} alt="logo" />
+            <div style={{ fontWeight: 900, fontSize: 23, letterSpacing: "-0.5px", display: "flex", alignItems: "center" }}>
+              <span>ZAL</span><span style={{ margin: "0 6px" }}>:</span><span>잘먹</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 14 }}>
+            <button onClick={() => setStep("list")} style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+            </button>
+            <button onClick={() => setStep("my")} style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            </button>
+          </div>
+        </div>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", paddingBottom: "40px" }}>
+          <div style={{ padding: "0 28px 32px" }}>
+            <p style={{ margin: "0 0 12px", fontSize: 27, fontWeight: 900, lineHeight: 1.4, letterSpacing: "-1.5px" }}>
+              정다음님의 <span style={{ opacity: 0.55, fontWeight: 500 }}>맛있는 하루를<br/>다음정보시스템즈가 지원합니다!</span>
             </p>
+            <div style={{ marginTop: 40, display: "inline-block", position: "relative" }}>
+              <p style={{ margin: "0 0 8px", fontSize: 13, color: "#666", fontWeight: 700 }}>{payDateStr} 입금 예정</p>
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <span style={{ fontSize: 36, fontWeight: 900, color: "#000", letterSpacing: "-1px", position: "relative", zIndex: 2 }}>{approvedTotal.toLocaleString()}원</span>
+                <div style={{ position: "absolute", bottom: 4, left: -4, right: -4, height: 16, background: "#FEC601", opacity: 0.8, zIndex: 1 }} />
+              </div>
+              {pendingTotal > 0 && <span style={{ fontSize: 15, color: "#999", fontWeight: 700, marginLeft: 10 }}>(+{pendingTotal.toLocaleString()} 보류)</span>}
+            </div>
           </div>
-        </div>
-        <div style={{ padding: "0 var(--side-pad) 32px" }}>
-          <button onClick={() => setIsPickerOpen(true)} style={{ background: "none", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <span style={{ color: "#444", fontSize: 16, fontWeight: 700 }}>{String(selYear).slice(2)}년 {selMonth}월 {selWeek}주</span>
-            <span style={{ fontSize: 10 }}>▼</span>
-          </button>
-        </div>
-        <div style={{ padding: "0 var(--side-pad) var(--item-gap)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-            {weekDates.map((date, i) => {
-              const dateStr = date.toISOString().slice(0, 10);
-              const daySub = subs.find(s => s.date === dateStr && (s.status === "승인완료" || s.status === "예외요청"));
-              const foodImages = ["/food_01.webp", "/food_02.webp", "/food_03.webp"];
-              const selectedFood = foodImages[(i + date.getDate()) % 3];
-              const DAYS = ["일","월","화","수","목","금","토"];
-              return (
-                <div key={i} style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 14 }}>
-                  <div style={{ height: 80, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {daySub ? (
-                      <div style={{ position: "relative" }}>
-                        <img src={selectedFood} style={{ width: 80, height: 80, objectFit: "contain" }} alt="식단" />
-                        {daySub.status === "예외요청" && (
-                          <div style={{ position: "absolute", top: 0, right: -4, background: "#E24B4A", color: "#fff", fontSize: 10, fontWeight: 900, padding: "3px 6px", borderRadius: 10, border: "2px solid #FFFBF0" }}>보류</div>
-                        )}
-                      </div>
-                    ) : (
-                      <img src="/food_00.png" style={{ width: 64, height: 64, opacity: 0.9 }} alt="빈그릇" />
-                    )}
+          <div style={{ padding: "20px 28px 32px" }}>
+            <button onClick={() => setIsPickerOpen(true)} style={{ background: "none", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <span style={{ color: "#333", fontSize: 16, fontWeight: 800 }}>{String(selYear).slice(2)}년 {selMonth}월 {selWeek}주</span>
+              <Icon.ChevronDown color="#333" />
+            </button>
+          </div>
+          <div style={{ padding: "0 14px 48px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 0 }}>
+              {weekDates.map((date, i) => {
+                const localY = date.getFullYear();
+                const localM = String(date.getMonth() + 1).padStart(2, '0');
+                const localD = String(date.getDate()).padStart(2, '0');
+                const dateKey = `${localY}-${localM}-${localD}`;
+                const daySub = subs.find(s => s.date === dateKey && (s.status === "승인완료" || s.status === "예외요청"));
+                const foodImg = ["/food_01.webp", "/food_02.webp", "/food_03.webp"][(i + date.getDate()) % 3];
+                return (
+                  <div key={i} onClick={() => { if(daySub){setSelectedSub(daySub); setStep("detail");} }} style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 8, cursor: daySub ? "pointer" : "default", flex: 1 }}>
+                    <div style={{ height: 88, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {daySub ? (
+                        <div style={{ position: "relative" }}>
+                          <img src={foodImg} style={{ width: 88, height: 88, objectFit: "contain" }} alt="food" />
+                          {daySub.status === "예외요청" && (
+                            <div style={{ position: "absolute", top: 2, right: 0, background: "#E24B4A", color: "#fff", fontSize: 11, fontWeight: 900, padding: "3px 6px", borderRadius: 8, border: "2.5px solid #FFFBF0" }}>보류</div>
+                          )}
+                        </div>
+                      ) : (
+                        <img src="/food_00.png" style={{ width: 52, height: 52, opacity: 0.6 }} alt="empty" />
+                      )}
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: daySub ? "#111" : "#bbb" }}>{["월","화","수","목","금"][i]} {date.getDate()}</span>
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: daySub ? "#111" : "#bbb" }}>{DAYS[date.getDay()]} {date.getDate()}</span>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
-        <div style={{ padding: "0 var(--side-pad)", display: "flex", flexDirection: "column", gap: 14 }}>
-          <p style={{ textAlign: "center", fontSize: 13, color: "#888", fontWeight: 700, margin: "0 0 4px" }}>영수증을 올리면 음식이 채워집니다</p>
-          <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
-          <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "20px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 17 }}>영수증 올리기</button>
-          <button onClick={() => { doPick(); setStep("menu"); }} style={{ width: "100%", padding: "20px", borderRadius: 16, border: "2px solid #000", background: "transparent", color: "#000", fontWeight: 800, fontSize: 17 }}>오늘 뭐 먹지?</button>
+          <div style={{ padding: "0 28px", display: "flex", flexDirection: "column", gap: 12 }}>
+            <p style={{ textAlign: "center", fontSize: 12, color: "#999", fontWeight: 700, margin: "0 0 4px" }}>영수증을 올리면 음식이 채워집니다</p>
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
+            <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "20px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 17 }}>영수증 올리기</button>
+            <button onClick={() => { doPick(); setStep("menu"); }} style={{ width: "100%", padding: "20px", borderRadius: 16, border: "1px solid #000", background: "transparent", color: "#000", fontWeight: 700, fontSize: 17 }}>오늘 뭐 먹지?</button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const statusMapForFilter = {
     "승인": "승인완료",
@@ -530,72 +668,66 @@ export default function App() {
     "반려": "반려"
   };
 
-  const filteredSubs = subs.filter(s => {
-    if (filter === "전체") return true;
-    return s.status === statusMapForFilter[filter];
-  });
+  const AppList = () => {
+    const [sortType, setSortType] = useState("upload");
 
-  const AppList = (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden" }}>
-        <div style={{ padding: "24px", display: "flex", alignItems: "center", gap: 16 }}>
-          <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
+    const filteredSubs = subs.filter(s => {
+      if (filter === "전체") return true;
+      return s.status === statusMapForFilter[filter];
+    });
+
+    const sortedSubs = [...filteredSubs].sort((a, b) => {
+      if (sortType === "date") return new Date(b.date) - new Date(a.date);
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+
+    return (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden" }}>
+        <div style={{ padding: "24px 28px", display: "flex", alignItems: "center", gap: 16 }}>
+          <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Icon.Back /></button>
           <span style={{ fontWeight: 800, fontSize: 18 }}>정산 내역</span>
         </div>
-        
-        <div style={{ display: "flex", gap: 12, padding: "0 24px 20px", overflowX: "auto", msOverflowStyle: "none", scrollbarWidth: "none" }}>
-          {["전체", "승인", "보류", "반려"].map(f => (
-            <button 
-              key={f} 
-              onClick={() => setFilter(f)}
-              style={{ 
-                padding: "8px 20px", borderRadius: 20, border: "none", whiteSpace: "nowrap",
-                background: filter === f ? "#000" : "#fff",
-                color: filter === f ? "#fff" : "#888",
-                fontWeight: 700, fontSize: 13, transition: "0.2s"
-              }}
-            >
-              {f}
-            </button>
-          ))}
+
+        <div style={{ padding: "0 28px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            {["전체", "승인", "보류", "반려"].map(f => (
+              <button key={f} onClick={() => setFilter(f)} style={{ background: filter === f ? "#000" : "#fff", color: filter === f ? "#fff" : "#999", border: "none", borderRadius: 30, padding: "8px 16px", fontSize: 13, fontWeight: 800, cursor: "pointer", transition: "0.2s" }}>{f}</button>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={() => setSortType("date")} style={{ background: "none", border: "none", fontSize: 12, color: sortType === "date" ? "#111" : "#bbb", fontWeight: 800, cursor: "pointer", padding: 0 }}>날짜순</button>
+            <div style={{ width: 1, height: 10, background: "#eee", alignSelf: "center" }} />
+            <button onClick={() => setSortType("upload")} style={{ background: "none", border: "none", fontSize: 12, color: sortType === "upload" ? "#111" : "#bbb", fontWeight: 800, cursor: "pointer", padding: 0 }}>업로드순</button>
+          </div>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 180px", minHeight: 0 }}>
-          {filteredSubs.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "80px 0", color: "#bbb", fontWeight: 600 }}>내역이 없습니다.</div>
-          ) : (
-            filteredSubs.map(s => (
-              <div key={s.id} onClick={() => { setSelectedSub(s); setStep("detail"); }} style={{ background: "#fff", borderRadius: 24, padding: "24px", marginBottom: 16, boxShadow: "0 4px 20px rgba(0,0,0,0.03)", cursor: "pointer" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "12px 28px 100px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {sortedSubs.map((s, i) => (
+              <div key={i} onClick={() => { setSelectedSub(s); setStep("detail"); }} style={{ background: "#fff", borderRadius: 28, padding: "24px", position: "relative", boxShadow: "0 10px 30px rgba(0,0,0,0.03)", cursor: "pointer" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                   <div>
-                    <p style={{ margin: "0 0 4px", fontSize: 12, color: "#999", fontWeight: 600 }}>{s.date} · {s.category}</p>
-                    <p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "#111" }}>{s.store_name || s.storeName}</p>
+                    <p style={{ margin: "0 0 6px", fontSize: 12, color: "#bbb", fontWeight: 700 }}>{s.date} · {s.category}</p>
+                    <h4 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: "#111", letterSpacing: "-0.5px" }}>{s.store_name || s.storeName}</h4>
                   </div>
                   <Badge status={s.status} />
                 </div>
-                
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-                  <p style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>₩{parseInt(s.amount || 0).toLocaleString()}</p>
-                  
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {(s.status === "예외요청" || s.status === "반려") && (
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteId(s.id);
-                        }}
-                        style={{ padding: "8px", borderRadius: 12, background: "#FFF0F0", color: "#E24B4A", fontSize: 16, border: "none", cursor: "pointer" }}
-                      >
-                        🗑️
-                      </button>
-                    )}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 24 }}>
+                  <span style={{ fontSize: 20, fontWeight: 900, color: "#000" }}>₩{parseInt(s.amount || 0).toLocaleString()}</span>
+                  <div 
+                    onClick={(e) => { e.stopPropagation(); setDeleteId(s.id); }}
+                    style={{ width: 40, height: 40, background: "#fff", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px solid #eee", cursor: "pointer", transition: "0.2s" }}
+                  >
+                    <Icon.Trash size={20} color="#999" />
                   </div>
                 </div>
               </div>
-            ))
-          )}
+            ))}
+          </div>
         </div>
       </div>
-  );
+    );
+  };
 
 
   function handleSendChat() {
@@ -614,13 +746,13 @@ export default function App() {
     }, 1000);
   }
 
-  const AppResult = (
+  const AppResult = () => (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden", position: "relative" }}>
-      <div style={{ padding: "24px 24px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
+      <div style={{ padding: "24px 28px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Icon.Back /></button>
       </div>
       
-      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 24px 240px", minHeight: 0 }}>
+      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 28px 240px", minHeight: 0 }}>
         <div style={{ textAlign: "center", padding: "40px 0" }}>
           <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#FEE2E2", color: "#E24B4A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, margin: "0 auto 20px", fontWeight: 800 }}>!</div>
           <p style={{ fontSize: 22, color: "#111", fontWeight: 900, marginBottom: 16 }}>정산 기준에 맞지 않는 영수증이에요</p>
@@ -657,7 +789,7 @@ export default function App() {
         </div>
       </div>
 
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "40px 24px 40px", background: "linear-gradient(to top, #FFFBF0 70%, transparent)", display: "flex", gap: 12, zIndex: 9999 }}>
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "40px 28px 40px", background: "linear-gradient(to top, #FFFBF0 70%, transparent)", display: "flex", gap: 12, zIndex: 9999 }}>
         <button onClick={() => { reset(); setTimeout(() => fileRef.current?.click(), 100); }} style={{ flex: 1, padding: "18px", borderRadius: 16, border: "2px solid #E5E7EB", background: "#fff", color: "#333", fontWeight: 800, fontSize: 16 }}>다시 제출</button>
         <button onClick={() => {
           if (issues.some(i => i.includes("시간"))) setExcType("업무 연장");
@@ -669,7 +801,7 @@ export default function App() {
     </div>
   );
 
-  const AppException = (() => {
+  const AppException = () => {
     const mainIssue = issues[0] || "";
     let summary = "예외 정산 신청 건";
     if (mainIssue.includes("시간")) summary = `[시간 외 사용] ${ocr?.time} 결제 건`;
@@ -680,10 +812,10 @@ export default function App() {
 
     return (
       <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden", position: "relative" }}>
-        <div style={{ padding: "24px 24px 0", display: "flex", alignItems: "center", gap: 16 }}>
-          <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
+        <div style={{ padding: "24px 28px 0", display: "flex", alignItems: "center", gap: 16 }}>
+          <button onClick={() => setStep("result")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Icon.Back /></button>
         </div>
-        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 24px 240px", minHeight: 0 }}>
+        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 28px 240px", minHeight: 0 }}>
           <img src="/pencil.webp" style={{ width: 52, height: 52, marginBottom: 32, marginLeft: 5 }} alt="pencil" />
           <div style={{ padding: "0 0 48px", textAlign: "left" }}>
             <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111", lineHeight: 1.4, letterSpacing: "-0.5px" }}>{summary}의<br/>상세 사유를 작성해주세요.</p>
@@ -705,7 +837,7 @@ export default function App() {
 
         </div>
 
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "40px 24px 40px", background: "linear-gradient(to top, #FFFBF0 70%, transparent)", zIndex: 9999 }}>
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "40px 28px 40px", background: "linear-gradient(to top, #FFFBF0 70%, transparent)", zIndex: 9999 }}>
           <button 
             onClick={() => { submit(true); }} 
             disabled={!excText.trim()} 
@@ -723,12 +855,12 @@ export default function App() {
         </div>
       </div>
     );
-  })();
+  };
 
-  const AppMenu = (
+  const AppMenu = () => (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, position: "relative" }}>
-      <div style={{ padding: "24px", display: "flex", alignItems: "center", gap: 16 }}>
-        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: 0 }}>←</button>
+      <div style={{ padding: "24px 28px", display: "flex", alignItems: "center", gap: 16 }}>
+        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Icon.Back /></button>
         <span style={{ fontWeight: 800, fontSize: 18 }}>오늘 뭐 먹지?</span>
       </div>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 32px 180px", textAlign: "center" }}>
@@ -737,7 +869,7 @@ export default function App() {
         <h2 style={{ fontSize: 32, fontWeight: 900, margin: 0, letterSpacing: "-1px" }}>{pick?.name} 어떠세요?</h2>
       </div>
 
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "40px 24px 40px", background: "linear-gradient(to top, #FFFBF0 70%, transparent)", display: "flex", gap: 12, zIndex: 10 }}>
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "40px 28px 40px", background: "linear-gradient(to top, #FFFBF0 70%, transparent)", display: "flex", gap: 12, zIndex: 10 }}>
         <button 
           onClick={() => {
             if(pick?.name) window.open(`https://m.map.naver.com/search2/search.naver?query=${encodeURIComponent("내 주변 " + pick.name)}`, '_blank');
@@ -757,21 +889,211 @@ export default function App() {
     </div>
   );
 
+  const AppMyPage = () => {
+    const shiftMyMonth = (dir) => {
+      let nm = myMonth + dir;
+      let ny = myYear;
+      if (nm > 12) { nm = 1; ny++; }
+      else if (nm < 1) { nm = 12; ny--; }
+      
+      const target = new Date(ny, nm - 1, 1);
+      const now = new Date();
+      
+      const maxLimit = new Date(now.getFullYear(), now.getMonth(), 1);
+      const minLimit = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+      
+      if (target >= minLimit && target <= maxLimit) {
+        setMyYear(ny);
+        setMyMonth(nm);
+      }
+    };
+
+    const monthSubs = subs.filter(s => {
+      if (!s.date) return false;
+      const p = s.date.split("-");
+      return parseInt(p[0]) === myYear && parseInt(p[1]) === myMonth && (s.status === "승인완료" || s.status === "예외요청");
+    });
+    const monthTotal = monthSubs.reduce((a, s) => a + parseInt(s.amount || 0), 0);
+
+    return (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden" }}>
+        <div style={{ padding: "24px 28px", display: "flex", alignItems: "center", gap: 16 }}>
+          <button onClick={() => setStep("home")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Icon.Back /></button>
+          <span style={{ fontWeight: 800, fontSize: 18 }}>마이페이지</span>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 28px 100px" }}>
+          <div style={{ background: "#fff", borderRadius: 36, padding: "40px 24px", textAlign: "center", marginBottom: 28, boxShadow: "0 10px 40px rgba(0,0,0,0.03)" }}>
+            <div style={{ width: 100, height: 100, borderRadius: "50%", background: "#f5f5f5", margin: "0 auto 20px", overflow: "hidden" }}>
+              <img src="/profile.png" style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="profile" />
+            </div>
+            <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 6px", color: "#111" }}>정다음</h2>
+            <p style={{ fontSize: 13, color: "#999", fontWeight: 700 }}>경영정보시스템즈 · 경영지원팀</p>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, padding: "0 4px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <button 
+                onClick={() => shiftMyMonth(-1)} 
+                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", opacity: (new Date(myYear, myMonth - 1, 1) <= new Date(new Date().getFullYear(), new Date().getMonth() - 3, 1)) ? 0.3 : 1 }}
+              >
+                <Icon.ChevronLeft size={20} color="#ccc" />
+              </button>
+              <span style={{ fontSize: 20, fontWeight: 900, color: "#111", letterSpacing: "-0.5px" }}>{myYear}년 {String(myMonth).padStart(2, "0")}월</span>
+              <button 
+                onClick={() => shiftMyMonth(1)} 
+                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", opacity: (new Date(myYear, myMonth - 1, 1) >= new Date(new Date().getFullYear(), new Date().getMonth(), 1)) ? 0.3 : 1 }}
+              >
+                <Icon.ChevronRight size={20} color="#ccc" />
+              </button>
+            </div>
+            <button onClick={() => setStep("list")} style={{ background: "none", border: "none", fontSize: 13, color: "#aaa", fontWeight: 700, padding: 0, cursor: "pointer", display: "flex", alignItems: "center", gap: 2 }}>
+              내역보기 <Icon.ChevronRight size={14} color="#ccc" />
+            </button>
+          </div>
+
+          <div style={{ background: "#fff", borderRadius: 28, padding: "24px", marginBottom: 16, boxShadow: "0 10px 40px rgba(0,0,0,0.03)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: "#E2F5EC", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>📊</div>
+                <span style={{ fontWeight: 800, fontSize: 15, color: "#333" }}>정산 현황</span>
+              </div>
+              <span style={{ fontSize: 20, fontWeight: 900, color: "#000" }}>₩{monthTotal.toLocaleString()}</span>
+            </div>
+            <div style={{ height: 8, background: "#f2f2f2", borderRadius: 10, position: "relative", marginBottom: 14 }}>
+              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.min(100, (monthTotal/220000)*100)}%`, background: "#FEC601", borderRadius: 10 }} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#bbb", fontWeight: 700 }}>
+              <span>현재지출</span>
+              <span>총 한도 ₩220,000</span>
+            </div>
+          </div>
+
+          <div style={{ background: "#fff", borderRadius: 28, padding: "20px 24px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 10px 40px rgba(0,0,0,0.03)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: "#E8F0FE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>💳</div>
+              <span style={{ fontWeight: 800, fontSize: 15, color: "#333" }}>급여계좌</span>
+            </div>
+            <span style={{ fontSize: 14, color: "#666", fontWeight: 700 }}>국민은행 432101-04-123456</span>
+          </div>
+
+          <div 
+            onClick={() => setStep("policy")}
+            style={{ background: "#fff", borderRadius: 28, padding: "20px 24px", marginBottom: 100, display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 10px 40px rgba(0,0,0,0.03)", cursor: "pointer" }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: "#FFF0F0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>📋</div>
+              <span style={{ fontWeight: 800, fontSize: 15, color: "#333" }}>식대 지원 정책</span>
+            </div>
+            <Icon.ChevronRight size={18} color="#ccc" />
+          </div>
+
+          <button 
+              onClick={() => window.location.reload()}
+              style={{ width: "100%", padding: "20px", borderRadius: 16, border: "none", background: "none", color: "#ccc", fontWeight: 700, fontSize: 15, cursor: "pointer", marginBottom: 40 }}
+          >
+              로그아웃
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const AppPolicy = () => (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden" }}>
+        {/* Header */}
+        <div style={{ padding: "24px 28px", display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={() => setStep("my")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Icon.Back /></button>
+          <span style={{ fontWeight: 900, fontSize: 18, color: "#111" }}>식대 지원 정책</span>
+        </div>
+
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 28px 100px" }}>
+            {/* Hero Section */}
+            <div style={{ textAlign: "center", padding: "30px 0 40px" }}>
+                <div style={{ width: 80, height: 80, borderRadius: 24, background: "#fff", boxShadow: "0 10px 30px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40, margin: "0 auto 24px" }}>🍱</div>
+                <h1 style={{ fontSize: 24, fontWeight: 900, margin: "0 0 10px", color: C.primary, letterSpacing: "-1px" }}>ZAL : 잘먹 가이드라인</h1>
+                <p style={{ fontSize: 14, color: "#999", fontWeight: 600 }}>즐거운 점심 시간을 위한 가이드라인입니다</p>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                {/* 섹션: 사용 조건 */}
+                <div>
+                   <p style={{ fontSize: 15, fontWeight: 900, color: "#666", marginBottom: 12, marginLeft: 4 }}>기본 사용 조건</p>
+                   <div style={{ background: "#fff", borderRadius: 28, padding: "24px", border: "1.5px solid #F2E8CF" }}>
+                      {[
+                        { icon: "📅", t: "일정", d: "근무일 기준, 1일 1회 한정" },
+                        { icon: "⏰", t: "시간", d: "오전 10시 ~ 오후 2시" }
+                      ].map((item, i) => (
+                        <div key={i} style={{ display: "flex", gap: 16, marginBottom: i === 0 ? 16 : 0, alignItems: "flex-start" }}>
+                           <div style={{ fontSize: 20 }}>{item.icon}</div>
+                           <div>
+                              <p style={{ fontSize: 15, fontWeight: 800, margin: "0 0 2px", color: "#333" }}>{item.t}</p>
+                              <p style={{ fontSize: 13, color: "#666", fontWeight: 500 }}>{item.d}</p>
+                           </div>
+                        </div>
+                      ))}
+                      <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1.5px dashed #f0f0f0" }}>
+                         <p style={{ fontSize: 15, fontWeight: 800, marginBottom: 10 }}>📍 사용 가능 장소</p>
+                         <div style={{ background: "#f9f9f9", borderRadius: 16, padding: "16px", display: "flex", flexDirection: "column", gap: 10 }}>
+                            <p style={{ fontSize: 13, color: "#555", fontWeight: 600, lineHeight: 1.5 }}>🍽️ 일반 식당 (한식, 중식, 일식, 양식, 분식)</p>
+                            <p style={{ fontSize: 13, color: "#555", fontWeight: 600, lineHeight: 1.5 }}>☕ 카페 및 베이커리 (카드 전표 업종 기준)</p>
+                            <p style={{ fontSize: 13, color: "#555", fontWeight: 600, lineHeight: 1.5 }}>🏬 마트/백화점 (식품 코너 및 푸드코트 한정)</p>
+                         </div>
+                      </div>
+                   </div>
+                </div>
+
+                {/* 섹션: 정산 및 지급 절차 */}
+                <div>
+                   <p style={{ fontSize: 15, fontWeight: 900, color: "#666", marginBottom: 12, marginLeft: 4 }}>정산 및 지급 절차</p>
+                   <div style={{ background: "#fff", borderRadius: 28, padding: "24px", boxShadow: "0 10px 40px rgba(0,0,0,0.02)" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: 14, color: "#888", fontWeight: 600 }}>지원 금액</span>
+                            <span style={{ fontSize: 14, fontWeight: 800 }}>근무일수 x 10,000원</span>
+                         </div>
+                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: 14, color: "#888", fontWeight: 600 }}>사용 기간</span>
+                            <span style={{ fontSize: 14, fontWeight: 800 }}>해당 월 1일 ~ 말일</span>
+                         </div>
+                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: 14, color: "#888", fontWeight: 600 }}>영수증 제출</span>
+                            <span style={{ fontSize: 14, fontWeight: 800 }}>익월 10일 까지</span>
+                         </div>
+                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: 14, color: "#888", fontWeight: 600 }}>지급일</span>
+                            <span style={{ fontSize: 14, fontWeight: 800, color: "#000" }}>매월 22일</span>
+                         </div>
+                      </div>
+                   </div>
+                </div>
+
+                {/* 섹션: 지급 불가 사유 */}
+                <div style={{ paddingBottom: 40 }}>
+                   <p style={{ fontSize: 15, fontWeight: 900, color: "#666", marginBottom: 12, marginLeft: 4 }}>지급 불가 사유</p>
+                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      {[
+                        "🕒 시간 외 사용", "🎈 공휴일 사용", "🏖️ 휴가 중 사용", "📉 영수증 미첨부", "🚫 1일 1회 초과"
+                      ].map((item, i) => (
+                        <div key={i} style={{ background: "#fff", padding: "16px", borderRadius: 20, fontSize: 13, fontWeight: 700, color: "#555", border: "1px solid #f0f0f0" }}>
+                           {item}
+                        </div>
+                      ))}
+                   </div>
+                </div>
+            </div>
+        </div>
+    </div>
+  );
+
   const screens = { 
-    home: AppHome, 
-    list: AppList, 
-    result: AppResult, 
-    exception: AppException, 
-    menu: AppMenu, 
-    detail: <AppDetailView 
-      sub={selectedSub} 
-      onBack={() => setStep("list")} 
-      onShowImg={(img) => { setPreview(img); setIsImgModal(true); }}
-      chats={selectedSub ? localChats[selectedSub.id] : []}
-      onSendChat={handleSendChat}
-      replyTxt={replyText}
-      setReplyTxt={setReplyText}
-    /> 
+    home: <AppHome />, 
+    my: <AppMyPage />, 
+    list: <AppList />, 
+    result: <AppResult />, 
+    exception: <AppException />, 
+    menu: <AppMenu />, 
+    policy: <AppPolicy />,
+    detail: <AppDetailView sub={selectedSub} onBack={() => { if(step==="detail") setStep("home"); }} onShowImg={(img) => { setPreview(img); setIsImgModal(true); }} chats={selectedSub ? localChats[selectedSub.id] : []} onSendChat={handleSendChat} replyTxt={replyText} setReplyTxt={setReplyText} /> 
   };
 
   const StatusModal = ({ type, onClose }) => (
@@ -783,6 +1105,13 @@ export default function App() {
             <div style={{ fontSize: 56, marginBottom: 24 }}>🤖</div>
             <h3 style={{ fontSize: 20, fontWeight: 800, color: "#111", margin: "0 0 12px", letterSpacing: "-0.5px" }}>확인 중입니다...</h3>
             <p style={{ fontSize: 15, color: "#666", margin: 0, lineHeight: 1.6, fontWeight: 500 }}>AI가 영수증 정보를<br/>꼼꼼하게 분석하고 있습니다.</p>
+          </>
+        ) : type === "holiday_error" ? (
+          <>
+            <div style={{ fontSize: 56, marginBottom: 24 }}>🚫</div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: "#111", margin: "0 0 12px", letterSpacing: "-0.5px" }}>등록 불가</h3>
+            <p style={{ fontSize: 15, color: "#666", margin: "0 0 40px", lineHeight: 1.6, fontWeight: 500 }}>공휴일의 영수증은<br/>등록이 불가능 합니다.</p>
+            <button onClick={onClose} style={{ width: "100%", padding: "20px", borderRadius: 20, border: "none", background: "#1A1C30", color: "#fff", fontWeight: 800, fontSize: 17, cursor: "pointer" }}>확인</button>
           </>
         ) : (
           <>
@@ -808,7 +1137,7 @@ export default function App() {
         @media (max-width: 1060px) { .desktop-panel { display: none !important; } .app-container { width: 100% !important; border-left: none !important; } }
         @media (max-height: 820px) { .footer-copy { display: none !important; } }
         :root { --side-pad: 32px; --item-gap: 64px; --btn-bot: 60px; }
-        @media (max-width: 480px) { :root { --side-pad: 24px; --item-gap: 40px; --btn-bot: 40px; } }
+        @media (max-width: 480px) { :root { --side-pad: 28px; --item-gap: 40px; --btn-bot: 40px; } }
       `}</style>
       <div className="desktop-panel" style={{ width: 600, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 64px" }}>
         <h1 style={{ fontSize: 56, fontWeight: 900, lineHeight: 1.15, letterSpacing: "-2px", color: "#000" }}>점심 한 끼,<br /><span style={{ color: "#fff", textShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>10초</span>에 정산!</h1>
@@ -816,13 +1145,8 @@ export default function App() {
       </div>
       <div className="app-container" style={{ width: 460, flexShrink: 0, height: "100vh", boxShadow: "30px 30px 60px -15px rgba(0,0,0,0.12)", borderLeft: "1px solid rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", background: "#FFFBF0" }}>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative", height: "100%", overflow: "hidden" }}>
-          {screens[step] || AppHome}
+          {screens[step] || <AppHome />}
         </div>
-        {step === "home" && (
-          <div className="footer-copy" style={{ position: "absolute", bottom: 15, left: "50%", transform: "translateX(-50%)", fontSize: 11, color: "#999", fontWeight: 700, whiteSpace: "nowrap", letterSpacing: "-0.3px", pointerEvents: "none" }}>
-            ⓒ 다음정보시스템즈
-          </div>
-        )}
         {modal && <StatusModal type={modal} onClose={reset} />}
         {deleteId && (
           <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(2px)", zIndex: 11000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
