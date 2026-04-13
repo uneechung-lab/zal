@@ -482,18 +482,29 @@ export default function App() {
       });
       
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      const payload = {
+        contents: [{
+          parts: [
+            { text: "이 이미지는 결제 영수증 또는 승인 내역 스크린샷입니다. 이미지에서 글씨를 인식하여 다음 정보를 추출하고 반드시 JSON 형태로 반환하세요:\n1. storeName: 결제 가맹점, 음식점이나 가게의 정확한 상호명\n2. date: 결제 날짜 (반드시 YYYY-MM-DD 형식으로 변환)\n3. time: 결제 시간 (HH:MM 형식으로 변환)\n4. amount: 최종 승인 금액 숫자 (단위나 콤마 제외, 숫자만 입력)\n5. category: 가맹점 업종 정보 (예: 한식, 일식, 카페 등)\n\n다른 형태 없이 오직 { \"storeName\": \"\", \"date\": \"\", \"time\": \"\", \"amount\": \"\", \"category\": \"\" } 형태의 순수 JSON만 반환하세요." },
+            { inlineData: { mimeType: f.type || "image/jpeg", data: b64 } }
+          ]
+        }]
+      };
+
+      let resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: "이 이미지는 결제 영수증 또는 승인 내역 스크린샷입니다. 이미지에서 글씨를 인식하여 다음 정보를 추출하고 반드시 JSON 형태로 반환하세요:\n1. storeName: 결제 가맹점, 음식점이나 가게의 정확한 상호명\n2. date: 결제 날짜 (반드시 YYYY-MM-DD 형식으로 변환)\n3. time: 결제 시간 (HH:MM 형식으로 변환)\n4. amount: 최종 승인 금액 숫자 (단위나 콤마 제외, 숫자만 입력)\n5. category: 가맹점 업종 정보 (예: 한식, 일식, 카페 등)\n\n다른 형태 없이 오직 { \"storeName\": \"\", \"date\": \"\", \"time\": \"\", \"amount\": \"\", \"category\": \"\" } 형태의 순수 JSON만 반환하세요." },
-              { inlineData: { mimeType: f.type || "image/jpeg", data: b64 } }
-            ]
-          }]
-        })
+        body: JSON.stringify(payload)
       });
+      
+      // 503 에러 등 서버 부하 시 안정적인 1.5-flash로 자동 재시도
+      if (resp.status >= 500) {
+        resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+      }
       
       if (!resp.ok) throw new Error(`API Error: ${resp.status}`);
       const data = await resp.json();
