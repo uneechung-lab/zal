@@ -497,11 +497,18 @@ export default function App() {
         }]
       };
 
-      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
+      let resp;
+      let retries = 3;
+      while (retries > 0) {
+        resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (resp.status !== 503) break;
+        retries--;
+        if (retries > 0) await new Promise(res => setTimeout(res, 800)); // 503 발생 시 0.8초 대기 후 재시도
+      }
       
       if (!resp.ok) throw new Error(`API Error: ${resp.status}`);
       const data = await resp.json();
