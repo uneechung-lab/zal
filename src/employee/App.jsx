@@ -510,6 +510,11 @@ export default function App() {
         if (retries > 0) await new Promise(res => setTimeout(res, 800)); // 503 발생 시 0.8초 대기 후 재시도
       }
       
+      if (resp.status === 429) {
+        setModal("quota_error");
+        return;
+      }
+      
       if (!resp.ok) throw new Error(`API Error: ${resp.status}`);
       const data = await resp.json();
       const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
@@ -1126,6 +1131,13 @@ export default function App() {
             <div style={{ fontSize: 56, marginBottom: 24 }}>🚫</div>
             <h3 style={{ fontSize: 20, fontWeight: 800, color: "#111", margin: "0 0 12px", letterSpacing: "-0.5px" }}>등록 불가</h3>
             <p style={{ fontSize: 15, color: "#666", margin: "0 0 40px", lineHeight: 1.6, fontWeight: 500 }}>공휴일의 영수증은<br/>등록이 불가능 합니다.</p>
+            <button onClick={onClose} style={{ width: "100%", padding: "20px", borderRadius: 20, border: "none", background: "#1A1C30", color: "#fff", fontWeight: 800, fontSize: 17, cursor: "pointer" }}>확인</button>
+          </>
+        ) : type === "quota_error" ? (
+          <>
+            <div style={{ fontSize: 56, marginBottom: 24 }}>💸</div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: "#111", margin: "0 0 12px", letterSpacing: "-0.5px" }}>처리 불가</h3>
+            <p style={{ fontSize: 16, color: "#e74c3c", margin: "0 0 40px", lineHeight: 1.6, fontWeight: 800 }}>상무님, 크레딧이 없어서<br/>분석을 못해요.ㅠㅠ</p>
             <button onClick={onClose} style={{ width: "100%", padding: "20px", borderRadius: 20, border: "none", background: "#1A1C30", color: "#fff", fontWeight: 800, fontSize: 17, cursor: "pointer" }}>확인</button>
           </>
         ) : (
