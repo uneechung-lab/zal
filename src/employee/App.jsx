@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+import { createClient } from '@supabase/supabase-js';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 async function fetchCategories() {
   try {
@@ -325,7 +327,10 @@ function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, se
 
 export default function App() {
   const [subs, setSubs] = useState([]);
-  const [step, setStep] = useState("home");
+  const [step, setStep] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("step") || "home";
+  });
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [ocr, setOcr] = useState(null);
@@ -334,6 +339,7 @@ export default function App() {
   const [excType, setExcType] = useState("");
   const [excText, setExcText] = useState("");
   const [allowed, setAllowed] = useState([]);
+  
   const getInitialWeek = () => {
     const now = new Date();
     const y = now.getFullYear();
@@ -361,12 +367,35 @@ export default function App() {
   const [isImgModal, setIsImgModal] = useState(false);
   const [pick, setPick] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
+  const [user, setUser] = useState(null);
   const fileRef = useRef();
 
   useEffect(() => { 
+    checkUser();
     fetchSubs();
     fetchCategories().then(setAllowed); 
+
+    const setVh = () => {
+      let vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+    setVh();
+    window.addEventListener('resize', setVh);
+    return () => window.removeEventListener('resize', setVh);
   }, []);
+
+  const checkUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      setUser({
+        email: session.user.email,
+        full_name: session.user.user_metadata?.full_name || session.user.email.split('@')[0]
+      });
+    } else {
+      // 세션 없으면 로그인 화면으로 (index.html)
+      window.location.href = '/';
+    }
+  };
 
   const fetchSubs = async () => {
     try {
@@ -571,6 +600,9 @@ export default function App() {
 
   const AppHome = () => {
     const [tX, setTX] = useState(0);
+    const [tY, setTY] = useState(0);
+    const [dragX, setDragX] = useState(0);
+    const [pullY, setPullY] = useState(0);
 
     const shiftWeek = (dir) => {
       let nw = selWeek + dir;
@@ -599,13 +631,37 @@ export default function App() {
 
     return (
       <div 
-        style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, overflowY: "auto" }}
-        onTouchStart={e => setTX(e.touches[0].clientX)}
+        style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, overflowY: "auto", overflowX: "hidden" }}
+        onTouchStart={e => {
+          setTX(e.touches[0].clientX);
+          setTY(e.touches[0].clientY);
+        }}
+        onTouchMove={e => { 
+          if (tX) setDragX(e.touches[0].clientX - tX); 
+          if (tY && e.currentTarget.scrollTop <= 0) {
+            const dy = e.touches[0].clientY - tY;
+            if (dy > 0 && dy < 200) setPullY(dy);
+          }
+        }}
         onTouchEnd={e => {
-          const diff = tX - e.changedTouches[0].clientX;
-          if (Math.abs(diff) > 50) shiftWeek(diff > 0 ? 1 : -1);
+          if (tX) {
+            const diff = tX - e.changedTouches[0].clientX;
+            if (Math.abs(diff) > 50 && pullY < 50) shiftWeek(diff > 0 ? 1 : -1);
+          }
+          if (pullY > 80) {
+            window.location.href = window.location.pathname + "?step=" + step;
+          }
+          setTX(0);
+          setTY(0);
+          setDragX(0);
+          setPullY(0);
         }}
       >
+        {pullY > 10 && (
+          <div style={{ height: pullY, display: "flex", alignItems: "center", justifyContent: "center", color: "#aaa", fontSize: 13, fontWeight: 700, pointerEvents: "none", opacity: Math.min(1, pullY / 80) }}>
+            {pullY > 80 ? "새로고침을 위해 손을 놓으세요 🔄" : "당겨서 새로고침 ↓"}
+          </div>
+        )}
         <div style={{ padding: "30px 28px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <img src="/bi_zaleat.png" style={{ width: 48, height: 48, objectFit: "contain" }} alt="logo" />
@@ -625,7 +681,7 @@ export default function App() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", paddingBottom: "40px" }}>
           <div style={{ padding: "0 28px 32px" }}>
             <p style={{ margin: "0 0 12px", fontSize: 27, fontWeight: 900, lineHeight: 1.4, letterSpacing: "-1.5px" }}>
-              정다음님의 <span style={{ opacity: 0.55, fontWeight: 500 }}>맛있는 하루를<br/>다음정보시스템즈가 지원합니다!</span>
+              {user?.full_name}님의 <span style={{ opacity: 0.55, fontWeight: 500 }}>맛있는 하루를<br/>다음정보시스템즈가 지원합니다!</span>
             </p>
             <div style={{ marginTop: 40, display: "inline-block", position: "relative" }}>
               <p style={{ margin: "0 0 8px", fontSize: 13, color: "#666", fontWeight: 700 }}>{payDateStr} 입금 예정</p>
@@ -636,14 +692,14 @@ export default function App() {
               {pendingTotal > 0 && <span style={{ fontSize: 15, color: "#999", fontWeight: 700, marginLeft: 10 }}>(+{pendingTotal.toLocaleString()} 보류)</span>}
             </div>
           </div>
-          <div style={{ padding: "20px 28px 32px" }}>
+          <div style={{ padding: "20px 28px 16px" }}>
             <button onClick={() => setIsPickerOpen(true)} style={{ background: "none", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}>
               <span style={{ color: "#333", fontSize: 16, fontWeight: 800 }}>{String(selYear).slice(2)}년 {selMonth}월 {selWeek}주</span>
               <Icon.ChevronDown color="#333" />
             </button>
           </div>
           <div style={{ padding: "0 14px 48px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 0 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 0, transform: `translateX(${dragX * 0.7}px)`, transition: dragX === 0 ? "transform 0.3s ease-out" : "none" }}>
               {weekDates.map((date, i) => {
                 const localY = date.getFullYear();
                 const localM = String(date.getMonth() + 1).padStart(2, '0');
@@ -674,7 +730,7 @@ export default function App() {
           <div style={{ padding: "0 28px", display: "flex", flexDirection: "column", gap: 12 }}>
             <p style={{ textAlign: "center", fontSize: 12, color: "#999", fontWeight: 700, margin: "0 0 4px" }}>영수증을 올리면 음식이 채워집니다</p>
             <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
-            <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "20px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 17 }}>영수증 올리기</button>
+            <button onClick={() => fileRef.current.click()} style={{ width: "100%", padding: "24px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 18 }}>영수증 올리기</button>
             <button onClick={() => { doPick(); setStep("menu"); }} style={{ width: "100%", padding: "20px", borderRadius: 16, border: "1px solid #000", background: "transparent", color: "#000", fontWeight: 700, fontSize: 17 }}>오늘 뭐 먹지?</button>
           </div>
         </div>
@@ -697,7 +753,7 @@ export default function App() {
     });
 
     const sortedSubs = [...filteredSubs].sort((a, b) => {
-      if (sortType === "date") return new Date(b.date) - new Date(a.date);
+      if (sortType === "date") return new Date(a.date) - new Date(b.date);
       return new Date(b.created_at) - new Date(a.created_at);
     });
 
@@ -714,10 +770,17 @@ export default function App() {
               <button key={f} onClick={() => setFilter(f)} style={{ background: filter === f ? "#000" : "#fff", color: filter === f ? "#fff" : "#999", border: "none", borderRadius: 30, padding: "8px 16px", fontSize: 13, fontWeight: 800, cursor: "pointer", transition: "0.2s" }}>{f}</button>
             ))}
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={() => setSortType("date")} style={{ background: "none", border: "none", fontSize: 12, color: sortType === "date" ? "#111" : "#bbb", fontWeight: 800, cursor: "pointer", padding: 0 }}>날짜순</button>
-            <div style={{ width: 1, height: 10, background: "#eee", alignSelf: "center" }} />
-            <button onClick={() => setSortType("upload")} style={{ background: "none", border: "none", fontSize: 12, color: sortType === "upload" ? "#111" : "#bbb", fontWeight: 800, cursor: "pointer", padding: 0 }}>업로드순</button>
+          <div style={{ display: "flex" }}>
+            <button 
+              onClick={() => setSortType(prev => prev === "date" ? "upload" : "date")} 
+              style={{ background: "none", border: "none", fontSize: 13, color: "#111", fontWeight: 800, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <span>{sortType === "date" ? "날짜순" : "업로드순"}</span>
+              <div style={{ display: "flex", flexDirection: "column", fontSize: 8, color: "#bbb", lineHeight: 1, gap: 2 }}>
+                <span>▲</span>
+                <span>▼</span>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -877,37 +940,64 @@ export default function App() {
     );
   };
 
-  const AppMenu = () => (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, position: "relative" }}>
-      <div style={{ padding: "24px 28px", display: "flex", alignItems: "center", gap: 16 }}>
-        <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Icon.Back /></button>
-        <span style={{ fontWeight: 800, fontSize: 18 }}>오늘 뭐 먹지?</span>
-      </div>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 32px 180px", textAlign: "center" }}>
-        <div style={{ fontSize: 100, marginBottom: 32 }}>{pick?.emoji || "🤔"}</div>
-        <p style={{ fontSize: 16, color: "#888", marginBottom: 8, fontWeight: 600 }}>{pick?.cat}</p>
-        <h2 style={{ fontSize: 32, fontWeight: 900, margin: 0, letterSpacing: "-1px" }}>{pick?.name} 어떠세요?</h2>
-      </div>
+  const AppMenu = () => {
+    const [tY, setTY] = useState(0);
+    const [pullY, setPullY] = useState(0);
 
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "40px 28px 40px", background: "linear-gradient(to top, #FFFBF0 70%, transparent)", display: "flex", gap: 12, zIndex: 10 }}>
-        <button 
-          onClick={() => {
-            if(pick?.name) window.open(`https://m.map.naver.com/search2/search.naver?query=${encodeURIComponent("내 주변 " + pick.name)}`, '_blank');
-          }}
-          disabled={!pick}
-          style={{ flex: 1, padding: "18px", borderRadius: 16, border: "2px solid #E5E7EB", background: "#fff", color: "#333", fontWeight: 800, fontSize: 16, cursor: "pointer", whiteSpace: "nowrap" }}
-        >
-          {pick?.name || "메뉴"} 찾기
-        </button>
-        <button 
-          onClick={doPick} 
-          style={{ flex: 2, padding: "18px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer", whiteSpace: "nowrap" }}
-        >
-          다른 메뉴 추천
-        </button>
+    return (
+      <div 
+        style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden", position: "relative" }}
+        onTouchStart={e => setTY(e.touches[0].clientY)}
+        onTouchMove={e => {
+          if (tY) {
+            const dy = e.touches[0].clientY - tY;
+            if (dy > 0 && dy < 200) setPullY(dy);
+          }
+        }}
+        onTouchEnd={e => {
+          if (pullY > 80) {
+            window.location.href = window.location.pathname + "?step=" + step;
+          }
+          setTY(0);
+          setPullY(0);
+        }}
+      >
+        {pullY > 10 && (
+          <div style={{ height: pullY, display: "flex", alignItems: "center", justifyContent: "center", color: "#aaa", fontSize: 13, fontWeight: 700, pointerEvents: "none", opacity: Math.min(1, pullY / 80) }}>
+            {pullY > 80 ? "새로고침을 위해 손을 놓으세요 🔄" : "당겨서 새로고침 ↓"}
+          </div>
+        )}
+        <div style={{ padding: "24px 28px", display: "flex", alignItems: "center", gap: 16 }}>
+          <button onClick={() => { setStep("home"); window.history.replaceState({}, '', window.location.pathname); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Icon.Back /></button>
+          <span style={{ fontWeight: 800, fontSize: 18 }}>오늘 뭐 먹지?</span>
+        </div>
+        
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px", textAlign: "center" }}>
+          <div style={{ fontSize: "min(20vh, 100px)", marginBottom: 24 }}>{pick?.emoji || "🤔"}</div>
+          <p style={{ fontSize: 16, color: "#888", marginBottom: 8, fontWeight: 600 }}>{pick?.cat}</p>
+          <h2 style={{ fontSize: 32, fontWeight: 900, margin: 0, letterSpacing: "-1px" }}>{pick?.name} 어떠세요?</h2>
+        </div>
+
+        <div style={{ padding: "16px 28px 32px", display: "flex", gap: 12, zIndex: 10, flexShrink: 0, paddingBottom: "calc(env(safe-area-inset-bottom, 24px) + 16px)" }}>
+          <button 
+            onClick={() => {
+              if(pick?.name) window.open(`https://m.map.naver.com/search2/search.naver?query=${encodeURIComponent("내 주변 " + pick.name)}`, '_blank');
+            }}
+            disabled={!pick}
+            style={{ flex: 1, padding: "18px", borderRadius: 16, border: "2px solid #E5E7EB", background: "#fff", color: "#333", fontWeight: 800, fontSize: 16, cursor: "pointer", whiteSpace: "nowrap" }}
+          >
+            {pick?.name || "메뉴"} 찾기
+          </button>
+          <button 
+            onClick={doPick} 
+            style={{ flex: 2, padding: "18px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer", whiteSpace: "nowrap" }}
+          >
+            다른 메뉴 추천
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const AppMyPage = () => {
     const shiftMyMonth = (dir) => {
@@ -946,8 +1036,8 @@ export default function App() {
             <div style={{ width: 100, height: 100, borderRadius: "50%", background: "#f5f5f5", margin: "0 auto 20px", overflow: "hidden" }}>
               <img src="/profile.png" style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="profile" />
             </div>
-            <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 6px", color: "#111" }}>정다음</h2>
-            <p style={{ fontSize: 13, color: "#999", fontWeight: 700 }}>경영정보시스템즈 · 경영지원팀</p>
+            <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 6px", color: "#111" }}>{user?.full_name}</h2>
+            <p style={{ fontSize: 13, color: "#999", fontWeight: 700 }}>다음정보시스템즈 · {user?.email}</p>
           </div>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, padding: "0 4px" }}>
@@ -991,14 +1081,14 @@ export default function App() {
           <div style={{ background: "#fff", borderRadius: 28, padding: "20px 24px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 10px 40px rgba(0,0,0,0.03)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: 36, height: 36, borderRadius: 10, background: "#E8F0FE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>💳</div>
-              <span style={{ fontWeight: 800, fontSize: 15, color: "#333" }}>급여계좌</span>
+              <span style={{ fontWeight: 800, fontSize: 15, color: "#333" }}>입금계좌</span>
             </div>
-            <span style={{ fontSize: 14, color: "#666", fontWeight: 700 }}>국민은행 432101-04-123456</span>
+            <span style={{ fontSize: 14, color: "#666", fontWeight: 700 }}>급여계좌</span>
           </div>
 
           <div 
             onClick={() => setStep("policy")}
-            style={{ background: "#fff", borderRadius: 28, padding: "20px 24px", marginBottom: 100, display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 10px 40px rgba(0,0,0,0.03)", cursor: "pointer" }}
+            style={{ background: "#fff", borderRadius: 28, padding: "20px 24px", marginBottom: 24, display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 10px 40px rgba(0,0,0,0.03)", cursor: "pointer" }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: 36, height: 36, borderRadius: 10, background: "#FFF0F0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>📋</div>
@@ -1008,7 +1098,10 @@ export default function App() {
           </div>
 
           <button 
-              onClick={() => window.location.reload()}
+              onClick={async () => {
+                await supabase.auth.signOut();
+                window.location.href = '/';
+              }}
               style={{ width: "100%", padding: "20px", borderRadius: 16, border: "none", background: "none", color: "#ccc", fontWeight: 700, fontSize: 15, cursor: "pointer", marginBottom: 40 }}
           >
               로그아웃
@@ -1021,85 +1114,118 @@ export default function App() {
   const AppPolicy = () => (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden" }}>
         {/* Header */}
-        <div style={{ padding: "24px 28px", display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ padding: "24px 28px", display: "flex", alignItems: "center", gap: 16 }}>
           <button onClick={() => setStep("my")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Icon.Back /></button>
-          <span style={{ fontWeight: 900, fontSize: 18, color: "#111" }}>식대 지원 정책</span>
+          <span style={{ fontWeight: 800, fontSize: 18 }}>식대 지원 정책</span>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "0 28px 100px" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 28px 120px" }}>
             {/* Hero Section */}
-            <div style={{ textAlign: "center", padding: "30px 0 40px" }}>
-                <div style={{ width: 80, height: 80, borderRadius: 24, background: "#fff", boxShadow: "0 10px 30px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40, margin: "0 auto 24px" }}>🍱</div>
-                <h1 style={{ fontSize: 24, fontWeight: 900, margin: "0 0 10px", color: C.primary, letterSpacing: "-1px" }}>ZAL : 잘먹 가이드라인</h1>
-                <p style={{ fontSize: 14, color: "#999", fontWeight: 600 }}>즐거운 점심 시간을 위한 가이드라인입니다</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px 0 48px" }}>
+                <div style={{ width: 130, flexShrink: 0, marginLeft: -12 }}>
+                    <img src="/zaleat.png" alt="ZAL Character" style={{ width: "100%", height: "auto", display: "block" }} />
+                </div>
+                <div style={{ padding: "0 4px", marginBottom: 12, flex: 1, marginTop: 10 }}>
+                    <h1 style={{ fontSize: 22, fontWeight: 950, margin: "0 0 8px", color: "#000", letterSpacing: "-1px" }}>안녕? 난 잘먹이야!</h1>
+                    <p style={{ fontSize: 16, color: "#666", fontWeight: 700, lineHeight: 1.5, letterSpacing: "-0.5px" }}>회사 생활의 즐거움인 식대 지원,<br/>내가 자세히 알려줄게!</p>
+                </div>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
                 {/* 섹션: 사용 조건 */}
-                <div>
-                   <p style={{ fontSize: 15, fontWeight: 900, color: "#666", marginBottom: 12, marginLeft: 4 }}>기본 사용 조건</p>
-                   <div style={{ background: "#fff", borderRadius: 28, padding: "24px", border: "1.5px solid #F2E8CF" }}>
-                      {[
-                        { icon: "📅", t: "일정", d: "근무일 기준, 1일 1회 한정" },
-                        { icon: "⏰", t: "시간", d: "오전 10시 ~ 오후 2시" }
-                      ].map((item, i) => (
-                        <div key={i} style={{ display: "flex", gap: 16, marginBottom: i === 0 ? 16 : 0, alignItems: "flex-start" }}>
-                           <div style={{ fontSize: 20 }}>{item.icon}</div>
-                           <div>
-                              <p style={{ fontSize: 15, fontWeight: 800, margin: "0 0 2px", color: "#333" }}>{item.t}</p>
-                              <p style={{ fontSize: 13, color: "#666", fontWeight: 500 }}>{item.d}</p>
-                           </div>
+                <section>
+                    <div style={{ background: "#fff", borderRadius: 32, padding: "32px", boxShadow: "0 10px 40px rgba(0,0,0,0.03)", border: "1.5px solid #FDF5E6" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                            {[
+                                { icon: "📅", t: "지원 일정", d: "평일 근무일 기준 (1일 1회)" },
+                                { icon: "⏰", t: "정산 시간", d: "오전 10:00 ~ 오후 2:00" }
+                            ].map((item, i) => (
+                                <div key={i} style={{ display: "flex", gap: 20, alignItems: "center" }}>
+                                    <div style={{ fontSize: 28 }}>{item.icon}</div>
+                                    <div>
+                                        <p style={{ fontSize: 17, fontWeight: 900, margin: "0 0 4px", color: "#111" }}>{item.t}</p>
+                                        <p style={{ fontSize: 15, color: "#666", fontWeight: 600 }}>{item.d}</p>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                      ))}
-                      <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1.5px dashed #f0f0f0" }}>
-                         <p style={{ fontSize: 15, fontWeight: 800, marginBottom: 10 }}>📍 사용 가능 장소</p>
-                         <div style={{ background: "#f9f9f9", borderRadius: 16, padding: "16px", display: "flex", flexDirection: "column", gap: 10 }}>
-                            <p style={{ fontSize: 13, color: "#555", fontWeight: 600, lineHeight: 1.5 }}>🍽️ 일반 식당 (한식, 중식, 일식, 양식, 분식)</p>
-                            <p style={{ fontSize: 13, color: "#555", fontWeight: 600, lineHeight: 1.5 }}>☕ 카페 및 베이커리 (카드 전표 업종 기준)</p>
-                            <p style={{ fontSize: 13, color: "#555", fontWeight: 600, lineHeight: 1.5 }}>🏬 마트/백화점 (식품 코너 및 푸드코트 한정)</p>
-                         </div>
-                      </div>
-                   </div>
-                </div>
-
-                {/* 섹션: 정산 및 지급 절차 */}
-                <div>
-                   <p style={{ fontSize: 15, fontWeight: 900, color: "#666", marginBottom: 12, marginLeft: 4 }}>정산 및 지급 절차</p>
-                   <div style={{ background: "#fff", borderRadius: 28, padding: "24px", boxShadow: "0 10px 40px rgba(0,0,0,0.02)" }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span style={{ fontSize: 14, color: "#888", fontWeight: 600 }}>지원 금액</span>
-                            <span style={{ fontSize: 14, fontWeight: 800 }}>근무일수 x 10,000원</span>
-                         </div>
-                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span style={{ fontSize: 14, color: "#888", fontWeight: 600 }}>사용 기간</span>
-                            <span style={{ fontSize: 14, fontWeight: 800 }}>해당 월 1일 ~ 말일</span>
-                         </div>
-                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span style={{ fontSize: 14, color: "#888", fontWeight: 600 }}>영수증 제출</span>
-                            <span style={{ fontSize: 14, fontWeight: 800 }}>익월 10일 까지</span>
-                         </div>
-                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span style={{ fontSize: 14, color: "#888", fontWeight: 600 }}>지급일</span>
-                            <span style={{ fontSize: 14, fontWeight: 800, color: "#000" }}>매월 22일</span>
-                         </div>
-                      </div>
-                   </div>
-                </div>
-
-                {/* 섹션: 지급 불가 사유 */}
-                <div style={{ paddingBottom: 40 }}>
-                   <p style={{ fontSize: 15, fontWeight: 900, color: "#666", marginBottom: 12, marginLeft: 4 }}>지급 불가 사유</p>
-                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                      {[
-                        "🕒 시간 외 사용", "🎈 공휴일 사용", "🏖️ 휴가 중 사용", "📉 영수증 미첨부", "🚫 1일 1회 초과"
-                      ].map((item, i) => (
-                        <div key={i} style={{ background: "#fff", padding: "16px", borderRadius: 20, fontSize: 13, fontWeight: 700, color: "#555", border: "1px solid #f0f0f0" }}>
-                           {item}
+                        
+                        <div style={{ marginTop: 32, paddingTop: 32, borderTop: "1.5px solid #F8F4EA" }}>
+                            <p style={{ fontSize: 17, fontWeight: 900, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                                <span style={{ fontSize: 20 }}>📍</span> 사용 가능 장소
+                            </p>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                                {[
+                                    { icon: "🥣", text: "일반 식당 (전 업종)" },
+                                    { icon: "☕", text: "카페 및 베이커리" },
+                                    { icon: "🏪", text: "백화점/마트 푸드코트/편의점" }
+                                ].map((loc, idx) => (
+                                    <div key={idx} style={{ background: "#F9F9F9", borderRadius: 16, padding: "16px 20px", display: "flex", alignItems: "center", gap: 12 }}>
+                                        <span style={{ fontSize: 18 }}>{loc.icon}</span>
+                                        <span style={{ fontSize: 15, color: "#444", fontWeight: 700 }}>{loc.text}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                      ))}
-                   </div>
-                </div>
+                    </div>
+                </section>
+
+                {/* 섹션: 정산 및 지급 */}
+                <section>
+                    <div style={{ background: "#fff", borderRadius: 32, padding: "32px", boxShadow: "0 10px 40px rgba(0,0,0,0.03)" }}>
+                        <h2 style={{ fontSize: 17, fontWeight: 900, color: "#111", marginBottom: 24 }}>정산 및 지급 절차</h2>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                            {[
+                                { label: "지원금", val: "근무일수 x 10,000원" },
+                                { label: "대상 기간", val: "해당 월 전체" },
+                                { label: "제출 마감", val: "익월 10일까지" },
+                                { label: "지급일", val: "매월 22일", accent: true }
+                            ].map((row, idx) => (
+                                <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <span style={{ fontSize: 16, color: "#999", fontWeight: 700 }}>{row.label}</span>
+                                    <span style={{ 
+                                        fontSize: 16, 
+                                        fontWeight: 900, 
+                                        color: row.accent ? "#E24B4A" : "#111",
+                                        textAlign: "right"
+                                    }}>
+                                        {row.val}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* 섹션: 지급 불가 */}
+                <section style={{ paddingBottom: 40 }}>
+                    <div style={{ background: "#fff", borderRadius: 32, padding: "32px", boxShadow: "0 10px 40px rgba(0,0,0,0.03)" }}>
+                        <h2 style={{ fontSize: 17, fontWeight: 900, color: "#111", marginBottom: 24 }}>지급 불가 사유</h2>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                        {[
+                            { icon: "🕒", t: "시간 외" },
+                            { icon: "🚩", t: "공휴일" },
+                            { icon: "🏖️", t: "휴가 중" },
+                            { icon: "📄", t: "영수증 미비" },
+                            { icon: "🚫", t: "중복 사용" }
+                        ].map((item, i) => (
+                            <div key={i} style={{ 
+                                background: "#F9F9F9", 
+                                padding: "20px 16px", 
+                                borderRadius: 24, 
+                                display: "flex", 
+                                flexDirection: "column",
+                                alignItems: "center",
+                                gap: 8,
+                                border: "none"
+                            }}>
+                                <span style={{ fontSize: 24 }}>{item.icon}</span>
+                                <span style={{ fontSize: 15, fontWeight: 800, color: "#555" }}>{item.t}</span>
+                            </div>
+                        ))}
+                    </div>
+                    </div>
+                </section>
             </div>
         </div>
     </div>
@@ -1170,7 +1296,7 @@ export default function App() {
         <h1 style={{ fontSize: 56, fontWeight: 900, lineHeight: 1.15, letterSpacing: "-2px", color: "#000" }}>점심 한 끼,<br /><span style={{ color: "#fff", textShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>10초</span>에 정산!</h1>
         <p style={{ fontSize: 18, color: "rgba(0,0,0,0.6)", marginTop: 24, fontWeight: 600 }}>영수증 사진 한 장이면 충분합니다.</p>
       </div>
-      <div className="app-container" style={{ width: 460, flexShrink: 0, height: "100vh", boxShadow: "30px 30px 60px -15px rgba(0,0,0,0.12)", borderLeft: "1px solid rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", background: "#FFFBF0" }}>
+      <div className="app-container" style={{ width: 460, flexShrink: 0, height: "calc(var(--vh, 1vh) * 100)", boxShadow: "30px 30px 60px -15px rgba(0,0,0,0.12)", borderLeft: "1px solid rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", background: "#FFFBF0" }}>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative", height: "100%", overflow: "hidden" }}>
           {screens[step] || <AppHome />}
         </div>
