@@ -123,7 +123,7 @@ export default function App() {
           <div className="header-meta">
             관리자님 
             <button className="logout-icon-btn" title="로그아웃">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             </button>
           </div>
         </div>
@@ -136,11 +136,12 @@ export default function App() {
           <div className="summary-label l2">{selectedMonth.split('.')[1]}월 총 사용액</div>
           
           <div className="summary-greeting v1" onClick={() => setIsReviewPanelOpen(true)}>
-            관리자님, <span className="underline" style={{ color: totals.pendingTotal > 0 ? '#ef4444' : 'inherit' }}>{totals.pendingTotal}건의 </span>
+            <span className="mobile-hide">관리자님, </span>
+            <span className="underline" style={{ color: totals.pendingTotal > 0 ? '#ef4444' : 'inherit' }}>{totals.pendingTotal}건의 </span>
             <span className="greeting-sub">승인 요청이 있습니다.</span>
           </div>
           <div className="summary-amount v2">
-            ₩{totals.total.toLocaleString()}
+            <span className="accent-line">₩{totals.total.toLocaleString()}</span>
           </div>
         </div>
       </section>
@@ -307,16 +308,16 @@ export default function App() {
             </div>
             <div className="filter-group">
               <button
-                className={`filter-tab ${activeTab === '전체보기' ? 'active' : ''}`}
-                onClick={() => setActiveTab('전체보기')}
-              >
-                전체보기 ({monthlyUsers.length})
-              </button>
-              <button
                 className={`filter-tab ${activeTab === '승인 요청' ? 'active' : ''}`}
                 onClick={() => setActiveTab('승인 요청')}
               >
                 승인 요청 ({totals.pendingPeople})
+              </button>
+              <button
+                className={`filter-tab ${activeTab === '전체보기' ? 'active' : ''}`}
+                onClick={() => setActiveTab('전체보기')}
+              >
+                전체보기 ({monthlyUsers.length})
               </button>
             </div>
           </div>

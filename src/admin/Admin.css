@@ -50,6 +50,29 @@ body {
   align-items: center;
 }
 
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem; /* Narrowed gap */
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #333;
+}
+
+.logout-icon-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: opacity 0.2s ease;
+}
+
+.logout-icon-btn:hover {
+  opacity: 0.6;
+}
+
 .logo-section {
   display: flex;
   align-items: center;
@@ -790,32 +813,9 @@ body {
   opacity: 1;
 }
 
-.header-meta {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--text-main);
-  display: flex;
-  align-items: center;
-}
+ 
 
-.logout-icon-btn {
-  background: none;
-  border: none;
-  padding: 6px;
-  color: #999;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: var(--transition);
-  margin-left: 10px;
-  border-radius: 8px;
-}
 
-.logout-icon-btn:hover {
-  color: var(--primary);
-  background: #f1f1f1;
-}
 
 .summary-grid {
   display: grid;
@@ -865,12 +865,17 @@ body {
   gap: 12px;
 }
 
+.mobile-hide {
+  display: inline;
+}
+
 @media (max-width: 850px) {
   .admin-header { padding: 1.5rem; }
   
+  .mobile-hide { display: none; }
+  
   .summary-strip { 
-    padding-top: 1.5rem;
-    padding-bottom: 0; 
+    padding: 1.5rem 1.5rem 0; 
   }
   
   .summary-grid {
@@ -883,25 +888,29 @@ body {
     gap: 12px 0;
     border-bottom: 1.5px solid #eee;
     padding-bottom: 2.25rem;
-    margin-bottom: 2.75rem;
+    margin-bottom: 2.25rem;
     margin-top: 1.5rem;
   }
   
   .l2, .v2 { text-align: left; }
   .l2 { margin-top: 1.75rem; }
   
-  .summary-greeting { font-size: 24px; }
-  .greeting-sub { font-size: 22px; }
+  .summary-greeting { font-size: 28px; }
+  .greeting-sub { font-size: 26px; }
   .v2 { 
     font-size: 2.1rem; 
     margin-top: 4px;
     letter-spacing: -1.5px;
   }
   
+  .user-grid {
+    gap: 1rem;
+  }
+  
   .filter-section {
     flex-direction: column;
     align-items: stretch;
-    gap: 1.25rem;
+    gap: 1rem;
     margin-bottom: 0.75rem;
   }
   
@@ -922,11 +931,11 @@ body {
     overflow-x: auto;
     padding-bottom: 5px;
     justify-content: flex-start;
-    gap: 8px;
+    gap: 6px;
   }
   
   .filter-tab {
-    padding: 0.5rem 1rem;
+    padding: 0.45rem 0.9rem;
     font-size: 0.85rem;
   }
   
