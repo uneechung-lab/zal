@@ -46,10 +46,21 @@ const transformData = (settlements, profiles, month) => {
       rejectedSpent: 0,
       count: 0,
       pendingCount: 0,
+      globalPendingCount: 0, // NEW: Count across ALL months
       uniqueDates: new Set(),
       history: [],
       rejectionHistory: []
     };
+  });
+
+  // Calculate global pending counts first
+  settlements.forEach(s => {
+    if (s.status === "예외요청" || s.status === "보류") {
+      const userName = s.user_name || "미지정";
+      if (usersMap[userName]) {
+        usersMap[userName].globalPendingCount += 1;
+      }
+    }
   });
 
   // Merge current month settlements into the map
@@ -300,9 +311,13 @@ export default function App() {
   };
 
   const filteredUsers = useMemo(() => {
-    let list = [...monthlyUsers].sort((a, b) => b.approvedSpent - a.approvedSpent);
+    let list = [...monthlyUsers];
     if (activeTab === "승인 요청") {
-      list = list.filter(u => u.pendingCount > 0);
+      // Show anyone who has work to do, regardless of monthly sum
+      list = list.filter(u => u.globalPendingCount > 0);
+      list.sort((a, b) => b.globalPendingCount - a.globalPendingCount);
+    } else {
+      list.sort((a, b) => b.approvedSpent - a.approvedSpent);
     }
     return list;
   }, [monthlyUsers, activeTab]);
@@ -545,20 +560,22 @@ export default function App() {
                   <div>
                     <div className="user-name">{user.name}</div>
                   </div>
-                  {user.count > 0 && (
+                  {user.globalPendingCount > 0 && (
                     <button
-                      className={`status-badge ${user.pendingCount > 0 ? 'pending' : ''}`}
+                      className="status-badge pending"
                       onClick={(e) => {
-                        if (user.pendingCount > 0) {
-                          e.stopPropagation();
-                          const firstIdx = allPendingRequests.findIndex(req => req.user.name === user.name);
-                          if (firstIdx !== -1) setReviewIndex(firstIdx);
-                          setIsReviewPanelOpen(true);
-                        }
+                        e.stopPropagation();
+                        // Open review panel for this user
+                        const firstIdx = allPendingRequests.findIndex(req => req.user.name === user.name);
+                        if (firstIdx !== -1) setReviewIndex(firstIdx);
+                        setIsReviewPanelOpen(true);
                       }}
                     >
-                      {user.pendingCount > 0 ? <>승인요청(<span className="num-spacing">{user.pendingCount}</span>)</> : '승인 완료'}
+                      승인요청(<span className="num-spacing">{user.globalPendingCount}</span>)
                     </button>
+                  )}
+                  {user.globalPendingCount === 0 && user.count > 0 && (
+                    <div className="status-badge">승인 완료</div>
                   )}
                 </div>
 
