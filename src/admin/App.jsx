@@ -34,13 +34,13 @@ const transformData = (settlements, profiles, month) => {
   // Merge settlements into the map
   filtered.forEach(s => {
     const userName = s.user_name || "미지정";
-    // If user not in profiles (e.g. historical data), create entry
     if (!usersMap[userName]) {
       usersMap[userName] = {
         id: userName,
         name: userName,
         department: s.department || "기타",
-        totalSpent: 0,
+        totalSum: 0,       // All (Approved + Pending + Rejected)
+        approvedSpent: 0,  // Only Approved
         pendingSpent: 0,
         rejectedSpent: 0,
         count: 0,
@@ -56,16 +56,18 @@ const transformData = (settlements, profiles, month) => {
     const isPending = s.status === "예외요청" || s.status === "보류";
     const isRejected = s.status === "반려";
 
+    usersMap[userName].totalSum += amt;
+    usersMap[userName].count += 1;
+
     if (isPending) {
       usersMap[userName].pendingSpent += amt;
       usersMap[userName].pendingCount += 1;
     } else if (isRejected) {
       usersMap[userName].rejectedSpent += amt;
     } else {
-      usersMap[userName].totalSpent += amt;
+      // Strictly Approved (승인완료/승인대기 등)
+      usersMap[userName].approvedSpent += amt;
     }
-
-    usersMap[userName].count += 1;
     
     usersMap[userName].history.push({
       id: s.id,
@@ -82,7 +84,7 @@ const transformData = (settlements, profiles, month) => {
   return Object.values(usersMap).map(u => ({
     ...u,
     workingDays: u.uniqueDates.size,
-    avg: u.count > 0 ? Math.floor(u.totalSpent / u.count) : 0
+    avg: u.count > 0 ? Math.floor(u.totalSum / u.count) : 0
   }));
 };
 export default function App() {
@@ -291,7 +293,7 @@ export default function App() {
   };
 
   const filteredUsers = useMemo(() => {
-    let list = [...monthlyUsers].sort((a, b) => b.totalSpent - a.totalSpent);
+    let list = [...monthlyUsers].sort((a, b) => b.totalSum - a.totalSum);
     if (activeTab === "승인 요청") {
       list = list.filter(u => u.pendingCount > 0);
     }
@@ -555,7 +557,7 @@ export default function App() {
                   <div className="info-hero">
                     <div className="info-label">{selectedMonth.split('.')[1]}월 총 사용 금액</div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div className="info-amount">₩{user.totalSpent.toLocaleString()}</div>
+                      <div className="info-amount">₩{user.totalSum.toLocaleString()}</div>
                       <button className={`more-link ${expandedUsers[user.id] ? 'open' : ''}`} onClick={(e) => toggleExpand(e, user.id)}>
                         더보기
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
@@ -600,7 +602,7 @@ export default function App() {
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div className="info-label" style={{ margin: 0 }}>승인 금액</div>
-                        <div style={{ fontWeight: 700 }}>₩{user.totalSpent.toLocaleString()}</div>
+                        <div style={{ fontWeight: 700 }}>₩{user.approvedSpent.toLocaleString()}</div>
                       </div>
                       <div style={{ 
                         display: 'flex', 
@@ -613,7 +615,7 @@ export default function App() {
                       }}>
                         <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#000' }}>최종 입금 금액</div>
                         <div style={{ fontSize: '1.35rem', fontWeight: 950, color: '#000' }}>
-                          ₩{Math.min(user.totalSpent, user.workingDays * 10000).toLocaleString()}
+                          ₩{Math.min(user.approvedSpent, user.workingDays * 10000).toLocaleString()}
                         </div>
                       </div>
                     </div>
