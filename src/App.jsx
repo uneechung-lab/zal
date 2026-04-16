@@ -103,15 +103,18 @@ function App() {
         alert(`가입 실패: ${error.message}`)
       }
     } else {
-      // Supabase 특성상 이미 가입된 경우 identities가 비어있음
-      if (data?.user && data.user.identities && data.user.identities.length === 0) {
-        setCustomMsg("이미 가입된 계정입니다.\n로그인을 시도하거나, 메일함에서 기존 인증 메일을 확인해 주세요.")
-        setModalType('auth_error')
-      } else {
-        setModalType('sent')
-        setStep('login')
-        window.open('https://m.mail.daum.net/', '_blank')
+      // 회원가입 성공 시 profiles 테이블에도 성명 정보 저장
+      try {
+        await supabase.from('profiles').insert([
+          { full_name: name, email: `${userId}@daumit.net` }
+        ]);
+      } catch (e) {
+        console.error("Profile creation failed:", e);
       }
+
+      setModalType('sent')
+      setStep('login')
+      window.open('https://m.mail.daum.net/', '_blank')
     }
   }
 

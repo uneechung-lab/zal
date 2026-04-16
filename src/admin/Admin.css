@@ -556,7 +556,7 @@ body {
 
 .log-amount,
 .num-spacing {
-  letter-spacing: -0.2px;
+  letter-spacing: 0.5px;
 }
 
 .summary-num {
@@ -615,7 +615,7 @@ body {
 .info-amount {
   font-size: 1.75rem;
   font-weight: 950;
-  letter-spacing: -0.2px;
+  letter-spacing: 0.5px;
 }
 
 .expandable-content {

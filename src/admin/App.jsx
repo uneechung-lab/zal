@@ -7,20 +7,39 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Data transformation helper
-const transformData = (settlements, month) => {
+const transformData = (settlements, profiles, month) => {
   const filtered = settlements.filter(s => s.date && s.date.startsWith(month.replace('.', '-')));
   
-  // Group by user (using user_name or '미지정')
+  // Initialize map with ALL registered profiles
   const usersMap = {};
   
+  // Fill with all users first (amount = 0)
+  profiles.forEach(p => {
+    const userName = p.full_name || p.name || "미지정";
+    usersMap[userName] = {
+      id: userName,
+      name: userName,
+      department: p.department || "기타",
+      totalSpent: 0,
+      pendingSpent: 0,
+      rejectedSpent: 0,
+      count: 0,
+      pendingCount: 0,
+      uniqueDates: new Set(),
+      history: [],
+      rejectionHistory: []
+    };
+  });
+
+  // Merge settlements into the map
   filtered.forEach(s => {
     const userName = s.user_name || "미지정";
-    const dept = s.department || "기타";
+    // If user not in profiles (e.g. historical data), create entry
     if (!usersMap[userName]) {
       usersMap[userName] = {
         id: userName,
         name: userName,
-        department: dept,
+        department: s.department || "기타",
         totalSpent: 0,
         pendingSpent: 0,
         rejectedSpent: 0,
@@ -43,7 +62,6 @@ const transformData = (settlements, month) => {
     } else if (isRejected) {
       usersMap[userName].rejectedSpent += amt;
     } else {
-      // 승인완료 또는 기타 (기본적으로 승인된 것으로 간주되는 건들)
       usersMap[userName].totalSpent += amt;
     }
 
@@ -64,7 +82,7 @@ const transformData = (settlements, month) => {
   return Object.values(usersMap).map(u => ({
     ...u,
     workingDays: u.uniqueDates.size,
-    avg: Math.floor(u.totalSpent / (u.count || 1))
+    avg: u.count > 0 ? Math.floor(u.totalSpent / u.count) : 0
   }));
 };
 export default function App() {
@@ -171,6 +189,7 @@ export default function App() {
   };
 
   const [rawSettlements, setRawSettlements] = useState([]);
+  const [allProfiles, setAllProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -179,17 +198,29 @@ export default function App() {
 
   const fetchData = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    
+    // Fetch settlements
+    const { data: sData, error: sError } = await supabase
       .from('settlements')
       .select('*')
       .order('created_at', { ascending: false });
     
-    if (error) {
-      console.error("Error fetching settlements:", error);
+    if (!sError) setRawSettlements(sData || []);
+
+    // Try to fetch all user profiles
+    const { data: pData, error: pError } = await supabase
+      .from('profiles')
+      .select('*');
+    
+    if (!pError) {
+      setAllProfiles(pData || []);
     } else {
-      setRawSettlements(data || []);
+      console.warn("Profiles table not found or inaccessible. Showing submitted users only.");
+    }
+    
+    if (!sError) {
       // 승인 요청 건이 없으면 전체보기 디폴트 선택
-      const hasPending = data?.some(s => s.status === "예외요청" || s.status === "보류");
+      const hasPending = sData?.some(s => s.status === "예외요청" || s.status === "보류");
       if (!hasPending) {
         setActiveTab("전체보기");
       }
@@ -211,7 +242,7 @@ export default function App() {
     if (idx < monthOptions.length - 1) setSelectedMonth(monthOptions[idx + 1]);
   };
 
-  const monthlyUsers = useMemo(() => transformData(rawSettlements, selectedMonth), [rawSettlements, selectedMonth]);
+  const monthlyUsers = useMemo(() => transformData(rawSettlements, allProfiles, selectedMonth), [rawSettlements, allProfiles, selectedMonth]);
 
   const allPendingRequests = useMemo(() => {
     const requests = [];

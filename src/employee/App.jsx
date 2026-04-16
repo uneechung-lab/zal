@@ -374,10 +374,16 @@ export default function App() {
 
   useEffect(() => { 
     checkUser();
-    fetchSubs();
     fetchCategories().then(setAllowed); 
+  }, []);
 
-    const setVh = () => {
+  useEffect(() => {
+    if (user?.full_name) {
+      fetchSubs();
+    }
+  }, [user]);
+
+  useEffect(() => {
       let vh = window.innerHeight * 0.01;
       document.documentElement.style.setProperty('--vh', `${vh}px`);
     };
@@ -400,8 +406,9 @@ export default function App() {
   };
 
   const fetchSubs = async () => {
+    if (!user?.full_name) return;
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/settlements?order=created_at.desc`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/settlements?user_name=eq.${encodeURIComponent(user.full_name)}&order=created_at.desc`, {
         headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
       });
       const data = await res.json();
@@ -768,7 +775,14 @@ export default function App() {
                 const localD = String(date.getDate()).padStart(2, '0');
                 const dateKey = `${localY}-${localM}-${localD}`;
                 const daySub = subs.find(s => s.date === dateKey && (s.status === "승인완료" || s.status === "예외요청"));
-                const foodImg = ["/food_01.webp", "/food_02.webp", "/food_03.webp"][(i + date.getDate()) % 3];
+                
+                const FOOD_IMGS = [
+                  "/food_01.webp", "/food_02.webp", "/food_03.webp", 
+                  "/food_04.png", "/food_05.png", "/food_06.png"
+                ];
+                // Use i (0-4) directly to ensure zero duplicates within a 5-day week
+                const foodImg = FOOD_IMGS[i % FOOD_IMGS.length];
+
                 return (
                   <div key={i} onClick={() => { if(daySub){setSelectedSub(daySub); setStep("detail");} }} style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 8, cursor: daySub ? "pointer" : "default", flex: 1 }}>
                     <div style={{ height: 88, display: "flex", alignItems: "center", justifyContent: "center" }}>
