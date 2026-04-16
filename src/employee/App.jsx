@@ -522,9 +522,8 @@ export default function App() {
     } catch (e) { alert("연동 실패"); }
   };
 
-  const handleFile = async e => {
-    const f = e.target.files[0]; if (!f) return;
-    setFile(f);
+  const processFile = async (f) => {
+    if (!f) return;
     setModal("checking");
     
     // 업로드 확인 및 fallback (Staleness 방지)
@@ -572,11 +571,16 @@ export default function App() {
         });
         if (resp.status !== 503) break;
         retries--;
-        if (retries > 0) await new Promise(res => setTimeout(res, 800)); // 503 발생 시 0.8초 대기 후 재시도
+        if (retries > 0) await new Promise(res => setTimeout(res, 800)); 
       }
       
       if (resp.status === 429) {
         setModal("quota_error");
+        return;
+      }
+
+      if (resp.status === 503) {
+        setModal("server_busy");
         return;
       }
       
@@ -598,6 +602,18 @@ export default function App() {
         category: parsed.category || parsed.businessType || "",
         image_url: finalImgUrl
       };
+
+      // Validation: Strict current month check
+      const now = new Date();
+      const curYear = now.getFullYear();
+      const curMonth = now.getMonth() + 1;
+      
+      const [rY, rM] = result.date.split("-").map(n => parseInt(n));
+      if (rY !== curYear || rM !== curMonth) {
+        setModal("invalid_month");
+        return;
+      }
+
       setOcr(result); 
       const currentIssues = validate(result, allowed, subs);
       setIssues(currentIssues);
@@ -615,19 +631,20 @@ export default function App() {
         setModal("duplicate");
         return;
       }
-
-      if (currentIssues.length === 0) {
-        submit(false, result);
-      } else {
-        setModal(null); setStep("result");
-      }
-    } catch (err) {
-      console.error("OCR Parse Error:", err);
-      alert(`영수증 이미지 분석에 실패했습니다. (${err.message})\n텍스트가 잘 보이는지 확인 후 다시 시도해주세요.`);
+      setStep("result");
+    } catch (e) { 
+      console.error(e);
+      alert("영수증 이미지 분석에 실패했습니다. 텍스트가 잘 보이는지 확인 후 다시 시도해주세요."); 
       setModal(null);
-      setFile(null);
     }
   };
+
+  const handleFile = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    setFile(f);
+    processFile(f);
+  };
+
 
   const handleReplace = async () => {
     if (!duplicateId) return;
@@ -1353,6 +1370,39 @@ export default function App() {
             <p style={{ fontSize: 14, color: "#666", margin: "0 0 32px", lineHeight: 1.6, fontWeight: 500 }}>해당 날짜({duplicateDate})에 이미 제출된<br/>영수증 내역이 존재합니다.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <button onClick={handleReplace} style={{ width: "100%", padding: "18px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>영수증 교체하기</button>
+              <button onClick={onClose} style={{ width: "100%", padding: "16px", borderRadius: 16, border: "1.5px solid #eee", background: "#fff", color: "#999", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>취소</button>
+            </div>
+          </>
+        ) : type === "invalid_month" ? (
+          <>
+            <div style={{ fontSize: 56, marginBottom: 24 }}>📆</div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: "#111", margin: "0 0 12px", letterSpacing: "-0.5px" }}>등록 불가</h3>
+            <p style={{ fontSize: 15, color: "#666", margin: "0 0 32px", lineHeight: 1.6, fontWeight: 500 }}>이번달 영수증만<br/>업로드가 가능합니다.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <button 
+                onClick={() => {
+                  setModal(null);
+                  setTimeout(() => fileRef.current.click(), 100);
+                }} 
+                style={{ width: "100%", padding: "18px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer" }}
+              >
+                다른 영수증 선택
+              </button>
+              <button onClick={onClose} style={{ width: "100%", padding: "16px", borderRadius: 16, border: "1.5px solid #eee", background: "#fff", color: "#999", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>취소</button>
+            </div>
+          </>
+        ) : type === "server_busy" ? (
+          <>
+            <div style={{ fontSize: 56, marginBottom: 24 }}>⚙️</div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: "#111", margin: "0 0 12px", letterSpacing: "-0.5px" }}>서버 지연</h3>
+            <p style={{ fontSize: 15, color: "#666", margin: "0 0 32px", lineHeight: 1.6, fontWeight: 500 }}>AI가 너무 바빠서<br/>지금 당장은 대답을 못 하겠다네요.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <button 
+                onClick={() => processFile(file)} 
+                style={{ width: "100%", padding: "18px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer" }}
+              >
+                다시 시도
+              </button>
               <button onClick={onClose} style={{ width: "100%", padding: "16px", borderRadius: 16, border: "1.5px solid #eee", background: "#fff", color: "#999", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>취소</button>
             </div>
           </>

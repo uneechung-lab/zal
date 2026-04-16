@@ -255,7 +255,9 @@ export default function App() {
 
   const allPendingRequests = useMemo(() => {
     const requests = [];
-    rawSettlements.forEach(s => {
+    rawSettlements
+      .filter(s => s.date && s.date.startsWith(selectedMonth.replace('.', '-'))) // ADDED: Month filter
+      .forEach(s => {
       if (s.status === "예외요청" || s.status === "보류") {
         requests.push({ 
           user: { name: s.user_name || "미지정", department: s.department || "기타" }, 
@@ -273,7 +275,7 @@ export default function App() {
       }
     });
     return requests;
-  }, [rawSettlements]);
+  }, [rawSettlements, selectedMonth]);
 
   const totals = useMemo(() => {
     const monthFiltered = rawSettlements.filter(s => s.date && s.date.startsWith(selectedMonth.replace('.', '-')));
