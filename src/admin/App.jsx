@@ -22,18 +22,26 @@ const getMonthWeekdays = (monthStr) => {
 // Data transformation helper
 const transformData = (settlements, profiles, month) => {
   const filtered = settlements.filter(s => s.date && s.date.startsWith(month.replace('.', '-')));
-  
-  // Initialize map with ALL registered profiles
   const usersMap = {};
   
-  // Fill with all users first (amount = 0)
+  // 1. Identify ALL users from ALL time in settlements to avoid missing anyone
+  const allKnownUserNames = new Set(settlements.map(s => s.user_name || "미지정"));
+  
+  // 2. Add users from profiles
   profiles.forEach(p => {
-    const userName = p.full_name || p.name || "미지정";
+    const name = p.full_name || p.name;
+    if (name) allKnownUserNames.add(name);
+  });
+
+  // 3. Initialize map for ALL known users across system
+  allKnownUserNames.forEach(userName => {
+    const p = profiles.find(it => (it.full_name || it.name) === userName);
     usersMap[userName] = {
       id: userName,
       name: userName,
-      department: p.department || "기타",
-      totalSpent: 0,
+      department: p?.department || "기타",
+      totalSum: 0,
+      approvedSpent: 0,
       pendingSpent: 0,
       rejectedSpent: 0,
       count: 0,
@@ -44,43 +52,29 @@ const transformData = (settlements, profiles, month) => {
     };
   });
 
-  // Merge settlements into the map
+  // Merge current month settlements into the map
   filtered.forEach(s => {
     const userName = s.user_name || "미지정";
-    if (!usersMap[userName]) {
-      usersMap[userName] = {
-        id: userName,
-        name: userName,
-        department: s.department || "기타",
-        totalSum: 0,       // All (Approved + Pending + Rejected)
-        approvedSpent: 0,  // Only Approved
-        pendingSpent: 0,
-        rejectedSpent: 0,
-        count: 0,
-        pendingCount: 0,
-        uniqueDates: new Set(),
-        history: [],
-        rejectionHistory: []
-      };
-    }
+    // user entry is guaranteed to exist due to Step 3
+    const u = usersMap[userName];
     
     const amt = parseInt(s.amount || 0);
     const isPending = s.status === "예외요청" || s.status === "보류";
     const isRejected = s.status === "반려";
 
-    usersMap[userName].count += 1;
+    u.totalSum += amt;
+    u.count += 1;
 
     if (isPending) {
-      usersMap[userName].pendingSpent += amt;
-      usersMap[userName].pendingCount += 1;
+      u.pendingSpent += amt;
+      u.pendingCount += 1;
     } else if (isRejected) {
-      usersMap[userName].rejectedSpent += amt;
+      u.rejectedSpent += amt;
     } else {
-      // Strictly Approved (승인완료/승인대기 등)
-      usersMap[userName].approvedSpent += amt;
+      u.approvedSpent += amt;
     }
     
-    usersMap[userName].history.push({
+    u.history.push({
       id: s.id,
       date: s.date + " " + (s.time || ""),
       amount: amt,
@@ -551,24 +545,26 @@ export default function App() {
                   <div>
                     <div className="user-name">{user.name}</div>
                   </div>
-                  <button
-                    className={`status-badge ${user.pendingCount > 0 ? 'pending' : ''}`}
-                    onClick={(e) => {
-                      if (user.pendingCount > 0) {
-                        e.stopPropagation();
-                        const firstIdx = allPendingRequests.findIndex(req => req.user.name === user.name);
-                        if (firstIdx !== -1) setReviewIndex(firstIdx);
-                        setIsReviewPanelOpen(true);
-                      }
-                    }}
-                  >
-                    {user.pendingCount > 0 ? <>승인요청(<span className="num-spacing">{user.pendingCount}</span>)</> : '승인 완료'}
-                  </button>
+                  {user.count > 0 && (
+                    <button
+                      className={`status-badge ${user.pendingCount > 0 ? 'pending' : ''}`}
+                      onClick={(e) => {
+                        if (user.pendingCount > 0) {
+                          e.stopPropagation();
+                          const firstIdx = allPendingRequests.findIndex(req => req.user.name === user.name);
+                          if (firstIdx !== -1) setReviewIndex(firstIdx);
+                          setIsReviewPanelOpen(true);
+                        }
+                      }}
+                    >
+                      {user.pendingCount > 0 ? <>승인요청(<span className="num-spacing">{user.pendingCount}</span>)</> : '승인 완료'}
+                    </button>
+                  )}
                 </div>
 
                 <div className="card-body">
                   <div className="info-hero">
-                    <div className="info-label">{selectedMonth.split('.')[1]}월 총 승인 사용 금액</div>
+                    <div className="info-label">{selectedMonth.split('.')[1]}월 총 사용 금액</div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div className="info-amount">₩{user.approvedSpent.toLocaleString()}</div>
                       <button className={`more-link ${expandedUsers[user.id] ? 'open' : ''}`} onClick={(e) => toggleExpand(e, user.id)}>
@@ -593,11 +589,11 @@ export default function App() {
                         <div style={{ fontWeight: 700 }}>₩{user.rejectedSpent.toLocaleString()}</div>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div className="info-label" style={{ margin: 0, color: user.pendingSpent > 0 ? '#ef4444' : '#B87020' }}>보류 금액</div>
+                        <div className="info-label" style={{ margin: 0, color: user.pendingSpent > 0 ? '#ef4444' : '#666' }}>보류 금액</div>
                         <div 
                           style={{ 
                             fontWeight: 700, 
-                            color: user.pendingSpent > 0 ? '#ef4444' : '#B87020', 
+                            color: user.pendingSpent > 0 ? '#ef4444' : '#666', 
                             textDecoration: user.pendingSpent > 0 ? 'underline' : 'none',
                             cursor: user.pendingSpent > 0 ? 'pointer' : 'default'
                           }}

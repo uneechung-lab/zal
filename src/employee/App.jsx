@@ -380,10 +380,13 @@ export default function App() {
   useEffect(() => {
     if (user?.full_name) {
       fetchSubs();
+    } else {
+      setSubs([]); 
     }
   }, [user]);
 
   useEffect(() => {
+    const setVh = () => {
       let vh = window.innerHeight * 0.01;
       document.documentElement.style.setProperty('--vh', `${vh}px`);
     };
@@ -407,6 +410,7 @@ export default function App() {
 
   const fetchSubs = async () => {
     if (!user?.full_name) return;
+    setSubs([]); // Clear previous user data before fetching new ones
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/settlements?user_name=eq.${encodeURIComponent(user.full_name)}&order=created_at.desc`, {
         headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
