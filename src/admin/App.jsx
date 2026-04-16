@@ -1,35 +1,71 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { createClient } from "@supabase/supabase-js";
 import "./Admin.css";
 
-// Utils for generating data
-const NAMES = ["정해인", "박은빈", "손석구", "김태리", "남주혁", "수지", "송중기", "한소희", "유재석", "강호동", "신동엽", "박보검", "아이유", "지드래곤", "임영웅", "조인성", "공효진", "김혜수", "이정재", "정우성", "한지민", "공유", "이보영", "지성", "김수현", "서현진", "강동원", "유아인", "천우희", "박서준", "김지원", "이민호", "박민영", "이종석", "한효주", "김우빈", "신민아", "이성경", "안효섭", "김세정", "박형식", "임윤아", "서인국", "정소민", "이제훈"];
-const DEPTS = ["기획팀", "디자인팀", "개발팀", "마케팅팀", "영업팀", "인사팀", "법무팀"];
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const generateData = (month) => {
-  const monthSeed = parseInt(month.split('.')[1]);
-  return NAMES.map((name, index) => {
-    const id = index + 1;
-    // Vary results based on index and month
-    const totalSpent = (150000 + (index * 12345) + (monthSeed * 50000)) % 1000000;
-    const count = (5 + (index % 10) + (monthSeed % 5)) % 30;
-    const pendingCount = (index + monthSeed) % 7 === 0 ? (index % 3) + 1 : 0;
-    const department = DEPTS[index % DEPTS.length];
+// Data transformation helper
+const transformData = (settlements, month) => {
+  const filtered = settlements.filter(s => s.date && s.date.startsWith(month.replace('.', '-')));
+  
+  // Group by user (using user_name or '미지정')
+  const usersMap = {};
+  
+  filtered.forEach(s => {
+    const userName = s.user_name || "미지정";
+    const dept = s.department || "기타";
+    if (!usersMap[userName]) {
+      usersMap[userName] = {
+        id: userName,
+        name: userName,
+        department: dept,
+        totalSpent: 0,
+        pendingSpent: 0,
+        rejectedSpent: 0,
+        count: 0,
+        pendingCount: 0,
+        uniqueDates: new Set(),
+        history: [],
+        rejectionHistory: []
+      };
+    }
+    
+    const amt = parseInt(s.amount || 0);
+    if (s.date) usersMap[userName].uniqueDates.add(s.date);
+    const isPending = s.status === "예외요청" || s.status === "보류";
+    const isRejected = s.status === "반려";
 
-    return {
-      id,
-      name,
-      totalSpent,
-      count: count || 1,
-      avg: Math.floor(totalSpent / (count || 1)),
-      pendingCount,
-      department,
-      history: [
-        { date: `${month.replace('.', '-')}-14 12:30`, amount: 15000, desc: "스타벅스 성수점", violation: false },
-        ...(pendingCount > 0 ? [{ date: `${month.replace('.', '-')}-13 19:20`, amount: 45000, desc: "중앙해장 (업무외 시간 사용)", violation: true, violationLog: "허용 시간 외 사용됨" }] : [])
-      ],
-      rejectionHistory: []
-    };
+    if (isPending) {
+      usersMap[userName].pendingSpent += amt;
+      usersMap[userName].pendingCount += 1;
+    } else if (isRejected) {
+      usersMap[userName].rejectedSpent += amt;
+    } else {
+      // 승인완료 또는 기타 (기본적으로 승인된 것으로 간주되는 건들)
+      usersMap[userName].totalSpent += amt;
+    }
+
+    usersMap[userName].count += 1;
+    
+    usersMap[userName].history.push({
+      id: s.id,
+      date: s.date + " " + (s.time || ""),
+      amount: amt,
+      desc: s.store_name || s.storeName || "상호명 없음",
+      violation: isPending,
+      violationLog: s.exc_text || s.excText,
+      status: s.status,
+      image_url: s.image_url
+    });
   });
+
+  return Object.values(usersMap).map(u => ({
+    ...u,
+    workingDays: u.uniqueDates.size,
+    avg: Math.floor(u.totalSpent / (u.count || 1))
+  }));
 };
 export default function App() {
   const [selectedUser, setSelectedUser] = useState(null);
@@ -39,7 +75,13 @@ export default function App() {
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
   const [reviewIndex, setReviewIndex] = useState(0);
   const [reviewAction, setReviewAction] = useState("approve");
-  const [actionLog, setActionLog] = useState(null);
+  const [actionLogs, setActionLogs] = useState([]);
+  const [historyFilter, setHistoryFilter] = useState("전체");
+  const [historySortType, setHistorySortType] = useState("upload");
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
+  const [historyInput, setHistoryInput] = useState("");
+  const [historyChats, setHistoryChats] = useState({});
+  const chatEndRef = useRef(null);
 
   const pagerRef = useRef(null);
 
@@ -51,14 +93,108 @@ export default function App() {
       }
     }
     // Clear logs on panel change
-    setActionLog(null);
+    setActionLogs([]);
     const input = document.getElementById('reviewMsgInput');
     if (input) input.value = '';
   }, [reviewIndex, isReviewPanelOpen]);
 
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [actionLogs, historyChats]);
+
+  const handleSendHistoryMsg = () => {
+    if (!historyInput.trim() || !selectedHistoryItem) return;
+    const itemId = selectedHistoryItem.id;
+    const newMsg = {
+      sender: 'admin',
+      text: historyInput,
+      time: '관리자 · 방금 전'
+    };
+    setHistoryChats(prev => ({
+      ...prev,
+      [itemId]: [...(prev[itemId] || []), newMsg]
+    }));
+    setHistoryInput("");
+  };
+
+  const updateSettlementStatus = async (id, status, rejectReason = null) => {
+    const { error } = await supabase
+      .from('settlements')
+      .update({ status, reject_reason: rejectReason })
+      .eq('id', id);
+
+    if (error) {
+      console.error("Error updating status:", error);
+      alert("상태 업데이트에 실패했습니다.");
+    } else {
+      // Refresh data
+      fetchData();
+    }
+  };
+
+  const handleApprove = (id) => {
+    const msg = document.getElementById('reviewMsgInput').value;
+    setActionLogs(prev => [...prev, { text: msg ? `[${msg}] 승인되었습니다.` : '승인되었습니다.', type: 'approve', isDeleted: false }]);
+    updateSettlementStatus(id, '승인완료', msg);
+    document.getElementById('reviewMsgInput').value = '';
+  };
+
+  const handleReject = (id) => {
+    const msg = document.getElementById('reviewMsgInput').value;
+    if (!msg) {
+      alert("반려 사유를 입력해주세요.");
+      return;
+    }
+    setActionLogs(prev => [...prev, { text: `[${msg}] 반려되었습니다.`, type: 'reject', isDeleted: false }]);
+    updateSettlementStatus(id, '반려', msg);
+    document.getElementById('reviewMsgInput').value = '';
+  };
+
+  // Prevent background scroll
+  useEffect(() => {
+    if (isReviewPanelOpen || selectedUser) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isReviewPanelOpen, selectedUser]);
+
   const toggleExpand = (e, id) => {
     e.stopPropagation();
     setExpandedUsers(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const [rawSettlements, setRawSettlements] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('settlements')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error("Error fetching settlements:", error);
+    } else {
+      setRawSettlements(data || []);
+      // 승인 요청 건이 없으면 전체보기 디폴트 선택
+      const hasPending = data?.some(s => s.status === "예외요청" || s.status === "보류");
+      if (!hasPending) {
+        setActiveTab("전체보기");
+      }
+    }
+    setLoading(false);
   };
 
   const [selectedMonth, setSelectedMonth] = useState("2026.04");
@@ -75,29 +211,53 @@ export default function App() {
     if (idx < monthOptions.length - 1) setSelectedMonth(monthOptions[idx + 1]);
   };
 
-  const monthlyUsers = useMemo(() => generateData(selectedMonth), [selectedMonth]);
+  const monthlyUsers = useMemo(() => transformData(rawSettlements, selectedMonth), [rawSettlements, selectedMonth]);
 
   const allPendingRequests = useMemo(() => {
     const requests = [];
-    monthlyUsers.forEach(user => {
-      user.history.forEach((item, idx) => {
-        if (item.violation || user.pendingCount > 0) { // Simplified logic for mock
-          // In real app, we'd filter strictly by pending status
-          if (requests.length < 12) { // Match the 12 count for UI consistency
-            requests.push({ user, item });
+    rawSettlements.forEach(s => {
+      if (s.status === "예외요청" || s.status === "보류") {
+        requests.push({ 
+          user: { name: s.user_name || "미지정", department: s.department || "기타" }, 
+          item: {
+            id: s.id,
+            date: s.date + " " + (s.time || ""),
+            amount: parseInt(s.amount || 0),
+            desc: s.store_name || s.storeName || "상호명 없음",
+            violation: true,
+            violationLog: s.exc_text || s.excText,
+            status: s.status,
+            image_url: s.image_url
           }
-        }
-      });
+        });
+      }
     });
     return requests;
-  }, [monthlyUsers]);
+  }, [rawSettlements]);
 
   const totals = useMemo(() => {
-    const total = monthlyUsers.reduce((acc, curr) => acc + curr.totalSpent, 0);
-    const pendingTotal = 12; // Forced as per UI request
+    const monthFiltered = rawSettlements.filter(s => s.date && s.date.startsWith(selectedMonth.replace('.', '-')));
+    
+    // 승인된 금액 합계
+    const total = monthFiltered
+      .filter(s => s.status !== "예외요청" && s.status !== "보류" && s.status !== "반려")
+      .reduce((acc, curr) => acc + parseInt(curr.amount || 0), 0);
+      
+    // 보류 중인 금액 합계
+    const pendingSpentTotal = monthFiltered
+      .filter(s => s.status === "예외요청" || s.status === "보류")
+      .reduce((acc, curr) => acc + parseInt(curr.amount || 0), 0);
+
+    const pendingTotal = allPendingRequests.length;
     const pendingPeople = monthlyUsers.filter(u => u.pendingCount > 0).length;
-    return { total, pendingTotal, pendingPeople };
-  }, [monthlyUsers]);
+    
+    return { total, pendingSpentTotal, pendingTotal, pendingPeople };
+  }, [rawSettlements, selectedMonth, allPendingRequests, monthlyUsers]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/';
+  };
 
   const filteredUsers = useMemo(() => {
     let list = [...monthlyUsers].sort((a, b) => b.totalSpent - a.totalSpent);
@@ -122,7 +282,7 @@ export default function App() {
           </div>
           <div className="header-meta">
             관리자님 
-            <button className="logout-icon-btn" title="로그아웃">
+            <button className="logout-icon-btn" title="로그아웃" onClick={handleLogout}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             </button>
           </div>
@@ -132,19 +292,25 @@ export default function App() {
       {/* Summary Strip (Non-card) */}
       <section className="summary-strip">
         <div className="summary-grid">
-          <div className="summary-label l1">오늘 ({selectedMonth}.15) 기준</div>
+          <div className="summary-label l1">오늘 ({new Date().toISOString().slice(5, 10).replace('-', '.')}) 기준</div>
           <div className="summary-label l2">{selectedMonth.split('.')[1]}월 총 사용액</div>
           
           <div className="summary-greeting v1" onClick={() => setIsReviewPanelOpen(true)}>
             <span className="mobile-hide">관리자님, </span>
-            <span className="underline" style={{ color: totals.pendingTotal > 0 ? '#ef4444' : 'inherit' }}>{totals.pendingTotal}건의 </span>
-            <span className="greeting-sub">승인 요청이 있습니다.</span>
+            <span className="underline" style={{ color: totals.pendingTotal > 0 ? '#ef4444' : '#15803d' }}><span className="num-spacing summary-num">{totals.pendingTotal}</span>건의 </span>
+            <span className="greeting-sub">승인요청이 있습니다.</span>
           </div>
-          <div className="summary-amount v2">
+          <div className="summary-amount v2" style={{ textAlign: 'left', justifyContent: 'flex-start' }}>
             <span className="accent-line">₩{totals.total.toLocaleString()}</span>
           </div>
         </div>
       </section>
+
+      {loading && (
+        <div style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>
+          데이터를 불러오는 중입니다...
+        </div>
+      )}
 
       {/* Global Review Panel */}
       {isReviewPanelOpen && (
@@ -187,8 +353,10 @@ export default function App() {
                     </div>
                     {/* Always show violation in UI demo */}
                     <div className="receipt-violation">
-                      <span>보류 사유: 결제 시간(15:00) 미준수</span>
-                      <button className="btn-receipt-view">영수증 보기</button>
+                      <span>보류 사유: {currentReview.item.violationLog || "결제 시간 미준수"}</span>
+                      {currentReview.item.image_url && (
+                        <button className="btn-receipt-view" onClick={() => window.open(currentReview.item.image_url, '_blank')}>영수증 보기</button>
+                      )}
                     </div>
                     <div className="receipt-footer">
                       <div className="receipt-amount" style={{ fontSize: '1.5rem', fontWeight: 950 }}>₩{currentReview.item.amount.toLocaleString()}</div>
@@ -212,30 +380,42 @@ export default function App() {
                       <div className="chat-meta">관리자 · 4월 15일 오전 11:12</div>
                     </div>
 
-                    {actionLog && (
-                      <div className="bubble-wrap admin" style={{ marginTop: '0.5rem' }}>
+                    {actionLogs.map((log, logIdx) => (
+                      <div key={logIdx} className={`bubble-wrap admin ${log.isDeleted ? 'is-deleted' : ''}`} style={{ marginTop: '0.5rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <div className={`chat-bubble admin ${actionLog.type === 'approve' ? 'bg-green' : 'bg-red'}`} style={{ padding: '0.85rem 1.15rem', whiteSpace: 'nowrap' }}>
-                            {actionLog.text}
+                          <div className={`chat-bubble admin ${log.type === 'approve' ? 'bg-green' : 'bg-red'} ${log.isDeleted ? 'deleted-style' : ''}`} style={{ padding: '0.85rem 1.15rem', whiteSpace: 'nowrap' }}>
+                            {log.text}
                           </div>
-                          <button className="btn-msg-del" onClick={() => setActionLog(null)} title="삭제" style={{ padding: '0 4px', display: 'flex', alignItems: 'center' }}>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={actionLog.type === 'approve' ? "#16a34a" : "#e04a4a"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
-                          </button>
+                          {!log.isDeleted && (
+                            <button 
+                              className="btn-msg-del" 
+                              onClick={() => {
+                                setActionLogs(prev => prev.map((item, i) => i === logIdx ? { ...item, isDeleted: true } : item));
+                              }} 
+                              title="삭제" style={{ padding: '0 4px', display: 'flex', alignItems: 'center' }}
+                            >
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={log.type === 'approve' ? "#16a34a" : "#e04a4a"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
+                            </button>
+                          )}
                         </div>
-                        <div className="chat-meta">관리자 · 방금 전</div>
+                        <div className="chat-meta">
+                          관리자 · 방금 전 {log.isDeleted && <span className="deleted-label">· 삭제됨</span>}
+                        </div>
                       </div>
-                    )}
+                    ))}
+                    <div ref={chatEndRef} />
                   </div>
 
                   {/* Sticky Footer */}
                   <div className="panel-footer-fixed">
-                    <div className="message-pill-container">
+                    {/* Disable if the last message is NOT deleted */}
+                    <div className={`message-pill-container ${(actionLogs.length > 0 && !actionLogs[actionLogs.length - 1].isDeleted) ? 'disabled' : ''}`}>
                       <input
                         type="text"
                         id="reviewMsgInput"
                         className="message-pill-input"
                         placeholder="반려 또는 승인 사유를 입력하세요."
-                        disabled={!!actionLog}
+                        disabled={actionLogs.length > 0 && !actionLogs[actionLogs.length - 1].isDeleted}
                       />
                     </div>
                     <div className="cta-group" style={{ alignItems: 'center' }}>
@@ -249,24 +429,16 @@ export default function App() {
 
                       <button
                         className="btn-cta reject"
-                        disabled={!!actionLog}
-                        onClick={() => {
-                          const msg = document.getElementById('reviewMsgInput').value;
-                          setActionLog({ text: msg ? `[${msg}] 반려되었습니다.` : '반려되었습니다.', type: 'reject' });
-                          document.getElementById('reviewMsgInput').value = '';
-                        }}
+                        disabled={actionLogs.length > 0 && !actionLogs[actionLogs.length - 1].isDeleted}
+                        onClick={() => handleReject(currentReview.item.id)}
                       >
                         반려
                       </button>
 
                       <button
                         className="btn-cta approve"
-                        disabled={!!actionLog}
-                        onClick={() => {
-                          const msg = document.getElementById('reviewMsgInput').value;
-                          setActionLog({ text: msg ? `[${msg}] 승인되었습니다.` : '승인되었습니다.', type: 'approve' });
-                          document.getElementById('reviewMsgInput').value = '';
-                        }}
+                        disabled={actionLogs.length > 0 && !actionLogs[actionLogs.length - 1].isDeleted}
+                        onClick={() => handleApprove(currentReview.item.id)}
                       >
                         승인
                       </button>
@@ -311,13 +483,13 @@ export default function App() {
                 className={`filter-tab ${activeTab === '승인 요청' ? 'active' : ''}`}
                 onClick={() => setActiveTab('승인 요청')}
               >
-                승인 요청 ({totals.pendingPeople})
+                승인요청 (<span className="num-spacing">{totals.pendingPeople}</span>)
               </button>
               <button
                 className={`filter-tab ${activeTab === '전체보기' ? 'active' : ''}`}
                 onClick={() => setActiveTab('전체보기')}
               >
-                전체보기 ({monthlyUsers.length})
+                전체보기 (<span className="num-spacing">{monthlyUsers.length}</span>)
               </button>
             </div>
           </div>
@@ -332,18 +504,19 @@ export default function App() {
                 <div className="card-header">
                   <div>
                     <div className="user-name">{user.name}</div>
-                    <div className="dept-label">{user.department}</div>
                   </div>
                   <button
                     className={`status-badge ${user.pendingCount > 0 ? 'pending' : ''}`}
                     onClick={(e) => {
                       if (user.pendingCount > 0) {
                         e.stopPropagation();
+                        const firstIdx = allPendingRequests.findIndex(req => req.user.name === user.name);
+                        if (firstIdx !== -1) setReviewIndex(firstIdx);
                         setIsReviewPanelOpen(true);
                       }
                     }}
                   >
-                    {user.pendingCount > 0 ? `승인 요청(${user.pendingCount})` : '승인 완료'}
+                    {user.pendingCount > 0 ? <>승인요청(<span className="num-spacing">{user.pendingCount}</span>)</> : '승인 완료'}
                   </button>
                 </div>
 
@@ -360,14 +533,57 @@ export default function App() {
                   </div>
 
                   <div className={`expandable-content ${expandedUsers[user.id] ? 'open' : ''}`}>
-                    <div className="grid-2">
-                      <div>
-                        <div className="info-label">사용 횟수</div>
-                        <div style={{ fontWeight: 700 }}>{user.count}회</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '16px', borderTop: '1px solid #f5f5f5', marginTop: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="info-label" style={{ margin: 0 }}>사용 횟수</div>
+                        <div style={{ fontWeight: 700 }}><span className="num-spacing">{user.count}</span>회</div>
                       </div>
-                      <div>
-                        <div className="info-label">평균 사용액</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="info-label" style={{ margin: 0 }}>평균 사용액</div>
                         <div style={{ fontWeight: 700 }}>₩{user.avg.toLocaleString()}</div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="info-label" style={{ margin: 0 }}>반려 금액</div>
+                        <div style={{ fontWeight: 700 }}>₩{user.rejectedSpent.toLocaleString()}</div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="info-label" style={{ margin: 0, color: user.pendingSpent > 0 ? '#ef4444' : '#B87020' }}>보류 금액</div>
+                        <div 
+                          style={{ 
+                            fontWeight: 700, 
+                            color: user.pendingSpent > 0 ? '#ef4444' : '#B87020', 
+                            textDecoration: user.pendingSpent > 0 ? 'underline' : 'none',
+                            cursor: user.pendingSpent > 0 ? 'pointer' : 'default'
+                          }}
+                          onClick={(e) => {
+                            if (user.pendingSpent > 0) {
+                              e.stopPropagation();
+                              const idx = allPendingRequests.findIndex(r => r.user.name === user.name);
+                              if (idx !== -1) setReviewIndex(idx);
+                              setIsReviewPanelOpen(true);
+                            }
+                          }}
+                        >
+                          ₩{user.pendingSpent.toLocaleString()}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="info-label" style={{ margin: 0 }}>승인 금액</div>
+                        <div style={{ fontWeight: 700 }}>₩{user.totalSpent.toLocaleString()}</div>
+                      </div>
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        paddingTop: '20px', 
+                        paddingBottom: '12px',
+                        marginTop: '16px', 
+                        borderTop: '2px solid #eee' 
+                      }}>
+                        <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#000' }}>최종 입금 금액</div>
+                        <div style={{ fontSize: '1.35rem', fontWeight: 950, color: '#000' }}>
+                          ₩{Math.min(user.totalSpent, user.workingDays * 10000).toLocaleString()}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -380,42 +596,156 @@ export default function App() {
 
       {/* Side Panel */}
       {selectedUser && (
-        <div className="side-panel-overlay" onClick={() => setSelectedUser(null)}>
-          <div className="side-panel" onClick={e => e.stopPropagation()}>
+        <div className="side-panel-overlay" onClick={() => { setSelectedUser(null); setSelectedHistoryItem(null); }}>
+          <div className="side-panel shadow-side" onClick={e => e.stopPropagation()}>
             <div className="panel-header">
-              <div>
-                <div className="panel-title">{selectedUser.name}</div>
-                <div className="dept-label" style={{ fontSize: '0.9rem', marginTop: '4px' }}>
-                  {selectedUser.department} • {selectedUser.pendingCount > 0 ? '승인 대기 중' : '정산 완료'}
-                </div>
+              <button 
+                className="close-btn" 
+                style={{ fontSize: '1.8rem', opacity: 1, display: 'flex', alignItems: 'center' }} 
+                onClick={() => {
+                  if (selectedHistoryItem) setSelectedHistoryItem(null);
+                  else setSelectedUser(null);
+                }}
+              >
+                {selectedHistoryItem ? (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                ) : '×'}
+              </button>
+              <div className="user-name" style={{ fontSize: '1.15rem', fontWeight: 850 }}>
+                {selectedHistoryItem ? "요청 상세" : "정산내역"}
               </div>
-              <button className="close-btn" onClick={() => setSelectedUser(null)}>×</button>
             </div>
 
-            <div className="panel-content">
-              <h3 className="section-title">최근 거래 로그</h3>
-              {selectedUser.history.map((log, i) => (
-                <div key={i} className={`log-item ${log.violation ? 'violation' : ''}`}>
-                  <div className="log-header">
-                    <span className="info-label">{log.date}</span>
-                    <span className="log-amount">₩{log.amount.toLocaleString()}</span>
+            <div className="panel-content history-layout">
+              {!selectedHistoryItem ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem', padding: '0 4px' }}>
+                    <div className="user-name" style={{ fontSize: '1rem', fontWeight: 900 }}>{selectedUser.name}</div>
+                    <div className="dept-label" style={{ fontSize: '0.85rem', color: '#888', fontWeight: 600 }}>{selectedUser.department}</div>
                   </div>
-                  <div className="log-desc">{log.desc}</div>
-                  {log.violation && (
-                    <div style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 800, marginTop: '8px' }}>
-                      ⚠️ {log.violationLog}
-                    </div>
-                  )}
-                </div>
-              ))}
-              {selectedUser.history.length === 0 && (
-                <div style={{ color: '#ccc', textAlign: 'center', padding: '3rem' }}>내역이 없습니다.</div>
-              )}
 
-              <div style={{ marginTop: '3rem', display: 'flex', gap: '1rem' }}>
-                <button style={{ flex: 1, padding: '1.25rem', borderRadius: '20px', border: '1.5px solid #000', background: '#000', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>메시지 전송</button>
-                <button style={{ flex: 1, padding: '1.25rem', borderRadius: '20px', border: '1.5px solid #eee', background: '#f9f9f9', color: '#666', fontWeight: 800, cursor: 'pointer' }}>일괄 승인</button>
-              </div>
+                  {/* History List Header with Filters */}
+                  <div className="history-list-filter-row">
+                    <div className="filter-chips">
+                      {["전체", "승인", "보류", "반려"].map(f => (
+                        <button 
+                          key={f} 
+                          className={`filter-chip ${historyFilter === f ? 'active' : ''}`}
+                          onClick={() => setHistoryFilter(f)}
+                        >
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                    <button 
+                      className="sort-toggle-btn"
+                      onClick={() => setHistorySortType(prev => prev === "upload" ? "date" : "upload")}
+                    >
+                      <span>{historySortType === "upload" ? "업로드순" : "날짜순"}</span>
+                      <div className="sort-arrows">
+                         <span className="arrow">▲</span>
+                         <span className="arrow">▼</span>
+                      </div>
+                    </button>
+                  </div>
+
+                  <div className="history-list no-scrollbar" style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 240px)', paddingBottom: '2rem' }}>
+                    {(selectedUser.history || [])
+                      .filter(item => {
+                        if (historyFilter === "전체") return true;
+                        if (historyFilter === "승인") return !item.violation;
+                        if (historyFilter === "보류") return item.violation;
+                        return false;
+                      })
+                      .map((item, idx) => {
+                        const isViolation = item.violation;
+                        return (
+                          <div key={idx} className="history-item-card" onClick={() => setSelectedHistoryItem(item)}>
+                            <div className="history-card-top">
+                              <span className="history-meta">{item.date} · 식당</span>
+                              <span className={`history-status-badge ${isViolation ? 'pending' : 'approved'}`}>
+                                {isViolation ? '보류' : '승인'}
+                              </span>
+                            </div>
+                            <div className="history-card-title">
+                              {item.store || item.desc}
+                            </div>
+                            <div className="history-card-footer">
+                              <div className="history-amount">₩{item.amount.toLocaleString()}</div>
+                              <button className="history-delete-btn" onClick={(e) => { e.stopPropagation(); alert('정산 내역을 삭제하시겠습니까?'); }}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    {selectedUser.history.length === 0 && (
+                      <div style={{ color: '#ccc', textAlign: 'center', padding: '5rem 0' }}>정산 내역이 없습니다.</div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="history-detail-view no-scrollbar">
+                  <div className="detail-scroll-area no-scrollbar">
+                    <div className="receipt-card detailed">
+                      <div className="receipt-card-header">
+                        <span className="receipt-card-date">{selectedHistoryItem.date.split(' ')[0]}</span>
+                        <span className={`history-status-badge ${selectedHistoryItem.violation ? 'pending' : 'approved'}`}>
+                          {selectedHistoryItem.violation ? '보류' : '승인'}
+                        </span>
+                      </div>
+                      <div className="receipt-card-title">음식점 · {selectedHistoryItem.desc}</div>
+                      {selectedHistoryItem.image_url && (
+                        <button className="receipt-card-btn" onClick={() => window.open(selectedHistoryItem.image_url, '_blank')}>영수증 보기</button>
+                      )}
+                      <div className="receipt-card-amount num-spacing">₩{selectedHistoryItem.amount.toLocaleString()}</div>
+                    </div>
+
+                    <div className="history-chat-row">
+                      <div className="chat-bubble user">
+                        영수증 정산 요청드립니다.
+                      </div>
+                      <div className="chat-meta right">4월 13일 오후 5:25</div>
+
+                      <div className="chat-bubble admin">
+                        {selectedHistoryItem.violation ? (
+                          <>보류 사유 안내드립니다.<br/>{selectedHistoryItem.violationLog || "정산 기준 미준수 건입니다."}</>
+                        ) : (
+                          <>승인 완료!<br/>익월 22일에 입금 됩니다.</>
+                        )}
+                      </div>
+                      <div className="chat-meta left">관리자 · 4월 13일 오후 5:30</div>
+
+                      {/* Dynamic Chats */}
+                      {historyChats[selectedHistoryItem.id]?.map((chat, ci) => (
+                        <div key={ci} style={{ display: 'flex', flexDirection: 'column' }}>
+                          <div className={`chat-bubble ${chat.sender}`}>
+                            {chat.text}
+                          </div>
+                          <div className={`chat-meta ${chat.sender === 'user' ? 'right' : 'left'}`}>
+                            {chat.time}
+                          </div>
+                        </div>
+                      ))}
+                      <div ref={chatEndRef} />
+                    </div>
+                  </div>
+
+                  <div className="chat-input-wrapper">
+                    <div className="chat-input-box">
+                      <input 
+                        placeholder="메시지를 입력하세요." 
+                        value={historyInput}
+                        onChange={e => setHistoryInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleSendHistoryMsg(); }}
+                      />
+                      <button className="chat-send-btn" onClick={handleSendHistoryMsg} style={{ color: historyInput.trim() ? '#000' : '#ccc' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19 7-7-7-7M5 12h14"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -22,15 +22,21 @@
 }
 
 body {
-  background-color: var(--bg-app);
+  background-color: #f2f2eb; /* Slightly darker to show shadow on sides */
   color: var(--text-main);
   font-family: 'Pretendard', 'Outfit', sans-serif;
+  overflow-x: hidden;
 }
 
 .admin-container {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  max-width: 1600px;
+  margin: 0 auto;
+  background-color: var(--bg-app);
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.07);
+  position: relative;
 }
 
 .admin-header {
@@ -132,7 +138,7 @@ body {
 .summary-value {
   font-size: 2.25rem;
   font-weight: 950;
-  letter-spacing: -1px;
+  letter-spacing: -0.2px;
 }
 
 .summary-status {
@@ -166,7 +172,7 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 2.5rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1.2rem;
 }
 
 .month-picker {
@@ -261,14 +267,17 @@ body {
 }
 
 .user-card {
+  break-inside: avoid;
   background: var(--card-bg);
   border: 1.5px solid #eee;
   border-radius: 28px;
-  padding: 1.75rem;
+  padding: 1.75rem 1.75rem 0.75rem 1.75rem;
   transition: var(--transition);
   cursor: pointer;
-  height: fit-content;
   box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  height: fit-content;
 }
 
 .user-card:hover {
@@ -277,26 +286,8 @@ body {
   box-shadow: 0 8px 20px rgba(0,0,0,0.04);
 }
 
-
-.user-card {
-  break-inside: avoid;
-  margin-bottom: 1.5rem;
-  background: var(--card-bg);
-  border-radius: 28px;
-  border: 1.5px solid #eee;
-  padding: 1.75rem;
-  transition: var(--transition);
-  box-shadow: var(--shadow-card);
-  display: flex;
-  flex-direction: column;
-}
-
-.user-card:hover {
-  border-color: #ddd;
-}
-
 .user-card.pending {
-  border-color: #000;
+  border-color: #444;
   border-width: 1px;
   background: white;
 }
@@ -475,7 +466,7 @@ body {
   font-size: 1.5rem;
   font-weight: 950;
   color: #000;
-  letter-spacing: -1px;
+  letter-spacing: -0.2px;
 }
 
 
@@ -529,6 +520,11 @@ body {
   border: none;
 }
 
+.chat-bubble.admin.deleted-style {
+  opacity: 0.25;
+  border: none !important;
+}
+
 .btn-msg-del {
   background: none;
   border: none;
@@ -547,6 +543,25 @@ body {
   margin-top: 6px;
   color: #999;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.deleted-label {
+  margin-left: 4px;
+  color: #999;
+  font-weight: 600;
+  font-size: 0.7rem;
+}
+
+.log-amount,
+.num-spacing {
+  letter-spacing: -0.2px;
+}
+
+.summary-num {
+  font-size: 1.15em;
+  margin-right: 1px;
 }
 
 
@@ -587,7 +602,7 @@ body {
 }
 
 .info-hero {
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .info-label {
@@ -600,7 +615,7 @@ body {
 .info-amount {
   font-size: 1.75rem;
   font-weight: 950;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.2px;
 }
 
 .expandable-content {
@@ -612,7 +627,7 @@ body {
 }
 
 .expandable-content.open {
-  max-height: 200px;
+  max-height: 500px;
   border-top: 1px solid #f5f5f5;
   padding-top: 1.25rem;
   margin-top: 0.5rem;
@@ -731,6 +746,13 @@ body {
   align-items: center;
   margin-bottom: 1.25rem;
   box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+  transition: all 0.2s;
+}
+
+.message-pill-container.disabled {
+  opacity: 0.5;
+  background: #f9f9f9;
+  border-color: #ddd;
 }
 
 .message-pill-input {
@@ -772,17 +794,17 @@ body {
 }
 
 .btn-nav {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
   border: 1.5px solid #eee;
   background: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-weight: 800;
-  font-size: 1.2rem;
+  font-weight: 500;
+  font-size: 1.8rem;
   transition: all 0.2s;
   color: #333;
 }
@@ -842,7 +864,7 @@ body {
   font-size: 2.25rem; 
   font-weight: 950; 
   line-height: 1;
-  letter-spacing: -1px;
+  letter-spacing: -0.2px;
 }
 
 .summary-greeting {
@@ -900,19 +922,19 @@ body {
   .v2 { 
     font-size: 2.1rem; 
     margin-top: 4px;
-    letter-spacing: -1.5px;
+    letter-spacing: -0.5px;
   }
   
   .user-grid {
-    gap: 1rem;
+    gap: 0.9rem;
   }
   
   .filter-section {
     flex-direction: column;
     align-items: stretch;
     gap: 1.25rem;
-    margin-top: 1.75rem; /* Further increased top margin for mobile */
-    margin-bottom: 1.25rem;
+    margin-top: 1.75rem;
+    margin-bottom: 0.5rem;
   }
   
   .picker-wrapper {
@@ -941,4 +963,331 @@ body {
   }
   
   .content-area-wrapper { padding: 0 1.5rem 2rem; }
+}
+
+/* History Item Card (matches employee app style) */
+.history-item-card {
+  background: #fff;
+  border: 1.5px solid #eee;
+  border-radius: 28px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  position: relative;
+  transition: var(--transition);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+}
+
+.history-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.history-meta {
+  font-size: 0.75rem;
+  color: #bbb;
+  font-weight: 700;
+}
+
+.history-status-badge {
+  padding: 0.3rem 0.7rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.history-status-badge.pending {
+  background: #FEF3E2;
+  color: #B87020;
+}
+
+.history-status-badge.approved {
+  background: #E2F5EC;
+  color: #1E8A4A;
+}
+
+.history-card-title {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #111;
+  margin-bottom: 1.5rem;
+  letter-spacing: -0.5px;
+}
+
+.history-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.history-amount {
+  font-size: 1.45rem;
+  font-weight: 950;
+  color: #000;
+  letter-spacing: -0.2px;
+}
+
+.history-delete-btn {
+  width: 44px;
+  height: 44px;
+  background: #fff;
+  border: 1.5px solid #eee;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.history-delete-btn:hover {
+  background: #fff5f5;
+  border-color: #ffcccc;
+}
+
+.history-list-filter-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding: 0 4px;
+}
+
+.filter-chips {
+  display: flex;
+  gap: 8px;
+}
+
+.filter-chip {
+  background: #fff;
+  border: 1.5px solid #eee;
+  color: #999;
+  padding: 0.5rem 1rem;
+  border-radius: 30px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.filter-chip.active {
+  background: #000;
+  color: #fff;
+  border-color: #000;
+}
+
+.sort-toggle-btn {
+  background: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #333;
+}
+
+.sort-arrows {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+  font-size: 10px;
+  color: #bbb;
+}
+
+.sort-arrows .arrow {
+  height: 8px;
+  display: block;
+}
+
+.history-item-card {
+  cursor: pointer;
+}
+
+.history-item-card:hover {
+  border-color: #ddd;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.04);
+}
+
+.chat-bubble.admin {
+  background: #fff;
+  border: 1.5px solid #eee;
+  padding: 1rem;
+  border-radius: 2px 18px 18px 18px;
+  max-width: 85%;
+  margin-top: 1rem;
+}
+
+.bubble-content {
+  font-size: 0.9rem;
+  color: #333;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.bubble-time {
+  font-size: 0.7rem;
+  color: #bbb;
+  margin-top: 0.5rem;
+  font-weight: 600;
+}
+.panel-content.history-layout {
+  padding: 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Detailed Request View Styles (Matching Employee App) */
+.history-detail-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+}
+
+.detail-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 4px 120px;
+}
+
+.receipt-card.detailed {
+  background: #fff;
+  border-radius: 24px;
+  padding: 24px;
+  margin-bottom: 32px;
+  border: 1px solid rgba(0,0,0,0.03);
+}
+
+.receipt-card-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.receipt-card-date {
+  font-size: 13px;
+  color: #bbb;
+  font-weight: 700;
+}
+
+.receipt-card-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #313131;
+  margin-bottom: 12px;
+}
+
+.receipt-card-btn {
+  display: inline-flex;
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1.5px solid #000;
+  background: none;
+  font-size: 12px;
+  font-weight: 800;
+  color: #000;
+  cursor: pointer;
+  margin-bottom: 24px;
+}
+
+.receipt-card-amount {
+  font-size: 24px;
+  font-weight: 900;
+  text-align: right;
+  color: #111;
+  letter-spacing: -0.2px;
+}
+
+.history-chat-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-bubble {
+  max-width: 80%;
+  padding: 14px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.chat-bubble.user {
+  background: #000;
+  color: #fff;
+  border-radius: 18px 2px 18px 18px;
+  align-self: flex-end;
+}
+
+.chat-bubble.admin {
+  background: #fff;
+  color: #000;
+  border-radius: 2px 18px 18px 18px;
+  align-self: flex-start;
+  border: 1.5px solid #f2f2f2;
+}
+
+.chat-meta {
+  font-size: 11px;
+  color: #bbb;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+
+.chat-meta.right { text-align: right; }
+.chat-meta.left { text-align: left; }
+
+.chat-input-wrapper {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20px 0 30px;
+  background: none;
+  pointer-events: none;
+}
+
+.chat-input-box {
+  background: #fff;
+  border-radius: 36px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px 0 24px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+  pointer-events: auto;
+}
+
+.chat-input-box input {
+  flex: 1;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+.chat-input-box input::placeholder {
+  color: #ccc;
+}
+
+.chat-send-btn {
+  width: 44px;
+  height: 44px;
+  background: #f4f4f4;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #ccc;
 }

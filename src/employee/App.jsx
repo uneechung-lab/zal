@@ -193,7 +193,7 @@ function BottomSheetPicker({ isOpen, onClose, year, month, week, onConfirm }) {
   };
 
   return (
-    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
       <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }} />
       <div style={{ position: "relative", background: "#fff", borderTopLeftRadius: 36, borderTopRightRadius: 36, padding: "40px 28px 48px", animation: "slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
@@ -336,6 +336,8 @@ export default function App() {
   const [ocr, setOcr] = useState(null);
   const [issues, setIssues] = useState([]);
   const [modal, setModal] = useState(null);
+  const [duplicateDate, setDuplicateDate] = useState("");
+  const [duplicateId, setDuplicateId] = useState(null);
   const [excType, setExcType] = useState("");
   const [excText, setExcText] = useState("");
   const [allowed, setAllowed] = useState([]);
@@ -408,18 +410,27 @@ export default function App() {
   };
 
   const uploadToStorage = async (file) => {
-    const fileName = `${Date.now()}_${encodeURIComponent(file.name)}`;
+    const ext = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.floor(Math.random() * 1000)}.${ext}`;
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || SUPABASE_KEY;
+
       const resp = await fetch(`${SUPABASE_URL}/storage/v1/object/receipts/${fileName}`, {
         method: "POST",
         headers: { 
           "apikey": SUPABASE_KEY, 
-          "Authorization": `Bearer ${SUPABASE_KEY}`,
+          "Authorization": `Bearer ${token}`, 
           "Content-Type": file.type 
         },
         body: file
       });
-      if(!resp.ok) throw new Error("업로드 실패");
+      
+      if(!resp.ok) {
+        const errorData = await resp.json();
+        console.error("Storage 업로드 실패 상세:", errorData);
+        throw new Error("업로드 실패");
+      }
       return `${SUPABASE_URL}/storage/v1/object/public/receipts/${fileName}`;
     } catch (e) { 
       console.error("Storage Error:", e);
@@ -433,16 +444,30 @@ export default function App() {
   };
 
   const submit = async (isEx = false, data = ocr) => {
+    // 중복 교체 건이 있으면 먼저 삭제
+    if (duplicateId) {
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/settlements?id=eq.${duplicateId}`, {
+          method: "DELETE",
+          headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+        });
+        setDuplicateId(null);
+      } catch (e) {
+        console.error("Duplicate Delete Error:", e);
+      }
+    }
+
     const finalStatus = isEx ? "예외요청" : "승인완료";
     const payload = {
-      store_name: data.storeName,
+      store_name: data.storeName || data.store_name,
       date: data.date,
       time: data.time,
       amount: data.amount,
       category: data.category,
       status: finalStatus,
       exc_text: isEx ? excText : null,
-      image_url: data.image_url || preview
+      image_url: data.image_url || preview,
+      user_name: user?.full_name || "익명"
     };
 
     try {
@@ -572,6 +597,14 @@ export default function App() {
         return;
       }
 
+      const duplicateEntry = subs.find(s => s.date === result.date && (s.status === "승인완료" || s.status === "예외요청" || s.status === "승인"));
+      if (duplicateEntry) {
+        setDuplicateDate(result.date);
+        setDuplicateId(duplicateEntry.id);
+        setModal("duplicate");
+        return;
+      }
+
       if (currentIssues.length === 0) {
         submit(false, result);
       } else {
@@ -582,6 +615,35 @@ export default function App() {
       alert(`영수증 이미지 분석에 실패했습니다. (${err.message})\n텍스트가 잘 보이는지 확인 후 다시 시도해주세요.`);
       setModal(null);
       setFile(null);
+    }
+  };
+
+  const handleReplace = async () => {
+    if (!duplicateId) return;
+    setModal("checking");
+    try {
+      // 1. 위반 사항 검사
+      const currentIssues = validate(ocr, allowed, subs);
+      setIssues(currentIssues);
+
+      // 위반 사항이 있으면 결과 페이지로 이동 (교체는 아직 안 함)
+      if (currentIssues.length > 0) {
+        setModal(null);
+        setStep("result");
+        return;
+      }
+
+      // 2. 위반 사항 없으면 기존 삭제 후 새것 제출
+      await fetch(`${SUPABASE_URL}/rest/v1/settlements?id=eq.${duplicateId}`, {
+        method: "DELETE",
+        headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+      });
+      await submit(false, ocr);
+      setDuplicateId(null);
+    } catch (e) {
+      console.error(e);
+      alert("교체에 실패했습니다.");
+      setModal(null);
     }
   };
 
@@ -1266,6 +1328,16 @@ export default function App() {
             <p style={{ fontSize: 16, color: "#e74c3c", margin: "0 0 40px", lineHeight: 1.6, fontWeight: 800 }}>상무님, 크레딧이 없어서<br/>분석을 못해요.ㅠㅠ</p>
             <button onClick={onClose} style={{ width: "100%", padding: "20px", borderRadius: 20, border: "none", background: "#1A1C30", color: "#fff", fontWeight: 800, fontSize: 17, cursor: "pointer" }}>확인</button>
           </>
+        ) : type === "duplicate" ? (
+          <>
+            <div style={{ fontSize: 56, marginBottom: 24 }}>📅</div>
+            <h3 style={{ fontSize: 19, fontWeight: 800, color: "#111", margin: "0 0 12px", letterSpacing: "-0.5px" }}>이미 제출된 내역이 있습니다.</h3>
+            <p style={{ fontSize: 14, color: "#666", margin: "0 0 32px", lineHeight: 1.6, fontWeight: 500 }}>해당 날짜({duplicateDate})에 이미 제출된<br/>영수증 내역이 존재합니다.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <button onClick={handleReplace} style={{ width: "100%", padding: "18px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>영수증 교체하기</button>
+              <button onClick={onClose} style={{ width: "100%", padding: "16px", borderRadius: 16, border: "1.5px solid #eee", background: "#fff", color: "#999", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>취소</button>
+            </div>
+          </>
         ) : (
           <>
             <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#E2F5EC", color: "#1E8A4A", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 32px", fontSize: 24, fontWeight: 900 }}>✓</div>
@@ -1285,7 +1357,7 @@ export default function App() {
   );
 
   return (
-    <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "linear-gradient(180deg, #FFB100 0%, #FFD688 50%, #FFF5D6 100%)", fontFamily: "'Pretendard', sans-serif", letterSpacing: "-0.5px" }}>
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "#f2f2eb", fontFamily: "'Pretendard', sans-serif", letterSpacing: "-0.5px" }}>
       <style>{`
         @media (max-width: 1060px) { .desktop-panel { display: none !important; } .app-container { width: 100% !important; border-left: none !important; } }
         @media (max-height: 820px) { .footer-copy { display: none !important; } }
