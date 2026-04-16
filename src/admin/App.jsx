@@ -288,11 +288,11 @@ export default function App() {
       .filter(s => s.status === "예외요청" || s.status === "보류")
       .reduce((acc, curr) => acc + parseInt(curr.amount || 0), 0);
 
-    const pendingTotal = allPendingRequests.length;
+    const pendingTotal = monthFiltered.filter(s => s.status === "예외요청" || s.status === "보류").length;
     const pendingPeople = monthlyUsers.filter(u => u.pendingCount > 0).length;
     
     return { total, pendingSpentTotal, pendingTotal, pendingPeople };
-  }, [rawSettlements, selectedMonth, allPendingRequests, monthlyUsers]);
+  }, [rawSettlements, selectedMonth, monthlyUsers]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
