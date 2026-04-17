@@ -258,17 +258,18 @@ function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, se
     if (scrollRef.current) {
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [parsedLogs]);
+  }, [sub?.id, sub?.status, parsedLogs.length]);
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden", position: "relative" }}>
-      <div style={{ padding: "24px 28px 0", display: "flex", alignItems: "center", gap: 16 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Icon.Back /></button>
-        <span style={{ fontWeight: 800, fontSize: 18 }}>요청 상세</span>
-      </div>
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", background: C.bg, overflow: "hidden" }}>
+      <div style={{ zIndex: 5, background: C.bg, flexShrink: 0, position: "relative", boxShadow: "0 10px 20px -10px rgba(0,0,0,0.12)" }}>
+        <div style={{ padding: "24px 28px 24px", display: "flex", alignItems: "center", gap: 16 }}>
+          <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Icon.Back /></button>
+          <span style={{ fontWeight: 800, fontSize: 18 }}>요청 상세</span>
+        </div>
 
-      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "24px 28px 180px", minHeight: 0 }}>
-        <div style={{ background: "#fff", borderRadius: 24, padding: "24px", marginBottom: 24, boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
+        <div style={{ padding: "0 28px" }}>
+        <div style={{ background: "#fff", borderRadius: 24, padding: "24px", marginBottom: "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
             <div>
               <p style={{ margin: "0 0 6px", fontSize: 13, color: "#999", fontWeight: 700 }}>{sub.date}</p>
@@ -301,7 +302,11 @@ function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, se
           </div>
           <p style={{ margin: 0, fontSize: 22, fontWeight: 900, textAlign: "right" }}>₩{parseInt(sub.amount || 0).toLocaleString()}</p>
         </div>
+        </div>
+      </div>
 
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", overflowX: "hidden", paddingBottom: "200px", WebkitOverflowScrolling: "touch" }}>
+        <div style={{ padding: "0 28px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
             <div style={{ background: "#000", color: "#fff", padding: "14px 18px", borderRadius: "18px 2px 18px 18px", maxWidth: "85%", fontSize: 15, lineHeight: 1.5, fontWeight: 500 }}>
@@ -344,6 +349,7 @@ function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, se
               );
             })}
           </div>
+        </div>
         </div>
       </div>
 
@@ -1683,16 +1689,19 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
   );
 
   return (
-    <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "#f2f2eb", fontFamily: "'Pretendard', sans-serif", letterSpacing: "-0.5px" }}>
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "#f2f2eb", fontFamily: "'Outfit', 'Pretendard', sans-serif", letterSpacing: "-0.5px" }}>
       <style>{`
         @media (max-width: 1060px) { .desktop-panel { display: none !important; } .app-container { width: 100% !important; border-left: none !important; } }
         @media (max-height: 820px) { .footer-copy { display: none !important; } }
         :root { --side-pad: 32px; --item-gap: 64px; --btn-bot: 60px; }
         @media (max-width: 480px) { :root { --side-pad: 28px; --item-gap: 40px; --btn-bot: 40px; } }
       `}</style>
-      <div className="desktop-panel" style={{ width: 600, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 64px" }}>
-        <h1 style={{ fontSize: 56, fontWeight: 900, lineHeight: 1.15, letterSpacing: "-2px", color: "#000" }}>점심 한 끼,<br /><span style={{ color: "#fff", textShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>10초</span>에 정산!</h1>
-        <p style={{ fontSize: 18, color: "rgba(0,0,0,0.6)", marginTop: 24, fontWeight: 600 }}>영수증 사진 한 장이면 충분합니다.</p>
+      <div className="desktop-panel" style={{ width: 840, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", paddingRight: 320, paddingLeft: 60 }}>
+        <div style={{ marginTop: 120 }}>
+          <h1 style={{ fontSize: 56, fontWeight: 900, lineHeight: 1.15, letterSpacing: "-2px", color: "#000" }}>점심 한 끼,<br />10초에 정산!</h1>
+          <p style={{ fontSize: 18, color: "rgba(0,0,0,0.6)", marginTop: 24, fontWeight: 600 }}>영수증 사진 한 장이면 충분합니다.</p>
+          <img src="/zaleat_cc.png" style={{ marginTop: 80, width: "100%", maxWidth: 440, objectFit: "contain" }} alt="zaleat_visual" />
+        </div>
       </div>
       <div className="app-container" style={{ width: 460, flexShrink: 0, height: "calc(var(--vh, 1vh) * 100)", boxShadow: "30px 30px 60px -15px rgba(0,0,0,0.12)", borderLeft: "1px solid rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", background: "#FFFBF0" }}>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative", height: "100%", overflow: "hidden" }}>

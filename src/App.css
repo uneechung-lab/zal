@@ -16,7 +16,7 @@
 }
 
 body {
-  font-family: 'Pretendard', sans-serif;
+  font-family: 'Outfit', 'Pretendard', sans-serif;
   background-color: var(--bg);
   color: var(--text-main);
   height: 100vh;
@@ -107,7 +107,7 @@ body {
   letter-spacing: -1px;
   color: var(--text-main);
   outline: none;
-  font-family: 'Pretendard', 'Pretendard JP', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+  font-family: 'Outfit', 'Pretendard', 'Pretendard JP', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
 }
 
 .input-main::placeholder {
