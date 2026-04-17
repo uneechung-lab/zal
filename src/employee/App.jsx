@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -99,7 +99,7 @@ function getWeekCount(year, month) {
 
 function Badge({ status }) {
   const map = {
-    "승인완료": { bg: "#E2F5EC", color: "#1E8A4A", label: "승인" },
+    "승인완료": { bg: "#E2F5EC", color: "#16a34a", label: "승인" },
     "예외요청": { bg: "#FEF3E2", color: "#B87020", label: "보류" },
     "보류": { bg: "#FEF3E2", color: "#B87020", label: "보류" },
     "반려": { bg: "#FDECEA", color: "#C0392B", label: "반려" },
@@ -220,7 +220,7 @@ function BottomSheetPicker({ isOpen, onClose, year, month, week, onConfirm }) {
   );
 }
 
-function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, setReplyTxt }) {
+function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, setReplyTxt, onMarkRead }) {
   if (!sub) return null;
   let parsedLogs = [];
   try {
@@ -243,6 +243,22 @@ function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, se
            Object.values(data).find(v => typeof v === "string" && (v.startsWith("http") || v.startsWith("data:image")));
   };
   const finalImage = getImageUrl(sub);
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (sub && parsedLogs.length > 0) {
+      const lastAdminLog = parsedLogs.slice().reverse().find(l => l.sender === 'admin' && !l.isDeleted);
+      if (lastAdminLog && lastAdminLog.time) {
+        onMarkRead(sub.id, lastAdminLog.time);
+      }
+    }
+  }, [sub, parsedLogs]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [parsedLogs]);
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden", position: "relative" }}>
@@ -251,31 +267,14 @@ function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, se
         <span style={{ fontWeight: 800, fontSize: 18 }}>요청 상세</span>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px 180px", minHeight: 0 }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "24px 28px 180px", minHeight: 0 }}>
         <div style={{ background: "#fff", borderRadius: 24, padding: "24px", marginBottom: 24, boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
             <div>
               <p style={{ margin: "0 0 6px", fontSize: 13, color: "#999", fontWeight: 700 }}>{sub.date}</p>
               <p style={{ margin: 0, fontSize: 16, fontWeight: 500, color: "#555" }}>{sub.category} · {sub.store_name || sub.storeName}</p>
               <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8 }}>
-                {(sub.status === "반려" || sub.status === "예외요청") && (
-                  <span style={{ fontSize: 12, color: "#E24B4A", fontWeight: 700 }}>
-                    {sub.status === "반려" 
-                    ? `반려 사유: ${(() => {
-                        const rr = sub.reject_reason || sub.rejectReason;
-                        if (rr && rr.startsWith('[')) {
-                           const lastReject = parsedLogs.slice().reverse().find(l => l.type === 'reject' && !l.isDeleted);
-                           if (lastReject) {
-                              const match = lastReject.text.match(/^\[(.*?)\]/);
-                              return match ? match[1] : lastReject.text;
-                           }
-                           return "관리자 확인 요망";
-                        }
-                        return rr || "결제 시간(15:00) 미준수";
-                      })()}` 
-                    : "보류 사유: 결제 시간(15:00) 미준수"}
-                  </span>
-                )}
+
                 <button 
                   onClick={(e) => { 
                     e.stopPropagation();
@@ -319,38 +318,32 @@ function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, se
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%" }}>
-            {parsedLogs.map((log, idx) => (
-              <div key={idx} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", opacity: log.isDeleted ? 0.4 : 1 }}>
-                <div style={{ 
-                  background: log.type === 'reject' ? "#e04a4a" : (log.type === 'approve' ? "#1E8A4A" : "#fff"), 
-                  color: (log.type === 'reject' || log.type === 'approve') ? "#fff" : "#333", 
-                  padding: "14px 18px", 
-                  borderRadius: "2px 18px 18px 18px", 
-                  maxWidth: "85%", 
-                  fontSize: 15, 
-                  lineHeight: 1.5, 
-                  fontWeight: (log.type === 'reject' || log.type === 'approve') ? 600 : 500, 
-                  border: (log.type === 'reject' || log.type === 'approve') ? "none" : "1.5px solid #eee", 
-                  whiteSpace: "pre-wrap",
-                  textDecoration: log.isDeleted ? "line-through" : "none"
-                }}>
-                  {log.text}
+            {parsedLogs.map((log, idx) => {
+              const isUser = log.sender === 'user';
+              return (
+                <div key={idx} style={{ display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start", opacity: log.isDeleted ? 0.4 : 1 }}>
+                  <div style={{ 
+                    background: isUser ? "#000" : (log.type === 'reject' ? "#e04a4a" : (log.type === 'approve' ? "#16a34a" : "#fff")), 
+                    color: isUser ? "#fff" : ((log.type === 'reject' || log.type === 'approve') ? "#fff" : "#333"), 
+                    padding: "14px 18px", 
+                    borderRadius: isUser ? "18px 2px 18px 18px" : "2px 18px 18px 18px", 
+                    maxWidth: "85%", 
+                    fontSize: 15, 
+                    lineHeight: 1.5, 
+                    fontWeight: (log.type === 'reject' || log.type === 'approve' || isUser) ? 600 : 500, 
+                    border: (log.type === 'reject' || log.type === 'approve' || isUser) ? "none" : "1.5px solid #eee", 
+                    whiteSpace: "pre-wrap",
+                    textDecoration: log.isDeleted ? "line-through" : "none"
+                  }}>
+                    {log.text}
+                  </div>
+                  <span style={{ fontSize: 11, color: "#bbb", marginTop: 6, fontWeight: 600 }}>
+                    {isUser ? "" : "관리자 · "}{log.isDeleted ? "삭제됨 · " : ""} {log.time ? new Date(log.time).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" }) : "방금 전"}
+                  </span>
                 </div>
-                <span style={{ fontSize: 11, color: "#bbb", marginTop: 6, fontWeight: 600 }}>
-                  관리자 · {log.isDeleted ? "삭제됨 · " : ""} {log.time ? new Date(log.time).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" }) : "방금 전"}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
-
-          {(chats || []).map((chat, idx) => (
-            <div key={idx} style={{ display: "flex", flexDirection: "column", alignItems: chat.sender === "admin" ? "flex-start" : "flex-end" }}>
-              <div style={{ background: chat.sender === "admin" ? "#fff" : "#000", color: chat.sender === "admin" ? "#333" : "#fff", padding: "14px 18px", borderRadius: chat.sender === "admin" ? "2px 18px 18px 18px" : "18px 2px 18px 18px", maxWidth: "85%", fontSize: 15, lineHeight: 1.5, fontWeight: 500, border: chat.sender === "admin" ? "1.5px solid #eee" : "none" }}>{chat.text}</div>
-              <span style={{ fontSize: 11, color: "#bbb", marginTop: 6, fontWeight: 600 }}>
-                {chat.sender === "admin" ? "관리자 · 방금 전" : "방금 전"}
-              </span>
-            </div>
-          ))}
         </div>
       </div>
 
@@ -412,6 +405,46 @@ export default function App() {
   const [deleteId, setDeleteId] = useState(null);
   const [user, setUser] = useState(null);
   const fileRef = useRef();
+
+  const [lastSeen, setLastSeen] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('lastSeenFeedbacks') || '{}');
+    } catch(e) { return {}; }
+  });
+
+  const markAsRead = async (id, time) => {
+    if (!id || !time) return;
+    const newLastSeen = { ...lastSeen, [id]: time };
+    setLastSeen(newLastSeen);
+    localStorage.setItem('lastSeenFeedbacks', JSON.stringify(newLastSeen));
+    
+    // Try cross-browser sync via profiles table (custom field or metadata)
+    if (user?.email) {
+      try {
+        await supabase.from('profiles').update({ 
+          notification_metadata: JSON.stringify(newLastSeen) 
+        }).eq('email', user.email);
+      } catch(e) {
+        // notification_metadata column might not exist, ignore
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (user?.email) {
+       loadRemoteSeen();
+    }
+  }, [user]);
+
+  const loadRemoteSeen = async () => {
+    try {
+      const { data } = await supabase.from('profiles').select('notification_metadata').eq('email', user.email).single();
+      if (data?.notification_metadata) {
+        const remote = JSON.parse(data.notification_metadata);
+        setLastSeen(prev => ({ ...prev, ...remote }));
+      }
+    } catch(e) {}
+  };
 
   useEffect(() => { 
     checkUser();
@@ -779,6 +812,26 @@ export default function App() {
     const payYear = selMonth === 12 ? selYear + 1 : selYear;
     const payDateStr = `${String(payYear).slice(2)}.${String(payMonth).padStart(2,"0")}.22`;
 
+    const unreadSubs = useMemo(() => {
+      return subs.filter(s => {
+        const rr = s.reject_reason || s.rejectReason;
+        if (rr && rr.startsWith('[')) {
+          try {
+            const logs = JSON.parse(rr);
+            if (logs.length > 0) {
+              const lastLog = logs[logs.length - 1];
+              const isNewAdmin = lastLog.sender === 'admin' && !lastLog.isDeleted;
+              if (isNewAdmin) {
+                const seenTime = lastSeen[s.id];
+                return !seenTime || new Date(lastLog.time) > new Date(seenTime);
+              }
+            }
+          } catch(e) {}
+        }
+        return false;
+      });
+    }, [subs, lastSeen]);
+
     return (
       <div 
         style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, overflowY: "auto", overflowX: "hidden" }}
@@ -820,8 +873,23 @@ export default function App() {
             </div>
           </div>
           <div style={{ display: "flex", gap: 14 }}>
-            <button onClick={() => setStep("list")} style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }}>
+            <button 
+              onClick={() => {
+                if (unreadSubs.length > 0) {
+                  setSelectedSub(unreadSubs[0]);
+                  setStep("detail");
+                  return;
+                }
+                setStep("list");
+              }} 
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 6, position: "relative" }}
+            >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+              {unreadSubs.length > 0 && (
+                <div style={{ position: "absolute", top: -2, right: -2, width: 22, height: 22, background: "#E24B4A", color: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, border: "2px solid #FFFBF0", boxShadow: "0 2px 6px rgba(226,75,74,0.3)" }}>
+                  {unreadSubs.length}
+                </div>
+              )}
             </button>
             <button onClick={() => setStep("my")} style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
@@ -864,12 +932,23 @@ export default function App() {
                 // Use i (0-4) directly to ensure zero duplicates within a 5-day week
                 const foodImg = FOOD_IMGS[i % FOOD_IMGS.length];
 
+
                 return (
-                  <div key={i} onClick={() => { if(daySub){setSelectedSub(daySub); setStep("detail");} }} style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 8, cursor: daySub ? "pointer" : "default", flex: 1 }}>
-                    <div style={{ height: 88, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div key={i} onClick={() => { if(daySub){setSelectedSub(daySub); setStep("detail");} }} style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 8, cursor: daySub ? "pointer" : "default", flex: 1, position: "relative" }}>
+                    <div style={{ height: 88, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
                       {daySub ? (
                         <div style={{ position: "relative" }}>
-                          <img src={foodImg} style={{ width: 88, height: 88, objectFit: "contain", filter: daySub.status === "반려" ? "grayscale(100%) opacity(0.5)" : "none" }} alt="food" />
+                          <img 
+                            src={foodImg} 
+                            style={{ 
+                              width: 88, 
+                              height: 88, 
+                              objectFit: "contain", 
+                              filter: daySub.status === "반려" ? "grayscale(100%) opacity(0.5)" : "none",
+                              transform: (foodImg.includes("food_04") || foodImg.includes("food_05")) ? "scale(0.85)" : "none"
+                            }} 
+                            alt="food" 
+                          />
                           {(daySub.status === "예외요청" || daySub.status === "보류") && (
                             <div style={{ position: "absolute", top: 2, right: 0, background: "#E24B4A", color: "#fff", fontSize: 11, fontWeight: 900, padding: "3px 6px", borderRadius: 8, border: "2.5px solid #FFFBF0" }}>보류</div>
                           )}
@@ -880,6 +959,7 @@ export default function App() {
                       ) : (
                         <img src="/food_00.png" style={{ width: 52, height: 52, opacity: 0.6 }} alt="empty" />
                       )}
+                      
                     </div>
                     <span style={{ fontSize: 12, fontWeight: 800, color: daySub ? "#111" : "#bbb" }}>{["월","화","수","목","금"][i]} {date.getDate()}</span>
                   </div>
@@ -974,20 +1054,41 @@ export default function App() {
   };
 
 
-  function handleSendChat() {
+  async function handleSendChat() {
     if (!replyText.trim() || !selectedSub) return;
     const msg = replyText;
-    setLocalChats(prev => ({
-      ...prev,
-      [selectedSub.id]: [...(prev[selectedSub.id] || []), { sender: "me", text: msg }]
-    }));
+    const currentId = selectedSub.id;
+    
+    const newLog = { 
+       sender: 'user', 
+       type: 'message', 
+       text: msg, 
+       time: new Date().toISOString(), 
+       isDeleted: false 
+    };
+    
+    let logs = [];
+    const reason = selectedSub.reject_reason || selectedSub.rejectReason;
+    if (reason && reason.startsWith('[')) {
+       try { logs = JSON.parse(reason); } catch(e){}
+    } else if (reason) {
+       const type = (selectedSub.status === "승인완료" || selectedSub.status === "승인") ? "approve" : "reject";
+       logs = [{ text: `[${reason}] ${type === 'approve' ? '승인' : '반려'}되었습니다.`, type, sender: 'admin', isDeleted: false }];
+    } else if (selectedSub.status === "반려" || selectedSub.status === "승인완료" || selectedSub.status === "승인") {
+       const type = selectedSub.status === "반려" ? "reject" : "approve";
+       const hardMsg = selectedSub.status === "반려" ? `[${selectedSub.exc_text || selectedSub.excText || "영수증 정산 요청"}] 건은 반려되었습니다.` : "승인 완료!";
+       logs = [{ text: hardMsg, type, sender: 'admin', isDeleted: false }];
+    }
+    
+    logs.push(newLog);
+    const newLogsStr = JSON.stringify(logs);
+    
+    const newSubs = subs.map(s => s.id === currentId ? { ...s, reject_reason: newLogsStr, rejectReason: newLogsStr } : s);
+    setSubs(newSubs);
+    setSelectedSub({ ...selectedSub, reject_reason: newLogsStr, rejectReason: newLogsStr });
     setReplyText("");
-    setTimeout(() => {
-      setLocalChats(prev => ({
-        ...prev,
-        [selectedSub.id]: [...(prev[selectedSub.id] || []), { sender: "admin", text: "확인 후 답변 드리겠습니다." }]
-      }));
-    }, 1000);
+
+    await supabase.from('settlements').update({ reject_reason: newLogsStr }).eq('id', currentId);
   }
 
   const AppResult = () => {
@@ -1486,6 +1587,7 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
       onSendChat={handleSendChat} 
       replyTxt={replyText} 
       setReplyTxt={setReplyText} 
+      onMarkRead={markAsRead}
     /> 
   };
 

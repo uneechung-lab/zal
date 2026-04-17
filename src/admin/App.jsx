@@ -152,7 +152,7 @@ export default function App() {
 
   const handleApprove = (id) => {
     const msg = document.getElementById('reviewMsgInput').value;
-    const newLog = { text: msg ? `[${msg}] 승인되었습니다.` : '승인되었습니다.', type: 'approve', isDeleted: false, time: new Date().toISOString() };
+    const newLog = { text: msg ? `[${msg}] 승인되었습니다.` : '승인되었습니다.', type: 'approve', sender: 'admin', isDeleted: false, time: new Date().toISOString() };
     const newLogs = [...actionLogs, newLog];
     setActionLogs(newLogs);
     updateSettlementStatus(id, '승인완료', JSON.stringify(newLogs));
@@ -165,7 +165,7 @@ export default function App() {
     const displayMsg = msg 
        ? `[${msg}] 반려되었습니다.` 
        : `[${currentReview?.item.violationLog || "사용자가 입력한 예외사유"}] 건은 반려되었습니다.`;
-    const newLog = { text: displayMsg, type: 'reject', isDeleted: false, time: new Date().toISOString() };
+    const newLog = { text: displayMsg, type: 'reject', sender: 'admin', isDeleted: false, time: new Date().toISOString() };
     const newLogs = [...actionLogs, newLog];
     setActionLogs(newLogs);
     updateSettlementStatus(id, '반려', JSON.stringify(newLogs));
@@ -196,6 +196,18 @@ export default function App() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const [adminLastSeen, setAdminLastSeen] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('adminLastSeen') || '{}');
+    } catch(e) { return {}; }
+  });
+
+  const markAsReadByAdmin = (id, time) => {
+    const next = { ...adminLastSeen, [id]: time };
+    setAdminLastSeen(next);
+    localStorage.setItem('adminLastSeen', JSON.stringify(next));
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -286,7 +298,7 @@ export default function App() {
              setActionLogs(Array.isArray(parsed) ? parsed : []);
           } else {
              const type = currentReview.item.status === '승인완료' ? 'approve' : 'reject';
-             setActionLogs([{ text: `[${currentReview.item.reject_reason}] ${type === 'approve' ? '승인' : '반려'}되었습니다.`, type, isDeleted: false }]);
+             setActionLogs([{ text: `[${currentReview.item.reject_reason}] ${type === 'approve' ? '승인' : '반려'}되었습니다.`, type, sender: 'admin', isDeleted: false }]);
           }
        } catch (e) {
           setActionLogs([]);
@@ -296,13 +308,35 @@ export default function App() {
        const msg = currentReview.item.status === '반려' && currentReview.item.violationLog 
           ? `[${currentReview.item.violationLog}] 건은 반려되었습니다.`
           : `${type === 'approve' ? '승인' : '반려'}되었습니다.`;
-       setActionLogs([{ text: msg, type, isDeleted: false }]);
+       setActionLogs([{ text: msg, type, sender: 'admin', isDeleted: false }]);
     } else {
        setActionLogs([]);
     }
 
     const input = document.getElementById('reviewMsgInput');
     if (input) input.value = '';
+
+    // Mark as read by admin
+    if (currentReview && isReviewPanelOpen) {
+       try {
+          const rr = currentReview.item.reject_reason;
+          if (rr && rr.startsWith('[')) {
+             const logs = JSON.parse(rr);
+             const lastUser = logs.slice().reverse().find(l => l.sender === 'user' && !l.isDeleted);
+             if (lastUser && lastUser.time) {
+                markAsReadByAdmin(currentReview.item.id, lastUser.time);
+             }
+          }
+       } catch(e) {}
+    }
+
+    // Scroll active pager item into view
+    setTimeout(() => {
+      const activeItem = document.getElementById(`pager-item-${reviewIndex}`);
+      if (activeItem && pagerRef.current) {
+        activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }, 50);
   }, [reviewIndex, isReviewPanelOpen, allPendingRequests]);
 
   const totals = useMemo(() => {
@@ -339,6 +373,23 @@ export default function App() {
 
   const currentReview = allPendingRequests[reviewIndex] || null;
 
+  const newMsgIdx = useMemo(() => {
+     return allPendingRequests.findIndex(req => {
+        if (!req.item.reject_reason) return false;
+        try {
+           const logs = JSON.parse(req.item.reject_reason);
+           if (!Array.isArray(logs) || logs.length === 0) return false;
+           const last = logs[logs.length - 1];
+           const isNewUser = last.sender === 'user' && !last.isDeleted;
+           if (isNewUser) {
+              const seen = adminLastSeen[req.item.id];
+              return !seen || new Date(last.time) > new Date(seen);
+           }
+        } catch(e) { return false; }
+        return false;
+     });
+  }, [allPendingRequests, adminLastSeen]);
+
   return (
     <div className="admin-container">
       {/* Header */}
@@ -365,10 +416,27 @@ export default function App() {
           <div className="summary-label l1">오늘 ({new Date().toISOString().slice(5, 10).replace('-', '.')}) 기준</div>
           <div className="summary-label l2">{selectedMonth.split('.')[1]}월 총 사용액</div>
           
-          <div className="summary-greeting v1" onClick={() => setIsReviewPanelOpen(true)}>
-            <span className="mobile-hide">관리자님, </span>
-            <span className="underline" style={{ color: totals.pendingTotal > 0 ? '#ef4444' : '#15803d' }}><span className="num-spacing summary-num">{totals.pendingTotal}</span>건의 </span>
-            <span className="greeting-sub">승인요청이 있습니다.</span>
+          <div className="summary-greeting v1" onClick={() => {
+            if (newMsgIdx !== -1) {
+              setReviewIndex(newMsgIdx);
+            }
+            setIsReviewPanelOpen(true);
+          }} style={{ position: 'relative' }}>
+            <span className="mobile-hide" style={{ marginRight: '4px' }}>관리자님, </span>
+            <span className="underline" style={{ color: totals.pendingTotal > 0 ? '#ef4444' : '#15803d' }}>
+              <span className="num-spacing summary-num">{totals.pendingTotal}</span>
+              건의 
+            </span>
+            &nbsp;
+            <span style={{ position: 'relative' }}>
+              <span className="greeting-sub">승인요청이 있습니다.</span>
+              {newMsgIdx !== -1 && (
+                <div className="new-msg-bubble" style={{ position: "absolute", bottom: "115%", right: "-12px", background: "#ef4444", color: "#fff", fontSize: "0.85rem", fontWeight: 500, padding: "5px 12px", borderRadius: "12px", whiteSpace: "nowrap", zIndex: 20, cursor: "pointer", pointerEvents: "auto", opacity: 1 }}>
+                  새 메시지 도착!
+                  <div style={{ position: "absolute", bottom: "-5px", right: "12px", width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: "6px solid #ef4444" }} />
+                </div>
+              )}
+            </span>
           </div>
           <div className="summary-amount v2" style={{ textAlign: 'left', justifyContent: 'flex-start' }}>
             <span className="accent-line">₩{totals.total.toLocaleString()}</span>
@@ -386,24 +454,44 @@ export default function App() {
       {isReviewPanelOpen && (
         <div className="side-panel-overlay" onClick={() => setIsReviewPanelOpen(false)}>
           <div className="side-panel" onClick={e => e.stopPropagation()}>
-            <div className="panel-header">
-              <button className="close-btn" style={{ fontSize: '1.8rem', opacity: 1, display: 'flex', alignItems: 'center' }} onClick={() => setIsReviewPanelOpen(false)}>×</button>
-              <div className="user-name" style={{ fontSize: '1.15rem', fontWeight: 850 }}>승인 요청</div>
-            </div>
+            <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button className="close-btn" style={{ fontSize: '1.8rem', opacity: 1, display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setIsReviewPanelOpen(false)}>×</button>
+                <div className="user-name" style={{ fontSize: '1.15rem', fontWeight: 850 }}>승인 요청</div>
+              </div>
 
-            <div className="panel-content">
-              {/* Pagination */}
-              <div className="pager-container" ref={pagerRef} style={{ borderBottom: 'none', marginBottom: '1.5rem' }}>
+              {/* Pagination moved to header */}
+              <div 
+                className="pager-container" 
+                ref={pagerRef} 
+                style={{ 
+                  margin: 0, 
+                  borderBottom: 'none', 
+                  maxWidth: '180px', 
+                  overflowX: 'auto', 
+                  padding: '4px 0',
+                  msOverflowStyle: 'none',
+                  scrollbarWidth: 'none',
+                  display: 'flex',
+                  gap: '8px'
+                }}
+              >
                 {allPendingRequests.map((_, idx) => (
                   <div
                     key={idx}
+                    id={`pager-item-${idx}`}
                     className={`num-chip ${reviewIndex === idx ? 'active' : ''}`}
                     onClick={() => setReviewIndex(idx)}
+                    style={{ flex: '0 0 34px', height: '34px' }}
                   >
                     {idx + 1}
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div className="panel-content">
+              {/* Pagination removed from here */}
 
               {currentReview ? (
                 <>
@@ -425,7 +513,6 @@ export default function App() {
                     </div>
                     {/* Always show violation in UI demo */}
                     <div className="receipt-violation">
-                      <span>보류 사유: {currentReview.item.violationLog || "결제 시간 미준수"}</span>
                       {currentReview.item.image_url && (
                         <button className="btn-receipt-view" onClick={() => window.open(currentReview.item.image_url, '_blank')}>영수증 보기</button>
                       )}
@@ -439,85 +526,98 @@ export default function App() {
                   <div className="chat-container">
                     <div className="bubble-wrap user">
                       <div className="chat-bubble user" style={{ padding: '0.85rem 1.15rem' }}>
-                        업무 미팅 지연으로 정산 요청드립니다.
+                        {currentReview.item.violationLog || "영수증 정산 요청드립니다."}
                       </div>
-                      <div className="chat-meta">4월 15일 오전 11:07</div>
+                      <div className="chat-meta">{currentReview.item.date.split(' ')[0]}</div>
                     </div>
 
-                    {actionLogs.map((log, logIdx) => (
-                      <div key={logIdx} className={`bubble-wrap admin ${log.isDeleted ? 'is-deleted' : ''}`} style={{ marginTop: '0.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <div className={`chat-bubble admin ${log.type === 'approve' ? 'bg-green' : 'bg-red'} ${log.isDeleted ? 'deleted-style' : ''}`} style={{ padding: '0.85rem 1.15rem', whiteSpace: 'nowrap' }}>
-                            {log.text}
+                    {actionLogs.map((log, logIdx) => {
+                      const isUser = log.sender === 'user';
+                      return (
+                        <div key={logIdx} className={`bubble-wrap ${isUser ? 'user' : 'admin'} ${log.isDeleted ? 'is-deleted' : ''}`} style={{ marginTop: '0.5rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', flexDirection: isUser ? 'row-reverse' : 'row' }}>
+                            <div className={`chat-bubble ${isUser ? 'user' : 'admin'} ${log.type === 'approve' ? 'bg-green' : (log.type === 'reject' ? 'bg-red' : '')} ${log.isDeleted ? 'deleted-style' : ''}`} style={{ padding: '0.85rem 1.15rem', whiteSpace: 'nowrap' }}>
+                              {log.text}
+                            </div>
+                            {!log.isDeleted && !isUser && (
+                              <button 
+                                className="btn-msg-del" 
+                                onClick={async () => {
+                                  const newLogs = actionLogs.map((item, i) => i === logIdx ? { ...item, isDeleted: true } : item);
+                                  setActionLogs(newLogs);
+                                  await updateSettlementStatus(currentReview.item.id, '보류', JSON.stringify(newLogs));
+                                }} 
+                                title="삭제" style={{ padding: '0 4px', display: 'flex', alignItems: 'center' }}
+                              >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={log.type === 'approve' ? "#16a34a" : "#e04a4a"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
+                              </button>
+                            )}
                           </div>
-                          {!log.isDeleted && (
-                            <button 
-                              className="btn-msg-del" 
-                              onClick={async () => {
-                                const newLogs = actionLogs.map((item, i) => i === logIdx ? { ...item, isDeleted: true } : item);
-                                setActionLogs(newLogs);
-                                await updateSettlementStatus(currentReview.item.id, '보류', JSON.stringify(newLogs));
-                              }} 
-                              title="삭제" style={{ padding: '0 4px', display: 'flex', alignItems: 'center' }}
-                            >
-                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={log.type === 'approve' ? "#16a34a" : "#e04a4a"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
-                            </button>
-                          )}
+                          <div className="chat-meta" style={{ textAlign: isUser ? 'right' : 'left' }}>
+                            {isUser ? currentReview.user.name : "관리자"} · {log.isDeleted ? "삭제됨 · " : ""} {log.time ? new Date(log.time).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" }) : "방금 전"}
+                          </div>
                         </div>
-                        <div className="chat-meta">
-                          관리자 · {log.isDeleted ? "삭제됨 · " : ""} {log.time ? new Date(log.time).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" }) : "방금 전"}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     <div ref={chatEndRef} />
                   </div>
 
                   {/* Sticky Footer */}
-                  <div className="panel-footer-fixed">
-                    {/* Disable if the last message is NOT deleted OR if it's already processed and loaded */}
-                    <div className={`message-pill-container ${((actionLogs.length > 0 && !actionLogs[actionLogs.length - 1].isDeleted) || (actionLogs.length === 0 && (currentReview.item.status === '승인완료' || currentReview.item.status === '반려'))) ? 'disabled' : ''}`}>
-                      <input
-                        type="text"
-                        id="reviewMsgInput"
-                        className="message-pill-input"
-                        placeholder="반려 또는 승인 사유를 입력하세요."
-                        disabled={((actionLogs.length > 0 && !actionLogs[actionLogs.length - 1].isDeleted) || (actionLogs.length === 0 && (currentReview.item.status === '승인완료' || currentReview.item.status === '반려')))}
-                      />
-                    </div>
-                    <div className="cta-group" style={{ alignItems: 'center' }}>
-                      <button
-                        className="btn-nav"
-                        disabled={reviewIndex === 0}
-                        onClick={() => { if (reviewIndex > 0) setReviewIndex(reviewIndex - 1); }}
-                      >
-                        ‹
-                      </button>
+                  {/* Sticky Footer */}
+                  {(() => {
+                    const lastMsg = actionLogs.length > 0 ? actionLogs[actionLogs.length - 1] : null;
+                    const isDisabled = lastMsg && (lastMsg.type === 'approve' || lastMsg.type === 'reject') && !lastMsg.isDeleted;
+                    // Fallback for cases where actionLogs might be empty but status is already final
+                    const isFinalStatus = actionLogs.length === 0 && (currentReview.item.status === '승인완료' || currentReview.item.status === '반려');
+                    const effectiveDisabled = isDisabled || isFinalStatus;
+                    
+                    return (
+                      <div className="panel-footer-fixed">
+                        <div className={`message-pill-container ${effectiveDisabled ? 'disabled' : ''}`}>
+                          <input
+                            type="text"
+                            id="reviewMsgInput"
+                            className="message-pill-input"
+                            placeholder="반려 또는 승인 사유를 입력하세요."
+                            disabled={effectiveDisabled}
+                          />
+                        </div>
+                        <div className="cta-group" style={{ alignItems: 'center' }}>
+                          <button
+                            className="btn-nav"
+                            disabled={reviewIndex === 0}
+                            onClick={() => { if (reviewIndex > 0) setReviewIndex(reviewIndex - 1); }}
+                          >
+                            ‹
+                          </button>
 
-                      <button
-                        className="btn-cta reject"
-                        disabled={((actionLogs.length > 0 && !actionLogs[actionLogs.length - 1].isDeleted) || (actionLogs.length === 0 && (currentReview.item.status === '승인완료' || currentReview.item.status === '반려')))}
-                        onClick={() => handleReject(currentReview.item.id)}
-                      >
-                        반려
-                      </button>
+                          <button
+                            className="btn-cta reject"
+                            disabled={effectiveDisabled}
+                            onClick={() => handleReject(currentReview.item.id)}
+                          >
+                            반려
+                          </button>
 
-                      <button
-                        className="btn-cta approve"
-                        disabled={((actionLogs.length > 0 && !actionLogs[actionLogs.length - 1].isDeleted) || (actionLogs.length === 0 && (currentReview.item.status === '승인완료' || currentReview.item.status === '반려')))}
-                        onClick={() => handleApprove(currentReview.item.id)}
-                      >
-                        승인
-                      </button>
+                          <button
+                            className="btn-cta approve"
+                            disabled={effectiveDisabled}
+                            onClick={() => handleApprove(currentReview.item.id)}
+                          >
+                            승인
+                          </button>
 
-                      <button
-                        className="btn-nav"
-                        disabled={reviewIndex === allPendingRequests.length - 1}
-                        onClick={() => { if (reviewIndex < allPendingRequests.length - 1) setReviewIndex(reviewIndex + 1); }}
-                      >
-                        ›
-                      </button>
-                    </div>
-                  </div>
+                          <button
+                            className="btn-nav"
+                            disabled={reviewIndex === allPendingRequests.length - 1}
+                            onClick={() => { if (reviewIndex < allPendingRequests.length - 1) setReviewIndex(reviewIndex + 1); }}
+                          >
+                            ›
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </>
               ) : (
                 <div style={{ textAlign: 'center', padding: '5rem 0', color: '#999', fontSize: '1.05rem', fontWeight: 600 }}>
