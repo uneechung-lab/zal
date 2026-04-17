@@ -112,18 +112,6 @@ export default function App() {
 
   const pagerRef = useRef(null);
 
-  useEffect(() => {
-    if (isReviewPanelOpen && pagerRef.current) {
-      const activeChip = pagerRef.current.children[reviewIndex];
-      if (activeChip) {
-        activeChip.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-      }
-    }
-    // Clear logs on panel change
-    setActionLogs([]);
-    const input = document.getElementById('reviewMsgInput');
-    if (input) input.value = '';
-  }, [reviewIndex, isReviewPanelOpen]);
 
   // Auto-scroll chat to bottom
   useEffect(() => {
@@ -164,19 +152,23 @@ export default function App() {
 
   const handleApprove = (id) => {
     const msg = document.getElementById('reviewMsgInput').value;
-    setActionLogs(prev => [...prev, { text: msg ? `[${msg}] 승인되었습니다.` : '승인되었습니다.', type: 'approve', isDeleted: false }]);
-    updateSettlementStatus(id, '승인완료', msg);
+    const newLog = { text: msg ? `[${msg}] 승인되었습니다.` : '승인되었습니다.', type: 'approve', isDeleted: false, time: new Date().toISOString() };
+    const newLogs = [...actionLogs, newLog];
+    setActionLogs(newLogs);
+    updateSettlementStatus(id, '승인완료', JSON.stringify(newLogs));
     document.getElementById('reviewMsgInput').value = '';
   };
 
   const handleReject = (id) => {
     const msg = document.getElementById('reviewMsgInput').value;
-    if (!msg) {
-      alert("반려 사유를 입력해주세요.");
-      return;
-    }
-    setActionLogs(prev => [...prev, { text: `[${msg}] 반려되었습니다.`, type: 'reject', isDeleted: false }]);
-    updateSettlementStatus(id, '반려', msg);
+    const currentReview = allPendingRequests[reviewIndex] || null;
+    const displayMsg = msg 
+       ? `[${msg}] 반려되었습니다.` 
+       : `[${currentReview?.item.violationLog || "사용자가 입력한 예외사유"}] 건은 반려되었습니다.`;
+    const newLog = { text: displayMsg, type: 'reject', isDeleted: false, time: new Date().toISOString() };
+    const newLogs = [...actionLogs, newLog];
+    setActionLogs(newLogs);
+    updateSettlementStatus(id, '반려', JSON.stringify(newLogs));
     document.getElementById('reviewMsgInput').value = '';
   };
 
@@ -227,13 +219,6 @@ export default function App() {
       console.warn("Profiles table not found or inaccessible. Showing submitted users only.");
     }
     
-    if (!sError) {
-      // 승인 요청 건이 없으면 전체보기 디폴트 선택
-      const hasPending = sData?.some(s => s.status === "예외요청" || s.status === "보류");
-      if (!hasPending) {
-        setActiveTab("전체보기");
-      }
-    }
     setLoading(false);
   };
 
@@ -251,6 +236,14 @@ export default function App() {
     if (idx < monthOptions.length - 1) setSelectedMonth(monthOptions[idx + 1]);
   };
 
+  useEffect(() => {
+    if (rawSettlements.length > 0) {
+      const monthFiltered = rawSettlements.filter(s => s.date && s.date.startsWith(selectedMonth.replace('.', '-')));
+      const hasPending = monthFiltered.some(s => s.status === "예외요청" || s.status === "보류");
+      setActiveTab(hasPending ? "승인 요청" : "전체보기");
+    }
+  }, [selectedMonth, rawSettlements]);
+
   const monthlyUsers = useMemo(() => transformData(rawSettlements, allProfiles, selectedMonth), [rawSettlements, allProfiles, selectedMonth]);
 
   const allPendingRequests = useMemo(() => {
@@ -258,7 +251,7 @@ export default function App() {
     rawSettlements
       .filter(s => s.date && s.date.startsWith(selectedMonth.replace('.', '-'))) // ADDED: Month filter
       .forEach(s => {
-      if (s.status === "예외요청" || s.status === "보류") {
+      if (s.status === "예외요청" || s.status === "보류" || s.status === "반려" || (s.status === "승인완료" && (s.exc_text || s.excText))) {
         requests.push({ 
           user: { name: s.user_name || "미지정", department: s.department || "기타" }, 
           item: {
@@ -269,13 +262,48 @@ export default function App() {
             violation: true,
             violationLog: s.exc_text || s.excText,
             status: s.status,
-            image_url: s.image_url
+            image_url: s.image_url,
+            reject_reason: s.reject_reason || s.rejectReason
           }
         });
       }
     });
     return requests;
   }, [rawSettlements, selectedMonth]);
+
+  useEffect(() => {
+    if (isReviewPanelOpen && pagerRef.current) {
+      const activeChip = pagerRef.current.children[reviewIndex];
+      if (activeChip) {
+        activeChip.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+    const currentReview = allPendingRequests[reviewIndex] || null;
+    if (currentReview && currentReview.item.reject_reason) {
+       try {
+          if (currentReview.item.reject_reason.startsWith('[')) {
+             const parsed = JSON.parse(currentReview.item.reject_reason);
+             setActionLogs(Array.isArray(parsed) ? parsed : []);
+          } else {
+             const type = currentReview.item.status === '승인완료' ? 'approve' : 'reject';
+             setActionLogs([{ text: `[${currentReview.item.reject_reason}] ${type === 'approve' ? '승인' : '반려'}되었습니다.`, type, isDeleted: false }]);
+          }
+       } catch (e) {
+          setActionLogs([]);
+       }
+    } else if (currentReview && (currentReview.item.status === '반려' || currentReview.item.status === '승인완료')) {
+       const type = currentReview.item.status === '승인완료' ? 'approve' : 'reject';
+       const msg = currentReview.item.status === '반려' && currentReview.item.violationLog 
+          ? `[${currentReview.item.violationLog}] 건은 반려되었습니다.`
+          : `${type === 'approve' ? '승인' : '반려'}되었습니다.`;
+       setActionLogs([{ text: msg, type, isDeleted: false }]);
+    } else {
+       setActionLogs([]);
+    }
+
+    const input = document.getElementById('reviewMsgInput');
+    if (input) input.value = '';
+  }, [reviewIndex, isReviewPanelOpen, allPendingRequests]);
 
   const totals = useMemo(() => {
     const monthFiltered = rawSettlements.filter(s => s.date && s.date.startsWith(selectedMonth.replace('.', '-')));
@@ -377,7 +405,7 @@ export default function App() {
                 ))}
               </div>
 
-              {currentReview && (
+              {currentReview ? (
                 <>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
                     <div className="user-name" style={{ fontSize: '0.95rem', fontWeight: 900 }}>{currentReview.user.name}</div>
@@ -388,7 +416,9 @@ export default function App() {
                   <div className="receipt-card" style={{ padding: '1.25rem' }}>
                     <div className="receipt-header">
                       <span className="receipt-date">{currentReview.item.date.split(' ')[0]}</span>
-                      <span className="receipt-status-chip">보류</span>
+                      <span className="receipt-status-chip" style={currentReview.item.status === '승인완료' ? {background: '#E2F5EC', color: '#1E8A4A'} : currentReview.item.status === '반려' ? {background: '#FEE2E2', color: '#E24B4A'} : {}}>
+                        {currentReview.item.status === '승인완료' ? '승인완료' : currentReview.item.status === '반려' ? '반려' : '예외요청'}
+                      </span>
                     </div>
                     <div className="receipt-title">
                       휴게음식점 · {currentReview.item.desc}
@@ -414,14 +444,6 @@ export default function App() {
                       <div className="chat-meta">4월 15일 오전 11:07</div>
                     </div>
 
-                    <div className="bubble-wrap admin">
-                      <div className="chat-bubble admin" style={{ padding: '0.85rem 1.15rem', background: '#fff' }}>
-                        검토 중입니다.<br />
-                        추가 문의 사항이 있으시면 댓글을 남겨주세요.
-                      </div>
-                      <div className="chat-meta">관리자 · 4월 15일 오전 11:12</div>
-                    </div>
-
                     {actionLogs.map((log, logIdx) => (
                       <div key={logIdx} className={`bubble-wrap admin ${log.isDeleted ? 'is-deleted' : ''}`} style={{ marginTop: '0.5rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -431,8 +453,10 @@ export default function App() {
                           {!log.isDeleted && (
                             <button 
                               className="btn-msg-del" 
-                              onClick={() => {
-                                setActionLogs(prev => prev.map((item, i) => i === logIdx ? { ...item, isDeleted: true } : item));
+                              onClick={async () => {
+                                const newLogs = actionLogs.map((item, i) => i === logIdx ? { ...item, isDeleted: true } : item);
+                                setActionLogs(newLogs);
+                                await updateSettlementStatus(currentReview.item.id, '보류', JSON.stringify(newLogs));
                               }} 
                               title="삭제" style={{ padding: '0 4px', display: 'flex', alignItems: 'center' }}
                             >
@@ -441,7 +465,7 @@ export default function App() {
                           )}
                         </div>
                         <div className="chat-meta">
-                          관리자 · 방금 전 {log.isDeleted && <span className="deleted-label">· 삭제됨</span>}
+                          관리자 · {log.isDeleted ? "삭제됨 · " : ""} {log.time ? new Date(log.time).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" }) : "방금 전"}
                         </div>
                       </div>
                     ))}
@@ -450,14 +474,14 @@ export default function App() {
 
                   {/* Sticky Footer */}
                   <div className="panel-footer-fixed">
-                    {/* Disable if the last message is NOT deleted */}
-                    <div className={`message-pill-container ${(actionLogs.length > 0 && !actionLogs[actionLogs.length - 1].isDeleted) ? 'disabled' : ''}`}>
+                    {/* Disable if the last message is NOT deleted OR if it's already processed and loaded */}
+                    <div className={`message-pill-container ${((actionLogs.length > 0 && !actionLogs[actionLogs.length - 1].isDeleted) || (actionLogs.length === 0 && (currentReview.item.status === '승인완료' || currentReview.item.status === '반려'))) ? 'disabled' : ''}`}>
                       <input
                         type="text"
                         id="reviewMsgInput"
                         className="message-pill-input"
                         placeholder="반려 또는 승인 사유를 입력하세요."
-                        disabled={actionLogs.length > 0 && !actionLogs[actionLogs.length - 1].isDeleted}
+                        disabled={((actionLogs.length > 0 && !actionLogs[actionLogs.length - 1].isDeleted) || (actionLogs.length === 0 && (currentReview.item.status === '승인완료' || currentReview.item.status === '반려')))}
                       />
                     </div>
                     <div className="cta-group" style={{ alignItems: 'center' }}>
@@ -471,7 +495,7 @@ export default function App() {
 
                       <button
                         className="btn-cta reject"
-                        disabled={actionLogs.length > 0 && !actionLogs[actionLogs.length - 1].isDeleted}
+                        disabled={((actionLogs.length > 0 && !actionLogs[actionLogs.length - 1].isDeleted) || (actionLogs.length === 0 && (currentReview.item.status === '승인완료' || currentReview.item.status === '반려')))}
                         onClick={() => handleReject(currentReview.item.id)}
                       >
                         반려
@@ -479,7 +503,7 @@ export default function App() {
 
                       <button
                         className="btn-cta approve"
-                        disabled={actionLogs.length > 0 && !actionLogs[actionLogs.length - 1].isDeleted}
+                        disabled={((actionLogs.length > 0 && !actionLogs[actionLogs.length - 1].isDeleted) || (actionLogs.length === 0 && (currentReview.item.status === '승인완료' || currentReview.item.status === '반려')))}
                         onClick={() => handleApprove(currentReview.item.id)}
                       >
                         승인
@@ -495,6 +519,10 @@ export default function App() {
                     </div>
                   </div>
                 </>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '5rem 0', color: '#999', fontSize: '1.05rem', fontWeight: 600 }}>
+                  해당 월에 신청된 예외 정산 건이 없습니다.
+                </div>
               )}
             </div>
           </div>
