@@ -9,23 +9,11 @@
     <link rel="manifest" href="/manifest.json" />
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      html { height: 100%; background: #FFFBF0; }
-      body { height: 100%; overflow: hidden; background: #FFFBF0; }
-      #root { height: 100%; display: flex; background: #FFFBF0; }
-      .splash { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; width: 100vw; background: #FFFBF0; flex: 1; }
-      .splash img { width: 180px; height: auto; margin-bottom: 24px; animation: pulse 2s infinite ease-in-out; }
-      .splash h1 { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-weight: 900; font-size: 28px; color: #000; letter-spacing: -1px; }
-      .splash span { color: #FEC601; margin: 0 4px; }
-      @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+      html, body, #root { width: 100%; height: 100%; height: 100vh; background-color: #FFFBF0; }
     </style>
   </head>
   <body>
-    <div id="root">
-      <div class="splash">
-        <img src="/zaleat.png" alt="ZAL" />
-        <h1>ZAL<span>:</span>잘먹</h1>
-      </div>
-    </div>
+    <div id="root"></div>
     <script type="module" src="/src/employee/main.jsx"></script>
   </body>
 </html>

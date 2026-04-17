@@ -3,12 +3,18 @@
   "short_name": "잘먹",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#FFFBF0",
+  "theme_color": "#FFFBF0",
   "icons": [
     {
       "src": "/bi_zaleat.png",
-      "sizes": "192x192 512x512",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/zaleat.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     }
