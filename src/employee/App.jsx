@@ -65,36 +65,42 @@ const C = {
 
 const DAYS = ["월", "화", "수", "목", "금"];
 
-function getWeekDates(year, month, week) {
-  const dates = [];
+function getWeeksInMonth(year, month) {
+  const weeks = [];
   const firstDay = new Date(year, month - 1, 1);
-  const day = firstDay.getDay(); 
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  const firstMonday = new Date(firstDay);
-  firstMonday.setDate(firstDay.getDate() + diffToMonday);
-  firstMonday.setDate(firstMonday.getDate() + (week - 1) * 7);
-  for (let i = 0; i < 5; i++) {
-    const d = new Date(firstMonday);
-    d.setDate(firstMonday.getDate() + i);
-    dates.push(d);
+  const lastDay = new Date(year, month, 0);
+  
+  let current = new Date(firstDay);
+  // Find Monday of the week containing the first day
+  while (current.getDay() !== 1) {
+    current.setDate(current.getDate() - 1);
   }
-  return dates;
+  
+  while (current <= lastDay) {
+    const week = [];
+    let hasDayInMonth = false;
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(current);
+      d.setDate(current.getDate() + i);
+      if (d.getMonth() + 1 === month && d.getFullYear() === year) {
+        week.push(d);
+        hasDayInMonth = true;
+      } else {
+        week.push(null);
+      }
+    }
+    if (hasDayInMonth) weeks.push(week);
+    current.setDate(current.getDate() + 7);
+  }
+  return weeks;
+}
+
+function getWeekDates(year, month, week) {
+  return getWeeksInMonth(year, month)[week - 1] || [];
 }
 
 function getWeekCount(year, month) {
-  const firstDay = new Date(year, month - 1, 1);
-  const lastDay = new Date(year, month, 0);
-  const day = firstDay.getDay();
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  const firstMonday = new Date(firstDay);
-  firstMonday.setDate(firstDay.getDate() + diffToMonday);
-  let count = 0;
-  let cur = new Date(firstMonday);
-  while (cur <= lastDay) { 
-    count++; 
-    cur.setDate(cur.getDate() + 7); 
-  }
-  return count;
+  return getWeeksInMonth(year, month).length;
 }
 
 function Badge({ status }) {
@@ -442,12 +448,16 @@ export default function App() {
     const now = new Date();
     const y = now.getFullYear();
     const m = now.getMonth() + 1;
-    const maxW = getWeekCount(y, m);
-    let targetW = 1;
     const todayStr = `${y}-${String(m).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    for (let w = 1; w <= maxW; w++) {
-      const dates = getWeekDates(y, m, w).map(d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
-      if (dates.includes(todayStr)) { targetW = w; break; }
+    
+    const weeks = getWeeksInMonth(y, m);
+    let targetW = 1;
+    for (let i = 0; i < weeks.length; i++) {
+      const dStrs = weeks[i].filter(d => d !== null).map(d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+      if (dStrs.includes(todayStr)) {
+        targetW = i + 1;
+        break;
+      }
     }
     return { y, m, w: targetW };
   };
@@ -647,7 +657,7 @@ export default function App() {
           const maxW = getWeekCount(y, m);
           let targetWeek = selWeek;
           for (let w = 1; w <= maxW; w++) {
-            const wds = getWeekDates(y, m, w).map(dateObj => {
+            const wds = getWeekDates(y, m, w).filter(d => d !== null).map(dateObj => {
               const yr = dateObj.getFullYear();
               const mo = String(dateObj.getMonth() + 1).padStart(2, '0');
               const da = String(dateObj.getDate()).padStart(2, '0');
@@ -1017,6 +1027,7 @@ export default function App() {
               {(() => {
                 // 이번 주 등록된 영수증 개수 계산
                 const weekSubCount = weekDates.filter(date => {
+                  if (!date) return false;
                   const dStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
                   return subs.some(s => s.date === dStr && (s.status === "승인완료" || s.status === "예외요청" || s.status === "보류" || s.status === "반려"));
                 }).length;
@@ -1025,11 +1036,14 @@ export default function App() {
                 const iconSize = weekSubCount >= 5 ? 74 : weekSubCount === 4 ? 80 : weekSubCount === 3 ? 84 : 88;
 
                 return weekDates.map((date, i) => {
-                  const localY = date.getFullYear();
-                  const localM = String(date.getMonth() + 1).padStart(2, '0');
-                  const localD = String(date.getDate()).padStart(2, '0');
-                  const dateKey = `${localY}-${localM}-${localD}`;
-                  const daySub = subs.find(s => s.date === dateKey && (s.status === "승인완료" || s.status === "예외요청" || s.status === "보류" || s.status === "반려"));
+                  let daySub = null;
+                  if (date) {
+                    const localY = date.getFullYear();
+                    const localM = String(date.getMonth() + 1).padStart(2, '0');
+                    const localD = String(date.getDate()).padStart(2, '0');
+                    const dateKey = `${localY}-${localM}-${localD}`;
+                    daySub = subs.find(s => s.date === dateKey && (s.status === "승인완료" || s.status === "예외요청" || s.status === "보류" || s.status === "반려"));
+                  }
                   
                   const FOOD_IMGS = [
                     "/food_01.webp", "/food_02.webp", "/food_03.webp", 
@@ -1040,7 +1054,9 @@ export default function App() {
                   return (
                     <div key={i} onClick={() => { if(daySub){setSelectedSub(daySub); setStep("detail");} }} style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 8, cursor: daySub ? "pointer" : "default", flex: 1, position: "relative" }}>
                       <div style={{ height: 88, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-                        {daySub ? (
+                        {!date ? (
+                           <img src="/food_00.png" style={{ width: 52, height: 52, opacity: 0.4 }} alt="empty" />
+                        ) : daySub ? (
                           <div style={{ position: "relative" }}>
                             <img 
                               src={foodImg} 
@@ -1065,7 +1081,9 @@ export default function App() {
                         )}
                         
                       </div>
-                      <span style={{ fontSize: 12, fontWeight: 800, color: daySub ? "#111" : "#bbb" }}>{["월","화","수","목","금"][i]} {date.getDate()}</span>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: daySub ? "#111" : "#bbb" }}>
+                        {["월","화","수","목","금"][i]} {date ? date.getDate() : ""}
+                      </span>
                     </div>
                   );
                 });
