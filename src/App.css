@@ -16,10 +16,7 @@
 }
 
 body {
-  font-family: 'Outfit', 'Pretendard', sans-serif;
-  background-color: var(--bg);
-  color: var(--text-main);
-  height: 100vh;
+  margin: 0;
   overflow: hidden;
 }
 
@@ -107,11 +104,25 @@ body {
   letter-spacing: -1px;
   color: var(--text-main);
   outline: none;
-  font-family: 'Outfit', 'Pretendard', 'Pretendard JP', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
 }
 
 .input-main::placeholder {
   color: #D4D4D4;
+}
+
+.select-main {
+  width: 100%;
+  height: 60px;
+  background: transparent;
+  border: none;
+  padding: 0 20px;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--text-main);
+  outline: none;
+  cursor: pointer;
+  appearance: none;
 }
 
 /* Browser Autofill Fix */
@@ -230,7 +241,7 @@ body {
 
 /* Modal Style */
 .modal-overlay {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;

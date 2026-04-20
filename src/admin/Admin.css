@@ -448,12 +448,12 @@ body {
 }
 
 .btn-receipt-view {
-  padding: 4px 10px;
+  padding: 8px 16px;
   border-radius: 20px;
   border: 1.5px solid #000;
   background: white;
-  font-size: 0.7rem;
-  font-weight: 800;
+  font-size: 0.85rem;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -1241,8 +1241,14 @@ body {
   margin-bottom: 24px;
 }
 
-.chat-meta.right { text-align: right; }
-.chat-meta.left { text-align: left; }
+.chat-meta.right { 
+  text-align: right; 
+  align-self: flex-end;
+}
+.chat-meta.left { 
+  text-align: left; 
+  align-self: flex-start;
+}
 
 .chat-input-wrapper {
   position: absolute;

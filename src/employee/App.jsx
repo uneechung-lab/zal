@@ -120,6 +120,13 @@ const Icon = {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7H6V19ZM19 4H15.5L14.5 3H9.5L8.5 4H5V6H19V4Z" fill={color}/>
     </svg>
+  ),
+  Alert: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="12" fill="#E24B4A"/>
+      <path d="M12 7V13" stroke="white" strokeWidth="3" strokeLinecap="round"/>
+      <circle cx="12" cy="17" r="1.5" fill="white"/>
+    </svg>
   )
 };
 
@@ -220,7 +227,7 @@ function BottomSheetPicker({ isOpen, onClose, year, month, week, onConfirm }) {
   );
 }
 
-function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, setReplyTxt, onMarkRead }) {
+function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, setReplyTxt, onMarkRead, allowed, allSubs }) {
   if (!sub) return null;
   let parsedLogs = [];
   try {
@@ -229,11 +236,11 @@ function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, se
         parsedLogs = JSON.parse(reason);
      } else if (reason) {
         const type = (sub.status === "승인완료" || sub.status === "승인") ? "approve" : "reject";
-        parsedLogs = [{ text: `[${reason}] ${type === 'approve' ? '승인' : '반려'}되었습니다.`, type, isDeleted: false }];
+        parsedLogs = [{ text: `[${reason}] ${type === 'approve' ? '승인' : '반려'}되었습니다.`, type, isDeleted: false, sender: 'ai', time: sub.created_at }];
      } else if (sub.status === "반려" || sub.status === "승인완료" || sub.status === "승인") {
         const type = sub.status === "반려" ? "reject" : "approve";
         const msg = sub.status === "반려" ? `[${sub.exc_text || sub.excText || "영수증 정산 요청"}] 건은 반려되었습니다.` : "승인 완료!";
-        parsedLogs = [{ text: msg, type, isDeleted: false }];
+        parsedLogs = [{ text: msg, type, isDeleted: false, sender: 'ai', time: sub.created_at }];
      }
   } catch (e) {}
 
@@ -244,6 +251,13 @@ function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, se
   };
   const finalImage = getImageUrl(sub);
   const scrollRef = useRef(null);
+  const [showShadow, setShowShadow] = useState(false);
+
+  // 스크롤 발생 감지 (그림자 동적 노출)
+  const handleScroll = (e) => {
+    const { scrollTop } = e.target;
+    setShowShadow(scrollTop > 5);
+  };
 
   useEffect(() => {
     if (sub && parsedLogs.length > 0) {
@@ -257,12 +271,14 @@ function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, se
   useEffect(() => {
     if (scrollRef.current) {
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        // 초기 렌더링 시 스크롤 필요 여부 체크 (요약 정보 영역 그림자 목적)
+        setShowShadow(scrollRef.current.scrollTop > 5);
     }
   }, [sub?.id, sub?.status, parsedLogs.length]);
 
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", background: C.bg, overflow: "hidden" }}>
-      <div style={{ zIndex: 5, background: C.bg, flexShrink: 0, position: "relative", boxShadow: "0 10px 20px -10px rgba(0,0,0,0.12)" }}>
+      <div style={{ zIndex: 10, background: C.bg, flexShrink: 0, position: "relative", boxShadow: showShadow ? "0 10px 20px -10px rgba(0,0,0,0.12)" : "none", borderBottom: showShadow ? "1px solid rgba(0,0,0,0.05)" : "none", transition: "0.2s" }}>
         <div style={{ padding: "24px 28px 24px", display: "flex", alignItems: "center", gap: 16 }}>
           <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Icon.Back /></button>
           <span style={{ fontWeight: 800, fontSize: 18 }}>요청 상세</span>
@@ -274,15 +290,41 @@ function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, se
             <div>
               <p style={{ margin: "0 0 6px", fontSize: 13, color: "#999", fontWeight: 700 }}>{sub.date}</p>
               <p style={{ margin: 0, fontSize: 16, fontWeight: 500, color: "#555" }}>{sub.category} · {sub.store_name || sub.storeName}</p>
-              <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8 }}>
-
+              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
+                {(sub.status === "보류" || sub.status === "예외요청" || sub.status === "반려" || sub.status === "승인완료") && (
+                  <div style={{ width: "100%", marginTop: 4 }}>
+                    {(() => {
+                      const detectedIssues = validate(sub, allowed || [], allSubs || [])
+                        .filter(iss => !iss.includes("이미 제출된 내역"));
+                      if (detectedIssues.length === 0) return null;
+                      return detectedIssues.map((issue, idx) => {
+                        const isApproved = sub.status === "승인완료";
+                        return (
+                          <div key={idx} style={{ 
+                            display: "flex", 
+                            alignItems: "flex-start", 
+                            gap: 6, 
+                            color: isApproved ? "rgba(226, 75, 74, 0.4)" : "#e24b4a", 
+                            fontSize: 13, 
+                            fontWeight: 700, 
+                            lineHeight: 1.4, 
+                            marginBottom: 4 
+                          }}>
+                            <span style={{ flexShrink: 0, marginTop: 2, opacity: isApproved ? 0.4 : 1 }}><Icon.Alert size={16} color={isApproved ? "rgba(226, 75, 74, 0.6)" : "#e24b4a"} /></span>
+                            <span style={{ textDecoration: isApproved ? "line-through" : "none" }}>{issue}</span>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                )}
                 <button 
                   onClick={(e) => { 
                     e.stopPropagation();
                     if(finalImage) onShowImg(finalImage);
                     else window.alert("영수증 데이터가 없습니다.");
                   }}
-                  style={{ background: "#fff", border: "1px solid #000", color: "#000", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: "4px 10px", borderRadius: 20, pointerEvents: "auto" }}
+                  style={{ background: "#fff", border: "1.5px solid #000", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", padding: "8px 16px", borderRadius: 20, pointerEvents: "auto", marginTop: 8 }}
                 >
                   영수증 보기
                 </button>
@@ -305,14 +347,21 @@ function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, se
         </div>
       </div>
 
-      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", overflowX: "hidden", paddingBottom: "200px", WebkitOverflowScrolling: "touch" }}>
+      <div ref={scrollRef} onScroll={handleScroll} style={{ flex: 1, overflowY: "auto", overflowX: "hidden", paddingBottom: "200px", WebkitOverflowScrolling: "touch" }}>
         <div style={{ padding: "0 28px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
             <div style={{ background: "#000", color: "#fff", padding: "14px 18px", borderRadius: "18px 2px 18px 18px", maxWidth: "85%", fontSize: 15, lineHeight: 1.5, fontWeight: 500 }}>
-              {sub.exc_text || sub.excText 
-                ? `${sub.exc_text || sub.excText}으로 정산 요청드립니다.` 
-                : "영수증 정산 요청드립니다."}
+              {(() => {
+                const reason = sub.exc_text || sub.excText;
+                if (!reason) return "영수증 정산 요청드립니다.";
+                
+                // 미리 정의된 기본 칩 모음
+                const PRESETS = ["업무 미팅 지연", "야근 후 늦은 점심", "식당 결제 시스템 오류", "외부 미팅 연장"];
+                const isPreset = PRESETS.includes(reason);
+                
+                return isPreset ? `${reason}으로 정산 요청드립니다.` : reason;
+              })()}
             </div>
             <span style={{ fontSize: 11, color: "#bbb", marginTop: 6, fontWeight: 600 }}>
               {(() => {
@@ -343,7 +392,12 @@ function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, se
                     {log.text}
                   </div>
                   <span style={{ fontSize: 11, color: "#bbb", marginTop: 6, fontWeight: 600 }}>
-                    {isUser ? "" : "관리자 · "}{log.isDeleted ? "삭제됨 · " : ""} {log.time ? new Date(log.time).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" }) : "방금 전"}
+                    {(() => {
+                      let label = isUser ? "" : "관리자 · ";
+                      if (log.sender === 'ai') label = "AI 잘먹이 · ";
+                      const timeStr = log.time ? new Date(log.time).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" }) : "방금 전";
+                      return `${label}${log.isDeleted ? "삭제됨 · " : ""}${timeStr}`;
+                    })()}
                   </span>
                 </div>
               );
@@ -538,10 +592,12 @@ export default function App() {
     // 중복 교체 건이 있으면 먼저 삭제
     if (duplicateId) {
       try {
-        await fetch(`${SUPABASE_URL}/rest/v1/settlements?id=eq.${duplicateId}`, {
-          method: "DELETE",
-          headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
-        });
+        const { error } = await supabase
+          .from('settlements')
+          .delete()
+          .eq('id', duplicateId);
+        
+        if (error) throw error;
         setDuplicateId(null);
       } catch (e) {
         console.error("Duplicate Delete Error:", e);
@@ -715,7 +771,8 @@ export default function App() {
         return;
       }
 
-      const duplicateEntry = subs.find(s => s.date === result.date && (s.status === "승인완료" || s.status === "예외요청" || s.status === "승인"));
+      // 중복 체크 (현재 교체하려는 대상은 제외)
+      const duplicateEntry = subs.find(s => s.date === result.date && (s.status === "승인완료" || s.status === "예외요청" || s.status === "승인") && s.id !== duplicateId);
       if (duplicateEntry) {
         setDuplicateDate(result.date);
         setDuplicateId(duplicateEntry.id);
@@ -743,33 +800,26 @@ export default function App() {
     setFile(f);
     processFile(f);
   };
-
-
   const handleReplace = async () => {
     if (!duplicateId) return;
-    setModal("checking");
     try {
-      // 1. 위반 사항 검사
-      const currentIssues = validate(ocr, allowed, subs);
+      // 1. 현재 판독된 영수증(ocr)의 위반 사항 검사 (중복 항목은 이미 확인했으므로 제외)
+      const currentIssues = validate(ocr, allowed, subs).filter(iss => !iss.includes("이미 제출된 내역"));
       setIssues(currentIssues);
 
-      // 위반 사항이 있으면 결과 페이지로 이동 (교체는 아직 안 함)
       if (currentIssues.length > 0) {
+        // 중복 외에 다른 위반 사항(시간, 업종 등)이 있으면 결과 안내 페이지로 이동
         setModal(null);
         setStep("result");
-        return;
+      } else {
+        // 중복 외에 다른 문제가 없으면 바로 등록 프로세스 진행
+        // submit 함수 내부에서 duplicateId가 있으면 삭제 처리를 수행하므로 여기서 중복 삭제하지 않음
+        setModal("checking");
+        await submit(false, ocr);
       }
-
-      // 2. 위반 사항 없으면 기존 삭제 후 새것 제출
-      await fetch(`${SUPABASE_URL}/rest/v1/settlements?id=eq.${duplicateId}`, {
-        method: "DELETE",
-        headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
-      });
-      await submit(false, ocr);
-      setDuplicateId(null);
     } catch (e) {
       console.error(e);
-      alert("교체에 실패했습니다.");
+      alert("교체 처리 중 오류가 발생했습니다.");
       setModal(null);
     }
   };
@@ -924,53 +974,62 @@ export default function App() {
           </div>
           <div style={{ padding: "0 14px 48px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 0, transform: `translateX(${dragX * 0.7}px)`, transition: dragX === 0 ? "transform 0.3s ease-out" : "none" }}>
-              {weekDates.map((date, i) => {
-                const localY = date.getFullYear();
-                const localM = String(date.getMonth() + 1).padStart(2, '0');
-                const localD = String(date.getDate()).padStart(2, '0');
-                const dateKey = `${localY}-${localM}-${localD}`;
-                const daySub = subs.find(s => s.date === dateKey && (s.status === "승인완료" || s.status === "예외요청" || s.status === "보류" || s.status === "반려"));
+              {(() => {
+                // 이번 주 등록된 영수증 개수 계산
+                const weekSubCount = weekDates.filter(date => {
+                  const dStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                  return subs.some(s => s.date === dStr && (s.status === "승인완료" || s.status === "예외요청" || s.status === "보류" || s.status === "반려"));
+                }).length;
                 
-                const FOOD_IMGS = [
-                  "/food_01.webp", "/food_02.webp", "/food_03.webp", 
-                  "/food_04.png", "/food_05.png", "/food_06.png"
-                ];
-                // Use i (0-4) directly to ensure zero duplicates within a 5-day week
-                const foodImg = FOOD_IMGS[i % FOOD_IMGS.length];
+                // 개수에 따른 아이콘 크기 결정 (3개부터 점진적 축소)
+                const iconSize = weekSubCount >= 5 ? 74 : weekSubCount === 4 ? 80 : weekSubCount === 3 ? 84 : 88;
 
+                return weekDates.map((date, i) => {
+                  const localY = date.getFullYear();
+                  const localM = String(date.getMonth() + 1).padStart(2, '0');
+                  const localD = String(date.getDate()).padStart(2, '0');
+                  const dateKey = `${localY}-${localM}-${localD}`;
+                  const daySub = subs.find(s => s.date === dateKey && (s.status === "승인완료" || s.status === "예외요청" || s.status === "보류" || s.status === "반려"));
+                  
+                  const FOOD_IMGS = [
+                    "/food_01.webp", "/food_02.webp", "/food_03.webp", 
+                    "/food_04.png", "/food_05.png", "/food_06.png"
+                  ];
+                  const foodImg = FOOD_IMGS[i % FOOD_IMGS.length];
 
-                return (
-                  <div key={i} onClick={() => { if(daySub){setSelectedSub(daySub); setStep("detail");} }} style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 8, cursor: daySub ? "pointer" : "default", flex: 1, position: "relative" }}>
-                    <div style={{ height: 88, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-                      {daySub ? (
-                        <div style={{ position: "relative" }}>
-                          <img 
-                            src={foodImg} 
-                            style={{ 
-                              width: 88, 
-                              height: 88, 
-                              objectFit: "contain", 
-                              filter: daySub.status === "반려" ? "grayscale(100%) opacity(0.5)" : "none",
-                              transform: (foodImg.includes("food_04") || foodImg.includes("food_05")) ? "scale(0.85)" : "none"
-                            }} 
-                            alt="food" 
-                          />
-                          {(daySub.status === "예외요청" || daySub.status === "보류") && (
-                            <div style={{ position: "absolute", top: 2, right: 0, background: "#E24B4A", color: "#fff", fontSize: 11, fontWeight: 900, padding: "3px 6px", borderRadius: 8, border: "2.5px solid #FFFBF0" }}>보류</div>
-                          )}
-                          {daySub.status === "반려" && (
-                            <div style={{ position: "absolute", top: 2, right: 0, background: "#999", color: "#fff", fontSize: 11, fontWeight: 900, padding: "3px 6px", borderRadius: 8, border: "2.5px solid #FFFBF0" }}>반려</div>
-                          )}
-                        </div>
-                      ) : (
-                        <img src="/food_00.png" style={{ width: 52, height: 52, opacity: 0.6 }} alt="empty" />
-                      )}
-                      
+                  return (
+                    <div key={i} onClick={() => { if(daySub){setSelectedSub(daySub); setStep("detail");} }} style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 8, cursor: daySub ? "pointer" : "default", flex: 1, position: "relative" }}>
+                      <div style={{ height: 88, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                        {daySub ? (
+                          <div style={{ position: "relative" }}>
+                            <img 
+                              src={foodImg} 
+                              style={{ 
+                                width: iconSize, 
+                                height: iconSize, 
+                                objectFit: "contain", 
+                                filter: daySub.status === "반려" ? "grayscale(100%) opacity(0.5)" : "none",
+                                transform: (foodImg.includes("food_04") || foodImg.includes("food_05")) ? "scale(0.85)" : "none"
+                              }} 
+                              alt="food" 
+                            />
+                            {(daySub.status === "예외요청" || daySub.status === "보류") && (
+                              <div style={{ position: "absolute", top: 2, right: 0, background: "#E24B4A", color: "#fff", fontSize: 11, fontWeight: 900, padding: "3px 6px", borderRadius: 8, border: "2.5px solid #FFFBF0" }}>보류</div>
+                            )}
+                            {daySub.status === "반려" && (
+                              <div style={{ position: "absolute", top: 2, right: 0, background: "#999", color: "#fff", fontSize: 11, fontWeight: 900, padding: "3px 6px", borderRadius: 8, border: "2.5px solid #FFFBF0" }}>반려</div>
+                            )}
+                          </div>
+                        ) : (
+                          <img src="/food_00.png" style={{ width: 52, height: 52, opacity: 0.6 }} alt="empty" />
+                        )}
+                        
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: daySub ? "#111" : "#bbb" }}>{["월","화","수","목","금"][i]} {date.getDate()}</span>
                     </div>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: daySub ? "#111" : "#bbb" }}>{["월","화","수","목","금"][i]} {date.getDate()}</span>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
           </div>
           <div style={{ padding: "0 28px", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -1594,6 +1653,8 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
       replyTxt={replyText} 
       setReplyTxt={setReplyText} 
       onMarkRead={markAsRead}
+      allowed={allowed}
+      allSubs={subs}
     /> 
   };
 
@@ -1627,8 +1688,13 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
             <h3 style={{ fontSize: 19, fontWeight: 800, color: "#111", margin: "0 0 12px", letterSpacing: "-0.5px" }}>이미 제출된 내역이 있습니다.</h3>
             <p style={{ fontSize: 14, color: "#666", margin: "0 0 32px", lineHeight: 1.6, fontWeight: 500 }}>해당 날짜({duplicateDate})에 이미 제출된<br/>영수증 내역이 존재합니다.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <button onClick={handleReplace} style={{ width: "100%", padding: "18px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>영수증 교체하기</button>
-              <button onClick={onClose} style={{ width: "100%", padding: "16px", borderRadius: 16, border: "1.5px solid #eee", background: "#fff", color: "#999", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>취소</button>
+              <button 
+                onClick={handleReplace} 
+                style={{ width: "100%", padding: "18px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer" }}
+              >
+                영수증 교체하기
+              </button>
+              <button onClick={() => { setDuplicateId(null); setModal(null); }} style={{ width: "100%", padding: "16px", borderRadius: 16, border: "1.5px solid #eee", background: "#fff", color: "#999", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>취소</button>
             </div>
           </>
         ) : type === "invalid_month" ? (
@@ -1691,19 +1757,78 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
   return (
     <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "#f2f2eb", fontFamily: "'Outfit', 'Pretendard', sans-serif", letterSpacing: "-0.5px" }}>
       <style>{`
-        @media (max-width: 1060px) { .desktop-panel { display: none !important; } .app-container { width: 100% !important; border-left: none !important; } }
+        @media (max-width: 1060px) { 
+          .desktop-panel { display: none !important; } 
+          .app-container { width: 100% !important; border-left: none !important; } 
+          .main-ci { display: none !important; }
+          .admin-btn { display: none !important; }
+        }
+        .desktop-panel, .brand-title-wrap, .feature-list-wrap, .visual-img-wrap, .main-ci {
+          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @media (max-height: 860px) {
+          .desktop-panel { padding-top: 60px !important; }
+          .brand-title-wrap { margin-top: 0 !important; }
+          .feature-list-wrap { margin-top: 24px !important; }
+          .visual-img-wrap { margin-top: 40px !important; }
+          .main-ci { top: 30px !important; height: 50px !important; }
+        }
+        @media (max-height: 720px) {
+          .desktop-panel { padding-top: 30px !important; }
+          .feature-list-wrap { margin-top: 16px !important; }
+          .visual-img-wrap { margin-top: 20px !important; }
+        }
         @media (max-height: 820px) { .footer-copy { display: none !important; } }
         :root { --side-pad: 32px; --item-gap: 64px; --btn-bot: 60px; }
         @media (max-width: 480px) { :root { --side-pad: 28px; --item-gap: 40px; --btn-bot: 40px; } }
       `}</style>
-      <div className="desktop-panel" style={{ width: 840, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", paddingRight: 320, paddingLeft: 60 }}>
-        <div style={{ marginTop: 120 }}>
-          <h1 style={{ fontSize: 56, fontWeight: 900, lineHeight: 1.15, letterSpacing: "-2px", color: "#000" }}>점심 한 끼,<br />10초에 정산!</h1>
-          <p style={{ fontSize: 18, color: "rgba(0,0,0,0.6)", marginTop: 24, fontWeight: 600 }}>영수증 사진 한 장이면 충분합니다.</p>
-          <img src="/zaleat_cc.png" style={{ marginTop: 80, width: "100%", maxWidth: 440, objectFit: "contain" }} alt="zaleat_visual" />
+      <img src="/ci.png" className="main-ci" style={{ position: "fixed", top: 40, left: 40, height: 64, width: "auto", objectFit: "contain", zIndex: 100 }} alt="Company CI" />
+
+      <div className="desktop-panel" style={{ width: 840, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", paddingRight: 320, paddingLeft: 60, paddingTop: 220 }}>
+        <div className="brand-title-wrap" style={{ marginTop: 0 }}>
+          <h1 style={{ fontSize: 56, fontWeight: 900, lineHeight: 1.15, letterSpacing: "-2px", color: "#000" }}>
+            점심 한 끼,<br />
+            <span style={{ position: "relative", display: "inline-block" }}>
+              10초에
+              <div style={{ position: "absolute", bottom: 2, left: -4, right: -4, height: 20, background: "#FEC601", opacity: 0.8, zIndex: -1 }} />
+            </span> 정산!
+          </h1>
+          <p style={{ fontSize: 18, color: "rgba(0,0,0,0.6)", marginTop: 24, fontWeight: 600 }}>영수증 업로드 한 번이면 충분합니다.</p>
+
+          <div className="feature-list-wrap" style={{ marginTop: 48, display: "flex", flexDirection: "column", gap: 16 }}>
+            {[
+              { icon: "✨", t: "AI OCR 영수증 자동 분석", d: "번거로운 입력 없이 업로드 한번으로 끝" },
+              { icon: "📊", t: "실시간 정산 현황 확인", d: "내 승인 내역과 이번 달 한도를 한눈에" },
+              { icon: "🚀", t: "종이 영수증 없는 간편 신청", d: "복잡한 절차 없이 10초면 신청 완료" }
+            ].map((f, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 14, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, boxShadow: "0 8px 20px rgba(0,0,0,0.04)" }}>{f.icon}</div>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: "#111" }}>{f.t}</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: "rgba(0,0,0,0.4)", marginTop: 2 }}>{f.d}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="visual-img-wrap" style={{ position: "relative", width: "100%", maxWidth: 440, marginTop: 80 }}>
+            <img src="/zaleat_cc.png" style={{ width: "100%", objectFit: "contain", display: "block", position: "relative", zIndex: 2 }} alt="zaleat_visual" />
+            <div style={{ 
+              position: "absolute", 
+              bottom: "40px", 
+              left: "50%", 
+              transform: "translateX(calc(-50% + 10px))", 
+              width: "95%", 
+              height: "32px", 
+              background: "rgba(0,0,0,0.3)", 
+              borderRadius: "50%", 
+              filter: "blur(10px)",
+              zIndex: 1
+            }} />
+          </div>
         </div>
       </div>
-      <div className="app-container" style={{ width: 460, flexShrink: 0, height: "calc(var(--vh, 1vh) * 100)", boxShadow: "30px 30px 60px -15px rgba(0,0,0,0.12)", borderLeft: "1px solid rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", background: "#FFFBF0" }}>
+      <div className="app-container" style={{ width: 460, flexShrink: 0, height: "100%", boxShadow: "30px 30px 60px -15px rgba(0,0,0,0.12)", borderLeft: "1px solid rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", background: "#FFFBF0" }}>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative", height: "100%", overflow: "hidden" }}>
           {screens[step] || <AppHome />}
         </div>
@@ -1741,6 +1866,30 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
         )}
         <BottomSheetPicker isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)} year={selYear} month={selMonth} week={selWeek} onConfirm={(y, m, w) => { setSelYear(y); setSelMonth(m); setSelWeek(w); }} />
       </div>
+      <a 
+        href="/admin.html" 
+        target="_blank"
+        rel="noopener noreferrer"
+        className="admin-btn"
+        style={{ 
+          position: "fixed", 
+          bottom: 24, 
+          right: 24, 
+          background: "#000", 
+          color: "#fff", 
+          padding: "10px 20px", 
+          borderRadius: "12px", 
+          fontSize: "12px", 
+          fontWeight: 800, 
+          textDecoration: "none", 
+          zIndex: 10000,
+          transition: "0.2s"
+        }}
+        onMouseOver={e => e.currentTarget.style.transform = "translateY(-2px)"}
+        onMouseOut={e => e.currentTarget.style.transform = "translateY(0)"}
+      >
+        ADMIN
+      </a>
     </div>
   );
 }

@@ -20,6 +20,47 @@ const getMonthWeekdays = (monthStr) => {
 };
 
 // Data transformation helper
+const Icon = {
+  Alert: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="12" fill="#E24B4A"/>
+      <path d="M12 7V13" stroke="white" strokeWidth="3" strokeLinecap="round"/>
+      <circle cx="12" cy="17" r="1.5" fill="white"/>
+    </svg>
+  )
+};
+
+function validate(d, allowed, existingSubs = []) {
+  const issues = [];
+  const isDup = existingSubs.some(s => s.date === d.date && s.id !== d.id);
+  if (isDup) issues.push("해당 날짜( " + d.date + " )에 이미 제출된 내역이 있습니다.");
+  // 시간 검사
+  if (!d.time || !d.time.includes(":")) {
+    issues.push("시간 정보를 확인할 수 없습니다.");
+  } else {
+    const [h, m] = d.time.split(":").map(Number);
+    const tot = h * 60 + m;
+    if (tot < 600 || tot > 840) issues.push(`결제 시간(${d.time})이 정산 허용 시간(10:00~14:00)을 지났습니다.`);
+  }
+  // 날짜 검사
+  if (!d.date) {
+    issues.push("날짜 정보를 확인할 수 없습니다.");
+  } else {
+    const dow = new Date(d.date).getDay();
+    if (dow === 0 || dow === 6) issues.push("주말/공휴일 사용은 지원되지 않습니다.");
+  }
+  // 업종 검사
+  const catMatch = allowed.some(t => {
+    const cStr = (d.category || "").split(/[\/,·\s]/);
+    return cStr.some(c => c.trim().includes(t) || t.includes(c.trim()));
+  });
+  if (!catMatch) issues.push("지원 업종이 아닙니다. (업종: " + (d.category || "미확인") + ")");
+  // 금액 검사
+  const cleanAmt = String(d.amount || "").replace(/[^\d]/g, "");
+  if (!cleanAmt || parseInt(cleanAmt) <= 0) issues.push("금액 정보를 확인할 수 없습니다.");
+  
+  return issues;
+}
 const transformData = (settlements, profiles, month) => {
   const filtered = settlements.filter(s => s.date && s.date.startsWith(month.replace('.', '-')));
   const usersMap = {};
@@ -108,6 +149,7 @@ export default function App() {
   const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
   const [historyInput, setHistoryInput] = useState("");
   const [historyChats, setHistoryChats] = useState({});
+  const [allowedCategories, setAllowedCategories] = useState([]);
   const chatEndRef = useRef(null);
 
   const pagerRef = useRef(null);
@@ -211,28 +253,29 @@ export default function App() {
 
   const fetchData = async () => {
     setLoading(true);
-    
-    // Fetch settlements
     const { data: sData, error: sError } = await supabase
       .from('settlements')
       .select('*')
       .order('created_at', { ascending: false });
-    
     if (!sError) setRawSettlements(sData || []);
 
-    // Try to fetch all user profiles
     const { data: pData, error: pError } = await supabase
       .from('profiles')
       .select('*');
-    
-    if (!pError) {
-      setAllProfiles(pData || []);
-    } else {
-      console.warn("Profiles table not found or inaccessible. Showing submitted users only.");
-    }
+    if (!pError) setAllProfiles(pData || []);
     
     setLoading(false);
   };
+
+  const fetchCategories = async () => {
+    const { data, error } = await supabase.from('allowed_categories').select('name');
+    if (!error) setAllowedCategories(data.map(d => d.name));
+    else setAllowedCategories(["음식점","한식","중식","일식","양식","분식","카페","커피전문점","제과점","베이커리","편의점","슈퍼마켓","백화점","푸드코트"]);
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
   const [selectedMonth, setSelectedMonth] = useState("2026.04");
 
@@ -265,12 +308,17 @@ export default function App() {
       .forEach(s => {
       if (s.status === "예외요청" || s.status === "보류" || s.status === "반려" || (s.status === "승인완료" && (s.exc_text || s.excText))) {
         requests.push({ 
-          user: { name: s.user_name || "미지정", department: s.department || "기타" }, 
+          user: { 
+            name: s.user_name || "미지정", 
+            department: allProfiles.find(p => (p.full_name || p.name) === s.user_name)?.department || "기타"
+          }, 
           item: {
             id: s.id,
             date: s.date + " " + (s.time || ""),
+            time: s.time,
             amount: parseInt(s.amount || 0),
             desc: s.store_name || s.storeName || "상호명 없음",
+            category: s.category,
             violation: true,
             violationLog: s.exc_text || s.excText,
             status: s.status,
@@ -281,7 +329,7 @@ export default function App() {
       }
     });
     return requests;
-  }, [rawSettlements, selectedMonth]);
+  }, [rawSettlements, selectedMonth, allProfiles]);
 
   useEffect(() => {
     if (isReviewPanelOpen && pagerRef.current) {
@@ -304,11 +352,11 @@ export default function App() {
           setActionLogs([]);
        }
     } else if (currentReview && (currentReview.item.status === '반려' || currentReview.item.status === '승인완료')) {
-       const type = currentReview.item.status === '승인완료' ? 'approve' : 'reject';
-       const msg = currentReview.item.status === '반려' && currentReview.item.violationLog 
-          ? `[${currentReview.item.violationLog}] 건은 반려되었습니다.`
-          : `${type === 'approve' ? '승인' : '반려'}되었습니다.`;
-       setActionLogs([{ text: msg, type, sender: 'admin', isDeleted: false }]);
+        const type = currentReview.item.status === '승인완료' ? 'approve' : 'reject';
+        const msg = currentReview.item.status === '반려' && currentReview.item.violationLog 
+           ? `[${currentReview.item.violationLog}] 건은 반려되었습니다.`
+           : `${type === 'approve' ? '승인 완료!' + (currentReview.item.violationLog ? `\n(${currentReview.item.violationLog})` : '') : '반려되었습니다.'}`;
+        setActionLogs([{ text: msg, type, sender: type === 'approve' ? 'ai' : 'admin', isDeleted: false }]);
     } else {
        setActionLogs([]);
     }
@@ -508,10 +556,43 @@ export default function App() {
                         {currentReview.item.status === '승인완료' ? '승인완료' : currentReview.item.status === '반려' ? '반려' : '예외요청'}
                       </span>
                     </div>
-                    <div className="receipt-title">
-                      휴게음식점 · {currentReview.item.desc}
+                    <div className="receipt-title" style={{ fontWeight: 500, fontSize: '0.9rem', color: '#666', marginTop: 8, marginBottom: 12 }}>
+                      {currentReview.item.category || "기타"} · {currentReview.item.desc}
                     </div>
-                    {/* Always show violation in UI demo */}
+                    {/* Violation Items */}
+                    <div style={{ marginBottom: 20 }}>
+                      {(() => {
+                        const dObj = { 
+                          id: currentReview.item.id, 
+                          date: currentReview.item.date.split(' ')[0], 
+                          time: currentReview.item.time,
+                          category: currentReview.item.category,
+                          amount: currentReview.item.amount
+                        };
+                        const issues = validate(dObj, allowedCategories, rawSettlements);
+                        // 상세 뷰에서는 중복 안내 필터링 (사용자 앱과 동일)
+                        const filteredIssues = issues.filter(iss => !iss.includes("이미 제출된 내역"));
+                        if (filteredIssues.length === 0) return null;
+                        return filteredIssues.map((iss, idx) => {
+                          const isApproved = currentReview.item.status === '승인완료';
+                          return (
+                            <div key={idx} style={{ 
+                              display: "flex", 
+                              alignItems: "flex-start", 
+                              gap: 6, 
+                              color: isApproved ? "rgba(226, 75, 74, 0.4)" : "#e24b4a", 
+                              fontSize: '0.85rem', 
+                              fontWeight: 700, 
+                              lineHeight: 1.4, 
+                              marginBottom: 4 
+                            }}>
+                              <span style={{ flexShrink: 0, marginTop: 1, opacity: isApproved ? 0.4 : 1 }}><Icon.Alert size={15} color={isApproved ? "rgba(226, 75, 74, 0.4)" : "#e24b4a"} /></span>
+                              <span style={{ textDecoration: isApproved ? 'line-through' : 'none' }}>{iss}</span>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
                     <div className="receipt-violation">
                       {currentReview.item.image_url && (
                         <button className="btn-receipt-view" onClick={() => window.open(currentReview.item.image_url, '_blank')}>영수증 보기</button>
@@ -524,11 +605,23 @@ export default function App() {
 
                   {/* Chat Container */}
                   <div className="chat-container">
-                    <div className="bubble-wrap user">
+                    <div className="bubble-wrap user" style={{ alignItems: 'flex-end', width: '100%' }}>
                       <div className="chat-bubble user" style={{ padding: '0.85rem 1.15rem' }}>
                         {currentReview.item.violationLog || "영수증 정산 요청드립니다."}
                       </div>
-                      <div className="chat-meta">{currentReview.item.date.split(' ')[0]}</div>
+                      <div className="chat-meta" style={{ textAlign: 'right', alignSelf: 'flex-end', width: '100%', marginTop: '4px' }}>
+                        {currentReview.item.date ? (() => {
+                          const d = new Date(currentReview.item.date);
+                          const dateStr = `${d.getMonth() + 1}월 ${d.getDate()}일`;
+                          const timeStr = currentReview.item.time ? (() => {
+                            const [h, m] = currentReview.item.time.split(':').map(Number);
+                            const period = h < 12 ? '오전' : '오후';
+                            const hour = h % 12 || 12;
+                            return `${period} ${hour}:${m.toString().padStart(2, '0')}`;
+                          })() : "";
+                          return `${dateStr} ${timeStr}`;
+                        })() : "방금 전"}
+                      </div>
                     </div>
 
                     {actionLogs.map((log, logIdx) => {
@@ -553,8 +646,8 @@ export default function App() {
                               </button>
                             )}
                           </div>
-                          <div className="chat-meta" style={{ textAlign: isUser ? 'right' : 'left' }}>
-                            {isUser ? currentReview.user.name : "관리자"} · {log.isDeleted ? "삭제됨 · " : ""} {log.time ? new Date(log.time).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" }) : "방금 전"}
+                          <div className="chat-meta" style={{ textAlign: isUser ? 'right' : 'left', width: '100%', marginTop: '4px' }}>
+                            {isUser ? currentReview.user.name : (log.sender === 'ai' ? "AI 잘먹이" : "관리자")} · {log.isDeleted ? "삭제됨 · " : ""} {log.time ? new Date(log.time).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" }) : "방금 전"}
                           </div>
                         </div>
                       );
@@ -674,6 +767,7 @@ export default function App() {
                 <div className="card-header">
                   <div>
                     <div className="user-name">{user.name}</div>
+                    <div className="dept-label">{user.department}</div>
                   </div>
                   {user.count > 0 && (
                     <button
@@ -879,14 +973,14 @@ export default function App() {
                       </div>
                       <div className="chat-meta right">4월 13일 오후 5:25</div>
 
-                      <div className="chat-bubble admin">
+                      <div className={`chat-bubble admin ${!selectedHistoryItem.violation ? 'bg-green' : ''}`}>
                         {selectedHistoryItem.violation ? (
                           <>보류 사유 안내드립니다.<br/>{selectedHistoryItem.violationLog || "정산 기준 미준수 건입니다."}</>
                         ) : (
-                          <>승인 완료!<br/>익월 22일에 입금 됩니다.</>
+                          <>승인 완료!{selectedHistoryItem.violationLog ? <><br/><span style={{ fontSize: '0.9em', color: '#e24b4a', opacity: 0.5, textDecoration: 'line-through' }}>({selectedHistoryItem.violationLog})</span></> : ""}</>
                         )}
                       </div>
-                      <div className="chat-meta left">관리자 · 4월 13일 오후 5:30</div>
+                      <div className="chat-meta left">{selectedHistoryItem.violation ? "관리자" : "AI 잘먹이"} · 4월 13일 오후 5:30</div>
 
                       {/* Dynamic Chats */}
                       {historyChats[selectedHistoryItem.id]?.map((chat, ci) => (
