@@ -96,25 +96,24 @@ const transformData = (settlements, profiles, month) => {
   // Merge current month settlements into the map
   filtered.forEach(s => {
     const userName = s.user_name || "미지정";
-    // user entry is guaranteed to exist due to Step 3
     const u = usersMap[userName];
     
     const amt = parseInt(s.amount || 0);
     const isPending = s.status === "예외요청" || s.status === "보류";
     const isRejected = s.status === "반려";
 
+    // "Replacing" logic: If there's another settlement on the same date that is NOT rejected,
+    // we assume this rejected one was replaced.
+    // However, we process all at once. Let's filter later or track by date.
+    
     u.totalSum += amt;
     u.count += 1;
-
-    if (isPending) {
-      u.pendingSpent += amt;
-      u.pendingCount += 1;
-    } else if (isRejected) {
-      u.rejectedSpent += amt;
-    } else {
-      u.approvedSpent += amt;
-    }
     
+    // Store all per date for smarter summation in Step 4
+    if (!u.dailySettlements) u.dailySettlements = {};
+    if (!u.dailySettlements[s.date]) u.dailySettlements[s.date] = [];
+    u.dailySettlements[s.date].push({ status: s.status, amount: amt });
+
     u.history.push({
       id: s.id,
       date: s.date + " " + (s.time || ""),
@@ -124,6 +123,40 @@ const transformData = (settlements, profiles, month) => {
       violationLog: s.exc_text || s.excText,
       status: s.status,
       image_url: s.image_url
+    });
+  });
+
+  // Step 4: Re-calculate totals based on "Final" status per date/meal
+  Object.values(usersMap).forEach(u => {
+    if (!u.dailySettlements) return;
+    
+    // Reset totals that depend on current status
+    u.approvedSpent = 0;
+    u.pendingSpent = 0;
+    u.rejectedSpent = 0;
+    u.pendingCount = 0;
+
+    Object.keys(u.dailySettlements).forEach(date => {
+      const dayList = u.dailySettlements[date];
+      
+      const hasActive = dayList.some(it => it.status !== "반려");
+      if (hasActive) {
+        // If there's an active one (Pending/Approved), only sum those.
+        // Ignore the rejected ones on this day (considered "Replaced").
+        dayList.forEach(it => {
+          if (it.status === "예외요청" || it.status === "보류") {
+            u.pendingSpent += it.amount;
+            u.pendingCount += 1;
+          } else if (it.status !== "반려") {
+            u.approvedSpent += it.amount;
+          }
+        });
+      } else {
+        // All are rejected on this day, sum them up.
+        dayList.forEach(it => {
+          u.rejectedSpent += it.amount;
+        });
+      }
     });
   });
 
@@ -543,63 +576,72 @@ export default function App() {
 
               {currentReview ? (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
-                    <div className="user-name" style={{ fontSize: '0.95rem', fontWeight: 900 }}>{currentReview.user.name}</div>
-                    <div className="dept-label" style={{ fontSize: '0.75rem', color: '#999', fontWeight: 600 }}>{currentReview.user.department}</div>
-                  </div>
+                  {/* Sticky Summary Card */}
+                  <div style={{ 
+                    position: 'sticky', 
+                    top: 0, 
+                    zIndex: 100, 
+                    background: '#fff', 
+                    margin: '0 -4px',
+                    padding: '4px 4px 10px',
+                    borderBottom: '1px solid #f0f0f0'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
+                      <div className="user-name" style={{ fontSize: '0.95rem', fontWeight: 900 }}>{currentReview.user.name}</div>
+                      <div className="dept-label" style={{ fontSize: '0.75rem', color: '#999', fontWeight: 600 }}>{currentReview.user.department}</div>
+                    </div>
 
-                  {/* Receipt Card (Employee App Style) */}
-                  <div className="receipt-card" style={{ padding: '1.25rem' }}>
-                    <div className="receipt-header">
-                      <span className="receipt-date">{currentReview.item.date.split(' ')[0]}</span>
-                      <span className="receipt-status-chip" style={currentReview.item.status === '승인완료' ? {background: '#E2F5EC', color: '#1E8A4A'} : currentReview.item.status === '반려' ? {background: '#FEE2E2', color: '#E24B4A'} : {}}>
-                        {currentReview.item.status === '승인완료' ? '승인완료' : currentReview.item.status === '반려' ? '반려' : '예외요청'}
-                      </span>
-                    </div>
-                    <div className="receipt-title" style={{ fontWeight: 500, fontSize: '0.9rem', color: '#666', marginTop: 8, marginBottom: 12 }}>
-                      {currentReview.item.category || "기타"} · {currentReview.item.desc}
-                    </div>
-                    {/* Violation Items */}
-                    <div style={{ marginBottom: 20 }}>
-                      {(() => {
-                        const dObj = { 
-                          id: currentReview.item.id, 
-                          date: currentReview.item.date.split(' ')[0], 
-                          time: currentReview.item.time,
-                          category: currentReview.item.category,
-                          amount: currentReview.item.amount
-                        };
-                        const issues = validate(dObj, allowedCategories, rawSettlements);
-                        // 상세 뷰에서는 중복 안내 필터링 (사용자 앱과 동일)
-                        const filteredIssues = issues.filter(iss => !iss.includes("이미 제출된 내역"));
-                        if (filteredIssues.length === 0) return null;
-                        return filteredIssues.map((iss, idx) => {
-                          const isApproved = currentReview.item.status === '승인완료';
-                          return (
-                            <div key={idx} style={{ 
-                              display: "flex", 
-                              alignItems: "flex-start", 
-                              gap: 6, 
-                              color: isApproved ? "rgba(226, 75, 74, 0.4)" : "#e24b4a", 
-                              fontSize: '0.85rem', 
-                              fontWeight: 700, 
-                              lineHeight: 1.4, 
-                              marginBottom: 4 
-                            }}>
-                              <span style={{ flexShrink: 0, marginTop: 1, opacity: isApproved ? 0.4 : 1 }}><Icon.Alert size={15} color={isApproved ? "rgba(226, 75, 74, 0.4)" : "#e24b4a"} /></span>
-                              <span style={{ textDecoration: isApproved ? 'line-through' : 'none' }}>{iss}</span>
-                            </div>
-                          );
-                        });
-                      })()}
-                    </div>
-                    <div className="receipt-violation">
-                      {currentReview.item.image_url && (
-                        <button className="btn-receipt-view" onClick={() => window.open(currentReview.item.image_url, '_blank')}>영수증 보기</button>
-                      )}
-                    </div>
-                    <div className="receipt-footer">
-                      <div className="receipt-amount" style={{ fontSize: '1.5rem', fontWeight: 950 }}>₩{currentReview.item.amount.toLocaleString()}</div>
+                    <div className="receipt-card" style={{ padding: '1.25rem', marginBottom: 0 }}>
+                      <div className="receipt-header">
+                        <span className="receipt-date">{currentReview.item.date.split(' ')[0]}</span>
+                        <span className="receipt-status-chip" style={currentReview.item.status === '승인완료' ? {background: '#E2F5EC', color: '#1E8A4A'} : currentReview.item.status === '반려' ? {background: '#FEE2E2', color: '#E24B4A'} : {}}>
+                          {currentReview.item.status === '승인완료' ? '승인완료' : currentReview.item.status === '반려' ? '반려' : '예외요청'}
+                        </span>
+                      </div>
+                      <div className="receipt-title" style={{ fontWeight: 500, fontSize: '0.9rem', color: '#666', marginTop: 8, marginBottom: 12 }}>
+                        {currentReview.item.category || "기타"} · {currentReview.item.desc}
+                      </div>
+                      {/* Violation Items */}
+                      <div style={{ marginBottom: 16 }}>
+                        {(() => {
+                          const dObj = { 
+                            id: currentReview.item.id, 
+                            date: currentReview.item.date.split(' ')[0], 
+                            time: currentReview.item.time,
+                            category: currentReview.item.category,
+                            amount: currentReview.item.amount
+                          };
+                          const issues = validate(dObj, allowedCategories, rawSettlements);
+                          const filteredIssues = issues.filter(iss => !iss.includes("이미 제출된 내역"));
+                          if (filteredIssues.length === 0) return null;
+                          return filteredIssues.map((iss, idx) => {
+                            const isApproved = currentReview.item.status === '승인완료';
+                            return (
+                              <div key={idx} style={{ 
+                                display: "flex", 
+                                alignItems: "flex-start", 
+                                gap: 6, 
+                                color: isApproved ? "rgba(226, 75, 74, 0.4)" : "#e24b4a", 
+                                fontSize: '0.85rem', 
+                                fontWeight: 700, 
+                                lineHeight: 1.4, 
+                                marginBottom: 4 
+                              }}>
+                                <span style={{ flexShrink: 0, marginTop: 1, opacity: isApproved ? 0.4 : 1 }}><Icon.Alert size={15} color={isApproved ? "rgba(226, 75, 74, 0.4)" : "#e24b4a"} /></span>
+                                <span style={{ textDecoration: isApproved ? 'line-through' : 'none' }}>{iss}</span>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                      <div className="receipt-violation">
+                        {currentReview.item.image_url && (
+                          <button className="btn-receipt-view" onClick={() => window.open(currentReview.item.image_url, '_blank')}>영수증 보기</button>
+                        )}
+                      </div>
+                      <div className="receipt-footer">
+                        <div className="receipt-amount" style={{ fontSize: '1.5rem', fontWeight: 950 }}>₩{Number(currentReview.item.amount || 0).toLocaleString()}</div>
+                      </div>
                     </div>
                   </div>
 
@@ -810,14 +852,14 @@ export default function App() {
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div className="info-label" style={{ margin: 0 }}>반려 금액</div>
-                        <div style={{ fontWeight: 700 }}>₩{user.rejectedSpent.toLocaleString()}</div>
+                        <div style={{ fontWeight: 700, color: user.rejectedSpent > 0 ? '#ef4444' : 'inherit' }}>₩{user.rejectedSpent.toLocaleString()}</div>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div className="info-label" style={{ margin: 0, color: user.pendingSpent > 0 ? '#ef4444' : '#666' }}>보류 금액</div>
+                        <div className="info-label" style={{ margin: 0 }}>보류 금액</div>
                         <div 
                           style={{ 
                             fontWeight: 700, 
-                            color: user.pendingSpent > 0 ? '#ef4444' : '#666', 
+                            color: user.pendingSpent > 0 ? '#ef4444' : 'inherit', 
                             textDecoration: user.pendingSpent > 0 ? 'underline' : 'none',
                             cursor: user.pendingSpent > 0 ? 'pointer' : 'default'
                           }}
