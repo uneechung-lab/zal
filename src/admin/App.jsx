@@ -61,7 +61,7 @@ function validate(d, allowed, existingSubs = []) {
   
   return issues;
 }
-const transformData = (settlements, profiles, month) => {
+const transformData = (settlements, profiles, month, adminLastSeen = {}) => {
   const filtered = settlements.filter(s => s.date && s.date.startsWith(month.replace('.', '-')));
   const usersMap = {};
   
@@ -89,23 +89,23 @@ const transformData = (settlements, profiles, month) => {
       pendingCount: 0,
       uniqueDates: new Set(),
       history: [],
-      rejectionHistory: []
+      rejectionHistory: [],
+      unreadCount: 0
     };
   });
 
   // Merge current month settlements into the map
   filtered.forEach(s => {
+    if (!s.id || !s.amount) return; // Skip invalid or ghost data
+    
     const userName = s.user_name || "미지정";
     const u = usersMap[userName];
-    
+    if (!u) return;
+
     const amt = parseInt(s.amount || 0);
     const isPending = s.status === "예외요청" || s.status === "보류";
     const isRejected = s.status === "반려";
 
-    // "Replacing" logic: If there's another settlement on the same date that is NOT rejected,
-    // we assume this rejected one was replaced.
-    // However, we process all at once. Let's filter later or track by date.
-    
     u.totalSum += amt;
     u.count += 1;
     
@@ -124,8 +124,27 @@ const transformData = (settlements, profiles, month) => {
       violation: isPending,
       violationLog: s.exc_text || s.excText,
       status: s.status,
-      image_url: s.image_url
+      image_url: s.image_url,
+      actionLogs: s.reject_reason
     });
+
+    // Unread Message Tracking for Admin
+    const rr = s.reject_reason || s.rejectReason;
+    if (rr && rr.startsWith('[')) {
+      try {
+        const logs = JSON.parse(rr);
+        if (logs.length > 0) {
+          const last = logs[logs.length - 1];
+          // Only count as unread if the last message is from user AND not a system/deleted message
+          if (last.sender === 'user' && !last.isDeleted) {
+            const seen = adminLastSeen[s.id];
+            if (!seen || new Date(last.time) > new Date(seen)) {
+              u.unreadCount += 1;
+            }
+          }
+        }
+      } catch(e) {}
+    }
   });
 
   // Step 4: Re-calculate totals based on "Final" status per date/meal
@@ -141,29 +160,17 @@ const transformData = (settlements, profiles, month) => {
     Object.keys(u.dailySettlements).forEach(date => {
       const dayList = u.dailySettlements[date];
       
-      const hasApproved = dayList.some(it => it.status === "승인완료");
-      
-      if (hasApproved) {
-        // If there's an Approved one, only sum those. Ignore others (replaced/irrelevant).
-        dayList.forEach(it => {
-          if (it.status === "승인완료") {
-            u.approvedSpent += it.amount;
-          }
-        });
-      } else {
-        const pendingOnes = dayList.filter(it => it.status === "예외요청" || it.status === "보류");
-        if (pendingOnes.length > 0) {
-          // No approved one, but there are pending ones. Only count the LATEST one.
-          const latestPending = pendingOnes.sort((a, b) => Number(b.id) - Number(a.id))[0];
-          u.pendingSpent += latestPending.amount;
+      // Always sum all items strictly by their status, ignoring the "only one per day" rule for totals
+      dayList.forEach(it => {
+        if (it.status === "승인완료") {
+          u.approvedSpent += it.amount;
+        } else if (it.status === "예외요청" || it.status === "보류") {
+          u.pendingSpent += it.amount;
           u.pendingCount += 1;
-        } else {
-          // All are rejected on this day, sum them up.
-          dayList.forEach(it => {
-            u.rejectedSpent += it.amount;
-          });
+        } else if (it.status === "반려") {
+          u.rejectedSpent += it.amount;
         }
-      }
+      });
     });
   });
 
@@ -190,6 +197,9 @@ export default function App() {
   const [historyInput, setHistoryInput] = useState("");
   const [historyChats, setHistoryChats] = useState({});
   const [allowedCategories, setAllowedCategories] = useState([]);
+  const [showReviewShadow, setShowReviewShadow] = useState(false);
+  const [showHistoryShadow, setShowHistoryShadow] = useState(false);
+  const [showHistoryDetailShadow, setShowHistoryDetailShadow] = useState(false);
   const chatEndRef = useRef(null);
 
   const pagerRef = useRef(null);
@@ -339,7 +349,7 @@ export default function App() {
     }
   }, [selectedMonth, rawSettlements]);
 
-  const monthlyUsers = useMemo(() => transformData(rawSettlements, allProfiles, selectedMonth), [rawSettlements, allProfiles, selectedMonth]);
+  const monthlyUsers = useMemo(() => transformData(rawSettlements, allProfiles, selectedMonth, adminLastSeen), [rawSettlements, allProfiles, selectedMonth, adminLastSeen]);
 
   const allPendingRequests = useMemo(() => {
     const requests = [];
@@ -351,12 +361,28 @@ export default function App() {
         // We consider it replaced if:
         // 1. There is ANY settlement with status "승인완료" on that day.
         // 2. OR there is a NEWER settlement (higher ID) on that day.
-        const isReplaced = rawSettlements.some(other => 
-          other.user_name === s.user_name && 
-          other.date === s.date && 
-          other.id !== s.id && 
-          (other.status === "승인완료" || Number(other.id) > Number(s.id))
+        const sameDayRecords = rawSettlements.filter(o => 
+          (o.user_name || o.userName || o.full_name) === (s.user_name || s.userName || s.full_name) && 
+          o.date === s.date
         );
+        
+        const hasApprovedOnDay = sameDayRecords.some(o => o.status === "승인완료");
+        
+        let isReplaced = false;
+        if (hasApprovedOnDay) {
+          // If something is approved, everything NOT approved is replaced
+          isReplaced = s.status !== "승인완료";
+        } else {
+          // If nothing approved, only the LATEST created one is NOT replaced
+          const latest = [...sameDayRecords].sort((a, b) => {
+            const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+            // If created_at missing, fallback to ID compare (if numeric) or array order
+            if (timeA === timeB) return parseInt(b.id) - parseInt(a.id);
+            return timeB - timeA;
+          })[0];
+          isReplaced = String(s.id) !== String(latest?.id);
+        }
 
         requests.push({ 
           user: { 
@@ -407,7 +433,7 @@ export default function App() {
         const type = currentReview.item.status === '승인완료' ? 'approve' : 'reject';
         const msg = currentReview.item.status === '반려' && currentReview.item.violationLog 
            ? `[${currentReview.item.violationLog}] 건은 반려되었습니다.`
-           : `${type === 'approve' ? '승인 완료!' + (currentReview.item.violationLog ? `\n(${currentReview.item.violationLog})` : '') : '반려되었습니다.'}`;
+           : `${type === 'approve' ? '승인 완료!' : '반려되었습니다.'}`;
         setActionLogs([{ text: msg, type, sender: type === 'approve' ? 'ai' : 'admin', isDeleted: false }]);
     } else {
        setActionLogs([]);
@@ -439,6 +465,24 @@ export default function App() {
     }, 50);
   }, [reviewIndex, isReviewPanelOpen, allPendingRequests]);
 
+  // Mark history item as read when selected
+  useEffect(() => {
+    if (selectedHistoryItem && selectedHistoryItem.actionLogs) {
+      try {
+        const rr = selectedHistoryItem.actionLogs;
+        if (rr && rr.startsWith('[')) {
+          const logs = JSON.parse(rr);
+          const lastUser = logs.slice().reverse().find(l => l.sender === 'user' && !l.isDeleted);
+          if (lastUser && lastUser.time) {
+            markAsReadByAdmin(selectedHistoryItem.id, lastUser.time);
+          }
+        }
+      } catch (e) {
+        console.error("Error marking history as read:", e);
+      }
+    }
+  }, [selectedHistoryItem]);
+
   const totals = useMemo(() => {
     const monthFiltered = rawSettlements.filter(s => s.date && s.date.startsWith(selectedMonth.replace('.', '-')));
     
@@ -448,16 +492,22 @@ export default function App() {
       .reduce((acc, curr) => acc + parseInt(curr.amount || 0), 0);
       
     // 보류 중인 금액 합계
-    // Replaced items should not be counted in Pending totals
-    const actualPendingList = allPendingRequests.filter(r => !r.item.isReplaced && (r.item.status === "예외요청" || r.item.status === "보류"));
-    const pendingSpentTotal = actualPendingList.reduce((acc, curr) => acc + curr.item.amount, 0);
-    const pendingTotal = actualPendingList.length;
-    const pendingPeople = monthlyUsers.filter(u => 
-       allPendingRequests.some(r => r.user.name === u.name && !r.item.isReplaced && (r.item.status === "예외요청" || r.item.status === "보류"))
-    ).length;
+    // Use monthlyUsers to get consistent counts with the tabs/cards
+    const pendingTotal = monthlyUsers.reduce((acc, u) => acc + u.pendingCount, 0);
+    const pendingPeople = monthlyUsers.filter(u => u.pendingCount > 0).length;
+    const pendingSpentTotal = monthlyUsers.reduce((acc, u) => acc + u.pendingSpent, 0);
     
-    return { total, pendingSpentTotal, pendingTotal, pendingPeople };
+    const unreadTotal = monthlyUsers.reduce((acc, u) => acc + (u.unreadCount || 0), 0);
+    
+    return { total, pendingSpentTotal, pendingTotal, pendingPeople, unreadTotal };
   }, [rawSettlements, selectedMonth, monthlyUsers]);
+
+  // Auto-switch to "All" tab if no pending requests
+  useEffect(() => {
+    if (totals.pendingTotal === 0 && activeTab === "승인 요청") {
+      setActiveTab("전체보기");
+    }
+  }, [totals.pendingTotal, activeTab]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -520,8 +570,28 @@ export default function App() {
           <div className="summary-greeting v1" onClick={() => {
             if (newMsgIdx !== -1) {
               setReviewIndex(newMsgIdx);
+              setIsReviewPanelOpen(true);
+            } else {
+              const firstUnreadUser = monthlyUsers.find(u => u.unreadCount > 0);
+              if (firstUnreadUser) {
+                setSelectedUser(firstUnreadUser);
+                // Also try to find the specific unread item in history and select it
+                const unreadItem = firstUnreadUser.history.find(h => {
+                   const seen = adminLastSeen[h.id];
+                   if (h.actionLogs && h.actionLogs.startsWith('[')) {
+                      try {
+                         const logs = JSON.parse(h.actionLogs);
+                         const last = logs[logs.length-1];
+                         return last.sender === 'user' && (!seen || new Date(last.time) > new Date(seen));
+                      } catch(e){}
+                   }
+                   return false;
+                });
+                if (unreadItem) setSelectedHistoryItem(unreadItem);
+              } else {
+                setIsReviewPanelOpen(true);
+              }
             }
-            setIsReviewPanelOpen(true);
           }} style={{ position: 'relative' }}>
             <span className="mobile-hide" style={{ marginRight: '4px' }}>관리자님, </span>
             <span className="underline" style={{ color: totals.pendingTotal > 0 ? '#ef4444' : '#15803d' }}>
@@ -531,8 +601,8 @@ export default function App() {
             &nbsp;
             <span style={{ position: 'relative' }}>
               <span className="greeting-sub">승인요청이 있습니다.</span>
-              {newMsgIdx !== -1 && (
-                <div className="new-msg-bubble" style={{ position: "absolute", bottom: "115%", right: "-12px", background: "#ef4444", color: "#fff", fontSize: "0.85rem", fontWeight: 500, padding: "5px 12px", borderRadius: "12px", whiteSpace: "nowrap", zIndex: 20, cursor: "pointer", pointerEvents: "auto", opacity: 1 }}>
+              {totals.unreadTotal > 0 && (
+                <div className="new-msg-bubble" style={{ position: "absolute", bottom: "115%", right: "-12px", background: "#ef4444", color: "#fff", fontSize: "0.85rem", fontWeight: 500, padding: "5px 12px", borderRadius: "12px", whiteSpace: "nowrap", zIndex: 20, cursor: "pointer", pointerEvents: "auto" }}>
                   새 메시지 도착!
                   <div style={{ position: "absolute", bottom: "-5px", right: "12px", width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: "6px solid #ef4444" }} />
                 </div>
@@ -591,7 +661,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="panel-content">
+            <div className="panel-content" onScroll={(e) => setShowReviewShadow(e.target.scrollTop > 5)}>
               {/* Pagination removed from here */}
 
               {currentReview ? (
@@ -604,7 +674,9 @@ export default function App() {
                     background: '#fff', 
                     margin: '0 -4px',
                     padding: '4px 4px 10px',
-                    borderBottom: '1px solid #f0f0f0'
+                    boxShadow: showReviewShadow ? '0 10px 20px -10px rgba(0,0,0,0.12)' : 'none',
+                    borderBottom: showReviewShadow ? '1px solid rgba(0,0,0,0.05)' : 'none',
+                    transition: '0.2s'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
                       <div className="user-name" style={{ fontSize: '0.95rem', fontWeight: 900 }}>{currentReview.user.name}</div>
@@ -622,7 +694,7 @@ export default function App() {
                         {currentReview.item.category || "기타"} · {currentReview.item.desc}
                       </div>
                       {/* Violation Items */}
-                      <div style={{ marginBottom: 16 }}>
+                      <div style={{ marginBottom: 8 }}>
                         {(() => {
                           const dObj = { 
                             id: currentReview.item.id, 
@@ -654,11 +726,25 @@ export default function App() {
                           });
                         })()}
                       </div>
-                      <div className="receipt-violation">
-                        {currentReview.item.image_url && (
-                          <button className="btn-receipt-view" onClick={() => window.open(currentReview.item.image_url, '_blank')}>영수증 보기</button>
-                        )}
-                      </div>
+                        <div className="receipt-violation">
+                          {currentReview.item.image_url && (
+                            <button 
+                              className="btn-receipt-view" 
+                              onClick={() => window.open(currentReview.item.image_url, '_blank')}
+                              style={{ 
+                                padding: '6px 14px', 
+                                borderRadius: '20px', 
+                                border: '1.5px solid #111', 
+                                background: 'none', 
+                                fontSize: '0.8rem', 
+                                fontWeight: 700, 
+                                cursor: 'pointer'
+                              }}
+                            >
+                              영수증 보기
+                            </button>
+                          )}
+                        </div>
                       <div className="receipt-footer">
                         <div className="receipt-amount" style={{ fontSize: '1.5rem', fontWeight: 950 }}>₩{Number(currentReview.item.amount || 0).toLocaleString()}</div>
                       </div>
@@ -671,7 +757,7 @@ export default function App() {
                       <div className="chat-bubble user" style={{ padding: '0.85rem 1.15rem' }}>
                         {currentReview.item.violationLog || "영수증 정산 요청드립니다."}
                       </div>
-                      <div className="chat-meta" style={{ textAlign: 'right', alignSelf: 'flex-end', width: '100%', marginTop: '4px' }}>
+                      <div className="chat-meta right">
                         {currentReview.user.name} · {currentReview.item.date ? (() => {
                           const d = new Date(currentReview.item.date);
                           const dateStr = `${d.getMonth() + 1}월 ${d.getDate()}일`;
@@ -689,19 +775,21 @@ export default function App() {
                     {actionLogs.map((log, logIdx) => {
                       const isUser = log.sender === 'user';
                       return (
-                        <div key={logIdx} className={`bubble-wrap ${isUser ? 'user' : 'admin'} ${log.isDeleted ? 'is-deleted' : ''}`} style={{ marginTop: '0.5rem' }}>
+                        <div key={logIdx} className={`bubble-wrap ${isUser ? 'user' : 'admin'} ${log.isDeleted ? 'is-deleted' : ''}`}>
                           <div style={{ display: 'flex', alignItems: 'center', flexDirection: isUser ? 'row-reverse' : 'row' }}>
-                            <div className={`chat-bubble ${isUser ? 'user' : 'admin'} ${log.type === 'approve' ? 'bg-green' : (log.type === 'reject' ? 'bg-red' : '')} ${log.isDeleted ? 'deleted-style' : ''}`} style={{ padding: '0.85rem 1.15rem', whiteSpace: 'nowrap' }}>
+                            <div className={`chat-bubble ${isUser ? 'user' : 'admin'} ${log.type === 'approve' ? 'bg-green' : (log.type === 'reject' ? 'bg-red' : '')} ${log.isDeleted ? 'deleted-style' : ''}`} style={{ padding: '0.85rem 1.15rem', width: 'fit-content' }}>
                               {log.text}
                             </div>
-                            {!log.isDeleted && !isUser && !currentReview.item.isReplaced && (
+                            {!log.isDeleted && !isUser && !currentReview.item.isReplaced && log.type !== 'cancel' && (
                               <button 
                                 className="btn-msg-del" 
                                 onClick={async () => {
                                   if (currentReview.item.isReplaced) return;
                                   const newLogs = actionLogs.map((item, i) => i === logIdx ? { ...item, isDeleted: true } : item);
-                                  setActionLogs(newLogs);
-                                  await updateSettlementStatus(currentReview.item.id, '보류', JSON.stringify(newLogs));
+                                  const undoLog = { text: "[결정 취소] 이전의 처리가 취소되었습니다.", type: "cancel", sender: "ai", isDeleted: false, time: new Date().toISOString() };
+                                  const finalLogs = [...newLogs, undoLog];
+                                  setActionLogs(finalLogs);
+                                  await updateSettlementStatus(currentReview.item.id, '보류', JSON.stringify(finalLogs));
                                 }} 
                                 title="삭제" style={{ padding: '0 4px', display: 'flex', alignItems: 'center' }}
                               >
@@ -709,22 +797,25 @@ export default function App() {
                               </button>
                             )}
                           </div>
-                          <div className="chat-meta" style={{ 
-                            textAlign: isUser ? 'right' : 'left', 
-                            width: '100%', 
-                            marginTop: '4px', 
-                            alignSelf: isUser ? 'flex-end' : 'flex-start',
-                            display: 'block' 
-                          }}>
-                            {isUser ? currentReview.user.name : (log.sender === 'ai' ? "AI 잘먹이" : "관리자")} · {log.isDeleted ? "삭제됨 · " : ""} 
-                            {log.time ? (() => {
-                              const d = new Date(log.time);
-                              const dateStr = `${d.getMonth() + 1}월 ${d.getDate()}일`;
-                              const period = d.getHours() < 12 ? "오전" : "오후";
-                              const hour = d.getHours() % 12 || 12;
-                              const min = d.getMinutes().toString().padStart(2, '0');
-                              return `${dateStr} ${period} ${hour}:${min}`;
-                            })() : "방금 전"}
+                          <div className={`chat-meta ${isUser ? 'right' : 'left'}`}>
+                            {(() => {
+                              let label = isUser ? currentReview.user.name : "관리자";
+                              if (log.sender === 'ai' || log.text === "승인 완료!") label = "AI 잘먹이";
+                              
+                              const rawTime = log.time || currentReview.item.time || currentReview.item.date.split(' ')[1];
+                              const timeStr = (() => {
+                                if (!rawTime) return "방금 전";
+                                const d = new Date(rawTime.includes('T') ? rawTime : (currentReview.item.date.split(' ')[0] + ' ' + rawTime));
+                                if (isNaN(d.getTime())) return "방금 전";
+                                const dateStr = `${d.getMonth() + 1}월 ${d.getDate()}일`;
+                                const period = d.getHours() < 12 ? "오전" : "오후";
+                                const hour = d.getHours() % 12 || 12;
+                                const min = d.getMinutes().toString().padStart(2, '0');
+                                return `${dateStr} ${period} ${hour}:${min}`;
+                              })();
+                              
+                              return `${label} · ${log.isDeleted ? "삭제됨 · " : ""}${timeStr}`;
+                            })()}
                           </div>
                         </div>
                       );
@@ -736,10 +827,12 @@ export default function App() {
                   {/* Sticky Footer */}
                   {(() => {
                     const lastMsg = actionLogs.length > 0 ? actionLogs[actionLogs.length - 1] : null;
-                    const isDisabled = lastMsg && (lastMsg.type === 'approve' || lastMsg.type === 'reject') && !lastMsg.isDeleted;
-                    const isFinalStatus = actionLogs.length === 0 && (currentReview.item.status === '승인완료' || currentReview.item.status === '반려');
+                    const isProcessed = currentReview.item.status === '승인완료' || currentReview.item.status === '반려';
                     const isReplaced = currentReview.item.isReplaced;
-                    const effectiveDisabled = isDisabled || isFinalStatus || isReplaced;
+                    // If a message was just sent but status not yet reflected in currentReview.item.status 
+                    // (though handleApprove updates currentReview.item.status locally in most patterns here)
+                    const isLocalProcessed = actionLogs.some(log => (log.type === 'approve' || log.type === 'reject') && !log.isDeleted);
+                    const effectiveDisabled = isProcessed || isReplaced || isLocalProcessed;
                     
                     return (
                       <div className="panel-footer-fixed">
@@ -753,7 +846,7 @@ export default function App() {
                             type="text"
                             id="reviewMsgInput"
                             className="message-pill-input"
-                            placeholder={isReplaced ? "교체된 영수증입니다." : "반려 또는 승인 사유를 입력하세요."}
+                            placeholder={isReplaced ? "교체된 영수증입니다." : (effectiveDisabled ? "정산 처리가 이미 완료되었습니다." : "반려 또는 승인 사유를 입력하세요.")}
                             disabled={effectiveDisabled}
                           />
                         </div>
@@ -848,8 +941,9 @@ export default function App() {
               >
                 <div className="card-header">
                   <div>
-                    <div className="user-name">{user.name}</div>
-                    <div className="dept-label">{user.department}</div>
+                    <div className="user-name" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {user.name} <span className="dept-label" style={{ fontSize: '0.85rem', color: '#888', fontWeight: 600, marginTop: '2px' }}>{user.department}</span>
+                    </div>
                   </div>
                   {user.count > 0 && (
                     <button
@@ -964,55 +1058,61 @@ export default function App() {
               </div>
             </div>
 
-            <div className="panel-content history-layout">
+            <div className="panel-content history-layout" onScroll={(e) => {
+              if (!selectedHistoryItem) setShowHistoryShadow(e.target.scrollTop > 5);
+            }}>
               {!selectedHistoryItem ? (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem', padding: '0 4px' }}>
-                    <div className="user-name" style={{ fontSize: '1rem', fontWeight: 900 }}>{selectedUser.name}</div>
-                    <div className="dept-label" style={{ fontSize: '0.85rem', color: '#888', fontWeight: 600 }}>{selectedUser.department}</div>
-                  </div>
-
-                  {/* History List Header with Filters */}
-                  <div className="history-list-filter-row">
-                    <div className="filter-chips">
-                      {["전체", "승인", "보류", "반려"].map(f => (
-                        <button 
-                          key={f} 
-                          className={`filter-chip ${historyFilter === f ? 'active' : ''}`}
-                          onClick={() => setHistoryFilter(f)}
-                        >
-                          {f}
-                        </button>
-                      ))}
+                  <div style={{ zIndex: 10, background: '#fff', position: 'sticky', top: 0, paddingBottom: '1rem', boxShadow: showHistoryShadow ? '0 10px 20px -10px rgba(0,0,0,0.12)' : 'none', borderBottom: showHistoryShadow ? '1px solid rgba(0,0,0,0.05)' : 'none', transition: '0.2s', margin: '0 -4px 0', padding: '0 4px 1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem', marginTop: '1rem' }}>
+                      <div className="user-name" style={{ fontSize: '1rem', fontWeight: 900 }}>{selectedUser.name}</div>
+                      <div className="dept-label" style={{ fontSize: '0.85rem', color: '#888', fontWeight: 600 }}>{selectedUser.department}</div>
                     </div>
-                    <button 
-                      className="sort-toggle-btn"
-                      onClick={() => setHistorySortType(prev => prev === "upload" ? "date" : "upload")}
-                    >
-                      <span>{historySortType === "upload" ? "업로드순" : "날짜순"}</span>
-                      <div className="sort-arrows">
-                         <span className="arrow">▲</span>
-                         <span className="arrow">▼</span>
+
+                    <div className="history-list-filter-row">
+                      <div className="filter-chips">
+                        {["전체", "승인", "보류", "반려"].map(f => (
+                          <button 
+                            key={f} 
+                            className={`filter-chip ${historyFilter === f ? 'active' : ''}`}
+                            onClick={() => setHistoryFilter(f)}
+                          >
+                            {f}
+                          </button>
+                        ))}
                       </div>
-                    </button>
+                      <button 
+                        className="sort-toggle-btn"
+                        onClick={() => setHistorySortType(prev => prev === "upload" ? "date" : "upload")}
+                      >
+                        <span>{historySortType === "upload" ? "업로드순" : "날짜순"}</span>
+                        <div className="sort-arrows">
+                           <span className="arrow">▲</span>
+                           <span className="arrow">▼</span>
+                        </div>
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="history-list no-scrollbar" style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 240px)', paddingBottom: '2rem' }}>
+                  <div className="history-list no-scrollbar" style={{ paddingBottom: '2rem' }}>
                     {(selectedUser.history || [])
                       .filter(item => {
                         if (historyFilter === "전체") return true;
-                        if (historyFilter === "승인") return !item.violation;
-                        if (historyFilter === "보류") return item.violation;
+                        if (historyFilter === "승인") return item.status === "승인완료";
+                        if (historyFilter === "보류") return item.status === "보류" || item.status === "예외요청";
+                        if (historyFilter === "반려") return item.status === "반려";
                         return false;
                       })
                       .map((item, idx) => {
-                        const isViolation = item.violation;
+                        const isViolation = item.status === "보류" || item.status === "예외요청";
+                        const isApproved = item.status === "승인완료";
+                        const isRejected = item.status === "반려";
                         return (
                           <div key={idx} className="history-item-card" onClick={() => setSelectedHistoryItem(item)}>
                             <div className="history-card-top">
-                              <span className="history-meta">{item.date} · 식당</span>
-                              <span className={`history-status-badge ${isViolation ? 'pending' : 'approved'}`}>
-                                {isViolation ? '보류' : '승인'}
+                              <span className="history-meta">{item.date.split(' ')[0]} · 식당</span>
+                              <span className={`history-status-badge ${isApproved ? 'approved' : (isRejected ? 'pending' : 'pending')}`} style={{ background: isRejected ? '#FEE2E2' : '', color: isRejected ? '#E24B4A' : '' }}>
+                                {item.status}
                               </span>
                             </div>
                             <div className="history-card-title">
@@ -1033,103 +1133,90 @@ export default function App() {
                   </div>
                 </>
               ) : (
-                <div className="history-detail-view no-scrollbar">
-                  <div className="detail-scroll-area no-scrollbar">
-                    {/* Receipt Summary Card - Exactly matches Review Panel style */}
-                    <div className="receipt-card detailed" style={{ 
+                <div className="history-detail-view no-scrollbar" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+                    {/* Sticky Summary Card */}
+                    <div style={{ 
+                      position: 'relative', 
+                      zIndex: 100, 
                       background: '#fff', 
-                      borderRadius: '16px', 
-                      padding: '24px',
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-                      marginBottom: '20px',
-                      border: '1px solid #f0f0f0'
+                      padding: '4px 4px 0',
+                      margin: '0 -4px',
+                      boxShadow: showHistoryDetailShadow ? '0 10px 20px -10px rgba(0,0,0,0.12)' : 'none',
+                      borderBottom: showHistoryDetailShadow ? '1px solid rgba(0,0,0,0.05)' : 'none',
+                      transition: '0.2s',
+                      flexShrink: 0
                     }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                        <span style={{ fontSize: '0.9rem', color: '#999', fontWeight: 600 }}>{selectedHistoryItem.date.split(' ')[0]}</span>
-                        <span style={{ 
-                          backgroundColor: selectedHistoryItem.status === '승인완료' ? '#E2F5EC' : (selectedHistoryItem.status === '반려' ? '#FEE2E2' : '#FFF4E5'), 
-                          color: selectedHistoryItem.status === '승인완료' ? '#1E8A4A' : (selectedHistoryItem.status === '반려' ? '#E24B4A' : '#D97706'), 
-                          padding: '4px 10px', 
-                          borderRadius: '8px', 
-                          fontSize: '0.75rem', 
-                          fontWeight: 700 
-                        }}>
-                          {selectedHistoryItem.status === '승인완료' ? '승인완료' : (selectedHistoryItem.status === '반려' ? '반려' : '예외요청')}
-                        </span>
-                      </div>
-                      
-                      <div style={{ fontSize: '1.25rem', fontWeight: 850, color: '#111', marginBottom: '16px', lineHeight: 1.3 }}>
-                        {selectedHistoryItem.category || "메뉴"} · {selectedHistoryItem.desc}
-                      </div>
+                      <div className="receipt-card detailed" style={{ 
+                        background: '#fff', 
+                        borderRadius: '16px', 
+                        padding: '24px',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+                        marginBottom: '16px',
+                        border: '1px solid #f0f0f0'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                          <span style={{ fontSize: '0.9rem', color: '#999', fontWeight: 600 }}>{selectedHistoryItem.date.split(' ')[0]}</span>
+                          <span style={{ 
+                            backgroundColor: selectedHistoryItem.status === '승인완료' ? '#E2F5EC' : (selectedHistoryItem.status === '반려' ? '#FEE2E2' : '#FFF4E5'), 
+                            color: selectedHistoryItem.status === '승인완료' ? '#1E8A4A' : (selectedHistoryItem.status === '반려' ? '#E24B4A' : '#D97706'), 
+                            padding: '4px 10px', 
+                            borderRadius: '8px', 
+                            fontSize: '0.75rem', 
+                            fontWeight: 700 
+                          }}>
+                            {selectedHistoryItem.status === '승인완료' ? '승인완료' : (selectedHistoryItem.status === '반려' ? '반려' : '예외요청')}
+                          </span>
+                        </div>
+                        
+                        <div style={{ fontSize: '1.1rem', fontWeight: 500, color: '#111', marginBottom: '16px', lineHeight: 1.3 }}>
+                          {selectedHistoryItem.category || "메뉴"} · {selectedHistoryItem.desc}
+                        </div>
 
-                      {/* Violation List - Using actual validation logic */}
-                      <div style={{ marginBottom: '20px' }}>
-                        {(() => {
-                          const dObj = { 
-                            id: selectedHistoryItem.id, 
-                            date: selectedHistoryItem.date.split(' ')[0], 
-                            time: selectedHistoryItem.time || selectedHistoryItem.date.split(' ')[1],
-                            category: selectedHistoryItem.category,
-                            amount: selectedHistoryItem.amount
-                          };
-                          const issues = validate(dObj, allowedCategories, rawSettlements);
-                          // Don't show duplicate date warning for its own record in history view
-                          const filteredIssues = issues.filter(iss => !iss.includes("이미 제출된 내역"));
-                          
-                          if (filteredIssues.length === 0) return null;
-                          return filteredIssues.map((iss, idx) => {
-                            const isApprovedOrRejected = selectedHistoryItem.status === '승인완료' || selectedHistoryItem.status === '반려';
-                            return (
-                              <div key={idx} style={{ 
-                                display: "flex", 
-                                alignItems: "flex-start", 
-                                gap: 8, 
-                                color: isApprovedOrRejected ? "rgba(226, 75, 74, 0.4)" : "#E24B4A", 
-                                fontSize: '0.85rem', 
-                                fontWeight: 700, 
-                                lineHeight: 1.5, 
-                                marginBottom: 6 
-                              }}>
-                                <span style={{ flexShrink: 0, marginTop: 2, opacity: isApprovedOrRejected ? 0.4 : 1 }}>
-                                  <Icon.Alert size={14} />
-                                </span>
-                                <span style={{ textDecoration: isApprovedOrRejected ? 'line-through' : 'none' }}>{iss}</span>
-                              </div>
-                            );
-                          });
-                        })()}
-                      </div>
+                        <div style={{ marginBottom: '10px' }}>
+                          {(() => {
+                            const dObj = { 
+                              id: selectedHistoryItem.id, 
+                              date: selectedHistoryItem.date.split(' ')[0], 
+                              time: selectedHistoryItem.time || selectedHistoryItem.date.split(' ')[1],
+                              category: selectedHistoryItem.category,
+                              amount: selectedHistoryItem.amount
+                            };
+                            const issues = validate(dObj, allowedCategories, rawSettlements);
+                            const filteredIssues = issues.filter(iss => !iss.includes("이미 제출된 내역"));
+                            if (filteredIssues.length === 0) return null;
+                            return filteredIssues.map((iss, idx) => {
+                              const isApprovedOrRejected = selectedHistoryItem.status === '승인완료' || selectedHistoryItem.status === '반려';
+                              return (
+                                <div key={idx} style={{ 
+                                  display: "flex", 
+                                  alignItems: "flex-start", 
+                                  gap: 8, 
+                                  color: isApprovedOrRejected ? "rgba(226, 75, 74, 0.4)" : "#e24b4a", 
+                                  fontSize: '0.85rem', 
+                                  fontWeight: 700, 
+                                  lineHeight: 1.5, 
+                                  marginBottom: 6 
+                                }}>
+                                  <span style={{ flexShrink: 0, marginTop: 2, opacity: isApprovedOrRejected ? 0.4 : 1 }}><Icon.Alert size={14} /></span>
+                                  <span style={{ textDecoration: isApprovedOrRejected ? 'line-through' : 'none' }}>{iss}</span>
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
 
-                      {selectedHistoryItem.image_url && (
-                        <button 
-                          onClick={() => window.open(selectedHistoryItem.image_url, '_blank')}
-                          style={{ 
-                            padding: '8px 16px', 
-                            borderRadius: '12px', 
-                            border: '1.5px solid #111', 
-                            background: 'none', 
-                            fontSize: '0.85rem', 
-                            fontWeight: 700, 
-                            cursor: 'pointer',
-                            marginBottom: '16px'
-                          }}
-                        >
-                          영수증 보기
-                        </button>
-                      )}
-                      
-                      <div style={{ textAlign: 'right', fontSize: '1.75rem', fontWeight: 950, color: '#111' }}>
-                        ₩{selectedHistoryItem.amount.toLocaleString()}
+                        {selectedHistoryItem.image_url && (
+                          <button onClick={() => window.open(selectedHistoryItem.image_url, '_blank')} style={{ padding: '6px 14px', borderRadius: '20px', border: '1.5px solid #111', background: 'none', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', marginBottom: '16px' }}>영수증 보기</button>
+                        )}
+                        <div style={{ textAlign: 'right', fontSize: '1.75rem', fontWeight: 950, color: '#111' }}>₩{selectedHistoryItem.amount.toLocaleString()}</div>
                       </div>
                     </div>
 
-                    <div className="history-chat-row">
-                      <div className="bubble-wrap user" style={{ width: '100%' }}>
-                        <div className="chat-bubble user" style={{ padding: '0.85rem 1.15rem' }}>
-                          {selectedHistoryItem.violationLog || "영수증 정산 요청드립니다."}
-                        </div>
-                        <div className="chat-meta" style={{ textAlign: 'right', width: '100%', marginTop: '4px', alignSelf: 'flex-end', display: 'block' }}>
-                          {selectedUser.name} · {(() => {
+                    <div className="detail-scroll-area no-scrollbar" onScroll={e => setShowHistoryDetailShadow(e.target.scrollTop > 5)} style={{ flex: 1, overflowY: 'auto', padding: '0 4px 120px' }}>
+                      <div className="history-chat-row">
+                        <div className="bubble-wrap user" style={{ width: '100%' }}>
+                          <div className="chat-bubble user" style={{ padding: '0.85rem 1.15rem' }}>{selectedHistoryItem.violationLog || "영수증 정산 요청드립니다."}</div>
+                          <div className="chat-meta right">{selectedUser.name} · {(() => {
                             const [dPart, tPart] = selectedHistoryItem.date.split(' ');
                             const d = new Date(dPart);
                             const dateStr = `${d.getMonth() + 1}월 ${d.getDate()}일`;
@@ -1141,51 +1228,87 @@ export default function App() {
                             })() : "";
                             return `${dateStr} ${timeStr}`;
                           })()}
-                        </div>
-                      </div>
-
-                      <div className={`chat-bubble admin ${!selectedHistoryItem.violation ? 'bg-green' : ''}`}>
-                        {selectedHistoryItem.violation ? (
-                          <>보류 사유 안내드립니다.<br/>{selectedHistoryItem.violationLog || "정산 기준 미준수 건입니다."}</>
-                        ) : (
-                          <>승인 완료!{selectedHistoryItem.violationLog ? <><br/><span style={{ fontSize: '0.9em', color: '#e24b4a', opacity: 0.5, textDecoration: 'line-through' }}>({selectedHistoryItem.violationLog})</span></> : ""}</>
-                        )}
-                      </div>
-                      <div className="chat-meta left">{selectedHistoryItem.violation ? "관리자" : "AI 잘먹이"} · {(() => {
-                          // For Approved items in history, we usually don't have exactly when it was approved stored in actionLogs here
-                          // But we use the stored date from user's request as a reference or use "방금 전" if not available.
-                          // Here we use a generic placeholder or actual time if we had it.
-                          return "4월 13일 오후 5:30"; 
-                      })()}</div>
-
-                      {/* Dynamic Chats */}
-                      {historyChats[selectedHistoryItem.id]?.map((chat, ci) => (
-                        <div key={ci} style={{ display: 'flex', flexDirection: 'column' }}>
-                          <div className={`chat-bubble ${chat.sender}`}>
-                            {chat.text}
-                          </div>
-                          <div className={`chat-meta ${chat.sender === 'user' ? 'right' : 'left'}`}>
-                            {chat.time}
                           </div>
                         </div>
-                      ))}
-                      <div ref={chatEndRef} />
-                    </div>
-                  </div>
 
-                  <div className="chat-input-wrapper">
-                    <div className="chat-input-box">
-                      <input 
-                        placeholder="메시지를 입력하세요." 
-                        value={historyInput}
-                        onChange={e => setHistoryInput(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleSendHistoryMsg(); }}
-                      />
-                      <button className="chat-send-btn" onClick={handleSendHistoryMsg} style={{ color: historyInput.trim() ? '#000' : '#ccc' }}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19 7-7-7-7M5 12h14"/></svg>
-                      </button>
+                        {(() => {
+                          let logs = [];
+                          try { if (selectedHistoryItem.actionLogs?.startsWith('[')) logs = JSON.parse(selectedHistoryItem.actionLogs); } catch(e) {}
+                          return logs.map((log, idx) => {
+                            const isUser = log.sender === 'user';
+                            const senderLabel = isUser ? selectedUser.name : (log.sender === 'ai' ? "AI 잘먹이" : "관리자");
+                            const d = new Date(log.time);
+                            const time = `${d.getMonth() + 1}월 ${d.getDate()}일 ${d.getHours() < 12 ? '오전' : '오후'} ${d.getHours() % 12 || 12}:${d.getMinutes().toString().padStart(2, '0')}`;
+                            return (
+                             <div key={idx} className={`bubble-wrap ${isUser ? 'user' : 'admin'} ${log.isDeleted ? 'is-deleted' : ''}`} style={{ alignSelf: isUser ? 'flex-end' : 'flex-start', width: '100%' }}>
+                               <div style={{ display: 'flex', alignItems: 'center', flexDirection: isUser ? 'row-reverse' : 'row' }}>
+                                 <div className={`chat-bubble ${isUser ? 'user' : 'admin'} ${log.type === 'approve' ? 'bg-green' : (log.type === 'reject' ? 'bg-red' : '')} ${log.isDeleted ? 'deleted-style' : ''}`} style={{ width: 'fit-content', padding: '0.85rem 1.15rem' }}>{log.text}</div>
+                                 {!log.isDeleted && !isUser && log.type !== 'cancel' && (
+                                   <button className="btn-msg-del" onClick={async (e) => {
+                                      e.stopPropagation();
+                                      const currentLogs = JSON.parse(selectedHistoryItem.reject_reason || '[]');
+                                      const newLogs = currentLogs.map((item, i) => i === idx ? { ...item, isDeleted: true } : item);
+                                      const undoLog = { text: "[결정 취소] 이전의 처리가 취소되었습니다.", type: "cancel", sender: "ai", isDeleted: false, time: new Date().toISOString() };
+                                      const finalLogs = [...newLogs, undoLog];
+                                      const newStr = JSON.stringify(finalLogs);
+                                      await updateSettlementStatus(selectedHistoryItem.id, '보류', newStr);
+                                      setSelectedHistoryItem(prev => ({ ...prev, status: '보류', reject_reason: newStr }));
+                                   }} title="삭제" style={{ padding: '0 4px', display: 'flex', alignItems: 'center' }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={log.type === 'approve' ? "#16a34a" : "#e04a4a"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg></button>
+                                 )}
+                               </div>
+                               <div className={`chat-meta ${isUser ? 'right' : 'left'}`} style={{ width: '100%', textAlign: isUser ? 'right' : 'left' }}>
+                                 {(() => {
+                                   let label = isUser ? selectedUser.name : "관리자";
+                                   if (log.sender === 'ai' || log.text === "승인 완료!") label = "AI 잘먹이";
+                                   
+                                   const rawTime = log.time || selectedHistoryItem.time || selectedHistoryItem.date.split(' ')[1];
+                                   const timeStr = (() => {
+                                      if (!rawTime) return "방금 전";
+                                      const d = new Date(rawTime.includes('T') ? rawTime : (selectedHistoryItem.date.split(' ')[0] + ' ' + rawTime));
+                                      if (isNaN(d.getTime())) return "방금 전";
+                                      const dateStr = `${d.getMonth() + 1}월 ${d.getDate()}일`;
+                                      const period = d.getHours() < 12 ? "오전" : "오후";
+                                      const hour = d.getHours() % 12 || 12;
+                                      const min = d.getMinutes().toString().padStart(2, '0');
+                                      return `${dateStr} ${period} ${hour}:${min}`;
+                                   })();
+                                   return `${label} · ${log.isDeleted ? "삭제됨 · " : ""}${timeStr}`;
+                                 })()}
+                               </div>
+                             </div>
+                            );
+                          });
+                        })()}
+
+                        {historyChats[selectedHistoryItem.id]?.map((chat, ci) => (
+                           <div key={ci} className={`bubble-wrap ${chat.sender === 'user' ? 'user' : 'admin'}`}>
+                             <div className={`chat-bubble ${chat.sender}`} style={{ width: 'fit-content', padding: '0.85rem 1.15rem' }}>{chat.text}</div>
+                             <div className={`chat-meta ${chat.sender === 'user' ? 'right' : 'left'}`}>{chat.time}</div>
+                           </div>
+                        ))}
+                        <div ref={chatEndRef} />
+                      </div>
                     </div>
-                  </div>
+
+                    {/* History Footer */}
+                    <div className="panel-footer-fixed" style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
+                      {(() => {
+                        const isHistoryProcessed = selectedHistoryItem.status === '승인완료' || selectedHistoryItem.status === '반려';
+                        return (
+                          <>
+                            <div className={`message-pill-container ${isHistoryProcessed ? 'disabled' : ''}`}>
+                              <input type="text" className="message-pill-input" placeholder={isHistoryProcessed ? "정산 처리가 이미 완료되었습니다." : "메시지를 입력하세요."} disabled={isHistoryProcessed} value={historyInput} onChange={e => setHistoryInput(e.target.value)} />
+                            </div>
+                            <div className="cta-group" style={{ alignItems: 'center' }}>
+                              <button className="btn-nav" disabled={true}>‹</button>
+                              <button className={`btn-cta reject ${isHistoryProcessed ? 'disabled' : ''}`} disabled={isHistoryProcessed}>반려</button>
+                              <button className={`btn-cta approve ${isHistoryProcessed ? 'disabled' : ''}`} disabled={isHistoryProcessed}>승인</button>
+                              <button className="btn-nav" disabled={true}>›</button>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
                 </div>
               )}
             </div>

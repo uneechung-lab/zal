@@ -261,12 +261,12 @@ function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, se
 
   useEffect(() => {
     if (sub && parsedLogs.length > 0) {
-      const lastAdminLog = parsedLogs.slice().reverse().find(l => l.sender === 'admin' && !l.isDeleted);
-      if (lastAdminLog && lastAdminLog.time) {
-        onMarkRead(sub.id, lastAdminLog.time);
+      const lastMsg = parsedLogs[parsedLogs.length - 1];
+      if (lastMsg && lastMsg.time) {
+        onMarkRead(sub.id, lastMsg.time);
       }
     }
-  }, [sub, parsedLogs]);
+  }, [sub?.id, JSON.stringify(parsedLogs)]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -394,8 +394,11 @@ function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, se
                   <span style={{ fontSize: 11, color: "#bbb", marginTop: 6, fontWeight: 600 }}>
                     {(() => {
                       let label = isUser ? "" : "관리자 · ";
-                      if (log.sender === 'ai') label = "AI 잘먹이 · ";
-                      const timeStr = log.time ? new Date(log.time).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" }) : "방금 전";
+                      if (log.sender === 'ai' || log.text === "승인 완료!") label = "AI 잘먹이 · ";
+                      
+                      const rawTime = log.time || sub.created_at;
+                      const timeStr = rawTime ? new Date(rawTime).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" }) : "방금 전";
+                      
                       return `${label}${log.isDeleted ? "삭제됨 · " : ""}${timeStr}`;
                     })()}
                   </span>
@@ -532,9 +535,11 @@ export default function App() {
   const checkUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
+      const { data: prof } = await supabase.from('profiles').select('department').eq('email', session.user.email).single();
       setUser({
         email: session.user.email,
-        full_name: session.user.user_metadata?.full_name || session.user.email.split('@')[0]
+        full_name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+        department: prof?.department || "소속 없음"
       });
     } else {
       // 세션 없으면 로그인 화면으로 (index.html)
@@ -589,7 +594,7 @@ export default function App() {
   };
 
   const submit = async (isEx = false, data = ocr) => {
-    // 중복 교체 건이 있으면 먼저 삭제
+    // 중복 교체 건이 있으면 먼저 확실히 삭제
     if (duplicateId) {
       try {
         const { error } = await supabase
@@ -597,10 +602,15 @@ export default function App() {
           .delete()
           .eq('id', duplicateId);
         
-        if (error) throw error;
+        if (error) {
+          console.error("Duplicate Delete Error:", error);
+          alert("이전 영수증 삭제 중 오류가 발생했습니다.");
+          return; // 삭제 실패 시 중단
+        }
         setDuplicateId(null);
       } catch (e) {
         console.error("Duplicate Delete Error:", e);
+        return;
       }
     }
 
@@ -856,13 +866,43 @@ export default function App() {
       if (target >= min && target <= now) { setSelYear(ny); setSelMonth(nm); setSelWeek(nw); }
     };
 
+
     const monthFilter = (s) => {
       if (!s.date) return false;
       const p = s.date.split("-");
       return parseInt(p[0]) === selYear && parseInt(p[1]) === selMonth;
     };
-    const approvedTotal = subs.filter(s => monthFilter(s) && (s.status === "승인완료" || s.status === "승인대기")).reduce((a, s) => a + parseInt(s.amount || 0), 0);
-    const pendingTotal = subs.filter(s => monthFilter(s) && (s.status === "예외요청" || s.status === "보류")).reduce((a, s) => a + parseInt(s.amount || 0), 0);
+    const monthFiltered = subs.filter(s => monthFilter(s));
+    
+    // Smart aggregation: 1 record per day per user
+    const totals = useMemo(() => {
+      const daily = {};
+      monthFiltered.forEach(s => {
+        if (!daily[s.date]) daily[s.date] = [];
+        daily[s.date].push(s);
+      });
+      
+      let approvedSum = 0;
+      let pendingSum = 0;
+      let rejectedSum = 0;
+      
+      Object.values(daily).forEach(dayList => {
+        dayList.forEach(s => {
+          if (s.status === "승인완료" || s.status === "승인대기") {
+            approvedSum += parseInt(s.amount || 0);
+          } else if (s.status === "예외요청" || s.status === "보류") {
+            pendingSum += parseInt(s.amount || 0);
+          } else if (s.status === "반려") {
+            rejectedSum += parseInt(s.amount || 0);
+          }
+        });
+      });
+      return { approved: approvedSum, pending: pendingSum, rejected: rejectedSum };
+    }, [monthFiltered]);
+
+    const approvedTotal = totals.approved;
+    const pendingTotal = totals.pending;
+    const rejectedTotal = totals.rejected;
     const weekDates = getWeekDates(selYear, selMonth, selWeek);
     const payMonth = selMonth === 12 ? 1 : selMonth + 1;
     const payYear = selMonth === 12 ? selYear + 1 : selYear;
@@ -876,8 +916,7 @@ export default function App() {
             const logs = JSON.parse(rr);
             if (logs.length > 0) {
               const lastLog = logs[logs.length - 1];
-              const isNewAdmin = lastLog.sender === 'admin' && !lastLog.isDeleted;
-              if (isNewAdmin) {
+              if (lastLog.sender === 'admin' || lastLog.sender === 'ai') {
                 const seenTime = lastSeen[s.id];
                 return !seenTime || new Date(lastLog.time) > new Date(seenTime);
               }
@@ -964,6 +1003,7 @@ export default function App() {
                 <div style={{ position: "absolute", bottom: 4, left: -4, right: -4, height: 16, background: "#FEC601", opacity: 0.8, zIndex: 1 }} />
               </div>
               {pendingTotal > 0 && <span style={{ fontSize: 15, color: "#999", fontWeight: 700, marginLeft: 10 }}>(+{pendingTotal.toLocaleString()} 보류)</span>}
+              {rejectedTotal > 0 && <span style={{ fontSize: 15, color: "#E24B4A", fontWeight: 700, marginLeft: 6 }}>(+{rejectedTotal.toLocaleString()} 반려)</span>}
             </div>
           </div>
           <div style={{ padding: "20px 28px 16px" }}>
@@ -1099,7 +1139,24 @@ export default function App() {
                     <p style={{ margin: "0 0 6px", fontSize: 12, color: "#bbb", fontWeight: 700 }}>{s.date} · {s.category}</p>
                     <h4 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: "#111", letterSpacing: "-0.5px" }}>{s.store_name || s.storeName}</h4>
                   </div>
-                  <Badge status={s.status} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {(() => {
+                      const logs = s.reject_reason || s.rejectReason;
+                      if (logs && logs.startsWith('[')) {
+                        try {
+                          const parsed = JSON.parse(logs);
+                          const lastMsg = parsed[parsed.length - 1];
+                          const lastT = lastMsg?.time || s.created_at;
+                          const seenT = lastSeen[s.id] || "";
+                          if (lastT > seenT && lastMsg?.sender !== 'user') {
+                            return <div style={{ width: 8, height: 8, background: "#E24B4A", borderRadius: "50%", boxShadow: "0 0 10px rgba(226,75,74,0.4)" }} />;
+                          }
+                        } catch(e){}
+                      }
+                      return null;
+                    })()}
+                    <Badge status={s.status} />
+                  </div>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 24 }}>
                   <span style={{ fontSize: 20, fontWeight: 900, color: "#000" }}>₩{parseInt(s.amount || 0).toLocaleString()}</span>
@@ -1138,11 +1195,11 @@ export default function App() {
        try { logs = JSON.parse(reason); } catch(e){}
     } else if (reason) {
        const type = (selectedSub.status === "승인완료" || selectedSub.status === "승인") ? "approve" : "reject";
-       logs = [{ text: `[${reason}] ${type === 'approve' ? '승인' : '반려'}되었습니다.`, type, sender: 'admin', isDeleted: false }];
+       logs = [{ text: `[${reason}] ${type === 'approve' ? '승인' : '반려'}되었습니다.`, type, sender: 'ai', isDeleted: false, time: selectedSub.created_at }];
     } else if (selectedSub.status === "반려" || selectedSub.status === "승인완료" || selectedSub.status === "승인") {
        const type = selectedSub.status === "반려" ? "reject" : "approve";
        const hardMsg = selectedSub.status === "반려" ? `[${selectedSub.exc_text || selectedSub.excText || "영수증 정산 요청"}] 건은 반려되었습니다.` : "승인 완료!";
-       logs = [{ text: hardMsg, type, sender: 'admin', isDeleted: false }];
+       logs = [{ text: hardMsg, type, sender: 'ai', isDeleted: false, time: selectedSub.created_at }];
     }
     
     logs.push(newLog);
@@ -1385,7 +1442,7 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
               <img src="/profile.png" style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="profile" />
             </div>
             <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 6px", color: "#111" }}>{user?.full_name}</h2>
-            <p style={{ fontSize: 13, color: "#999", fontWeight: 700 }}>다음정보시스템즈 · {user?.email}</p>
+            <p style={{ fontSize: 13, color: "#999", fontWeight: 700 }}>{user?.department || "기타"} · {user?.email}</p>
           </div>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, padding: "0 4px" }}>
@@ -1404,8 +1461,28 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
                 <Icon.ChevronRight size={20} color="#ccc" />
               </button>
             </div>
-            <button onClick={() => setStep("list")} style={{ background: "none", border: "none", fontSize: 13, color: "#aaa", fontWeight: 700, padding: 0, cursor: "pointer", display: "flex", alignItems: "center", gap: 2 }}>
-              내역보기 <Icon.ChevronRight size={14} color="#ccc" />
+            <button onClick={() => setStep("list")} style={{ background: "none", border: "none", fontSize: 13, color: "#aaa", fontWeight: 700, padding: 0, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 2 }}>
+                내역보기 
+                {(() => {
+                  const hasAnyUnread = subs.some(s => {
+                    const logs = s.reject_reason || s.rejectReason;
+                    if (logs && logs.startsWith('[')) {
+                      try {
+                        const parsed = JSON.parse(logs);
+                        const lastMsg = parsed[parsed.length - 1];
+                        const lastT = lastMsg?.time || s.created_at;
+                        const seenT = lastSeen[s.id] || "";
+                        return (lastT > seenT && lastMsg?.sender !== 'user');
+                      } catch(e){ return false; }
+                    }
+                    return false;
+                  });
+                  if (hasAnyUnread) return <div style={{ width: 6, height: 6, background: "#E24B4A", borderRadius: "50%", position: "absolute", top: -2, right: -4 }} />;
+                  return null;
+                })()}
+              </div>
+              <Icon.ChevronRight size={14} color="#ccc" />
             </button>
           </div>
 
@@ -1757,11 +1834,15 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
   return (
     <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "#f2f2eb", fontFamily: "'Outfit', 'Pretendard', sans-serif", letterSpacing: "-0.5px" }}>
       <style>{`
+        @media (max-width: 1540px) { 
+          .main-ci { display: none !important; } 
+        }
+        @media (max-width: 1300px) { 
+          .admin-btn { display: none !important; } 
+        }
         @media (max-width: 1060px) { 
           .desktop-panel { display: none !important; } 
           .app-container { width: 100% !important; border-left: none !important; } 
-          .main-ci { display: none !important; }
-          .admin-btn { display: none !important; }
         }
         .desktop-panel, .brand-title-wrap, .feature-list-wrap, .visual-img-wrap, .main-ci {
           transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1782,9 +1863,9 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
         :root { --side-pad: 32px; --item-gap: 64px; --btn-bot: 60px; }
         @media (max-width: 480px) { :root { --side-pad: 28px; --item-gap: 40px; --btn-bot: 40px; } }
       `}</style>
-      <img src="/ci.png" className="main-ci" style={{ position: "fixed", top: 40, left: 40, height: 64, width: "auto", objectFit: "contain", zIndex: 100 }} alt="Company CI" />
+      <img src="/ci.png" className="main-ci" style={{ position: "fixed", top: 40, left: 40, height: 64, width: "auto", objectFit: "contain", zIndex: 100, pointerEvents: "none" }} alt="Company CI" />
 
-      <div className="desktop-panel" style={{ width: 840, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", paddingRight: 320, paddingLeft: 60, paddingTop: 220 }}>
+      <div className="desktop-panel" style={{ width: 840, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", paddingRight: 320, paddingLeft: 60, paddingTop: 220, position: "relative", zIndex: 10 }}>
         <div className="brand-title-wrap" style={{ marginTop: 0 }}>
           <h1 style={{ fontSize: 56, fontWeight: 900, lineHeight: 1.15, letterSpacing: "-2px", color: "#000" }}>
             점심 한 끼,<br />
@@ -1828,7 +1909,7 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
           </div>
         </div>
       </div>
-      <div className="app-container" style={{ width: 460, flexShrink: 0, height: "100%", boxShadow: "30px 30px 60px -15px rgba(0,0,0,0.12)", borderLeft: "1px solid rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", background: "#FFFBF0" }}>
+      <div className="app-container" style={{ width: 460, flexShrink: 0, height: "100%", boxShadow: "30px 30px 60px -15px rgba(0,0,0,0.12)", borderLeft: "1px solid rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", background: "#FFFBF0", zIndex: 10 }}>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative", height: "100%", overflow: "hidden" }}>
           {screens[step] || <AppHome />}
         </div>
@@ -1882,7 +1963,7 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
           fontSize: "12px", 
           fontWeight: 800, 
           textDecoration: "none", 
-          zIndex: 10000,
+          zIndex: 100,
           transition: "0.2s"
         }}
         onMouseOver={e => e.currentTarget.style.transform = "translateY(-2px)"}
