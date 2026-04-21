@@ -52,7 +52,7 @@ function validate(d, allowed, existingSubs = []) {
   // 업종 검사
   const catMatch = allowed.some(t => {
     const cStr = (d.category || "").split(/[\/,·\s]/);
-    return cStr.some(c => c.trim().includes(t) || t.includes(c.trim()));
+    return cStr.some(c => c.trim() && (c.trim().includes(t) || t.includes(c.trim())));
   });
   if (!catMatch) issues.push("지원 업종이 아닙니다. (업종: " + (d.category || "미확인") + ")");
   // 금액 검사
@@ -184,8 +184,36 @@ const transformData = (settlements, profiles, month, adminLastSeen = {}) => {
 };
 export default function App() {
   const [selectedUser, setSelectedUser] = useState(null);
-  const [activeTab, setActiveTab] = useState("승인 요청");
+  const [filterType, setFilterType] = useState("pending"); // pending, all, approved
   const [expandedUsers, setExpandedUsers] = useState({});
+  const [gridColumns, setGridColumns] = useState(4);
+  const [userSortType, setUserSortType] = useState("name"); // name, dept, amount
+  const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const closeMenus = () => {
+      setIsSortMenuOpen(false);
+      setIsFilterMenuOpen(false);
+    };
+    if (isSortMenuOpen || isFilterMenuOpen) {
+      window.addEventListener('click', closeMenus);
+    }
+    return () => window.removeEventListener('click', closeMenus);
+  }, [isSortMenuOpen, isFilterMenuOpen]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const w = window.innerWidth;
+      if (w < 720) setGridColumns(1);
+      else if (w < 1060) setGridColumns(2);
+      else if (w < 1400) setGridColumns(3);
+      else setGridColumns(4);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
   const [reviewIndex, setReviewIndex] = useState(0);
@@ -341,11 +369,12 @@ export default function App() {
     if (idx < monthOptions.length - 1) setSelectedMonth(monthOptions[idx + 1]);
   };
 
+  // Auto-switch to "Pending" if exists on month change, otherwise "All"
   useEffect(() => {
     if (rawSettlements.length > 0) {
       const monthFiltered = rawSettlements.filter(s => s.date && s.date.startsWith(selectedMonth.replace('.', '-')));
       const hasPending = monthFiltered.some(s => s.status === "예외요청" || s.status === "보류");
-      setActiveTab(hasPending ? "승인 요청" : "전체보기");
+      setFilterType(hasPending ? "pending" : "all");
     }
   }, [selectedMonth, rawSettlements]);
 
@@ -496,18 +525,15 @@ export default function App() {
     const pendingTotal = monthlyUsers.reduce((acc, u) => acc + u.pendingCount, 0);
     const pendingPeople = monthlyUsers.filter(u => u.pendingCount > 0).length;
     const pendingSpentTotal = monthlyUsers.reduce((acc, u) => acc + u.pendingSpent, 0);
-    
     const unreadTotal = monthlyUsers.reduce((acc, u) => acc + (u.unreadCount || 0), 0);
     
-    return { total, pendingSpentTotal, pendingTotal, pendingPeople, unreadTotal };
+    const activePeople = monthlyUsers.filter(u => u.count > 0).length; // Keep for metrics if needed
+    const approvedPeople = monthlyUsers.filter(u => u.count > 0 && u.pendingCount === 0).length;
+    const totalPeople = monthlyUsers.length;
+    
+    return { total, pendingSpentTotal, pendingTotal, pendingPeople, unreadTotal, approvedPeople, activePeople, totalPeople };
   }, [rawSettlements, selectedMonth, monthlyUsers]);
 
-  // Auto-switch to "All" tab if no pending requests
-  useEffect(() => {
-    if (totals.pendingTotal === 0 && activeTab === "승인 요청") {
-      setActiveTab("전체보기");
-    }
-  }, [totals.pendingTotal, activeTab]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -515,12 +541,24 @@ export default function App() {
   };
 
   const filteredUsers = useMemo(() => {
-    let list = [...monthlyUsers].sort((a, b) => b.approvedSpent - a.approvedSpent);
-    if (activeTab === "승인 요청") {
+    let list = [...monthlyUsers];
+    if (filterType === "pending") {
       list = list.filter(u => u.pendingCount > 0);
+    } else if (filterType === "approved") {
+      list = list.filter(u => u.count > 0 && u.pendingCount === 0);
+    } 
+    // "all" view shows everyone including 0 usage
+    
+    if (userSortType === "name") {
+      list.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    } else if (userSortType === "dept") {
+      list.sort((a, b) => a.department.localeCompare(b.department, 'ko') || a.name.localeCompare(b.name, 'ko'));
+    } else if (userSortType === "amount") {
+      list.sort((a, b) => b.approvedSpent - a.approvedSpent || a.name.localeCompare(b.name, 'ko'));
     }
+    
     return list;
-  }, [monthlyUsers, activeTab]);
+  }, [monthlyUsers, filterType, userSortType]);
 
   const currentReview = allPendingRequests[reviewIndex] || null;
 
@@ -917,122 +955,206 @@ export default function App() {
               </div>
             </div>
             <div className="filter-group">
-              <button
-                className={`filter-tab ${activeTab === '승인 요청' ? 'active' : ''}`}
-                onClick={() => setActiveTab('승인 요청')}
-              >
-                승인요청 (<span className="num-spacing">{totals.pendingPeople}</span>)
-              </button>
-              <button
-                className={`filter-tab ${activeTab === '전체보기' ? 'active' : ''}`}
-                onClick={() => setActiveTab('전체보기')}
-              >
-                전체보기 (<span className="num-spacing">{monthlyUsers.length}</span>)
-              </button>
+              <div className="tab-group" style={{ alignItems: 'center' }}>
+                <div className="sort-selector-wrapper" onClick={(e) => { 
+                  e.stopPropagation(); 
+                  setIsSortMenuOpen(!isSortMenuOpen);
+                  setIsFilterMenuOpen(false);
+                }}>
+                  <div className="sort-trigger">
+                    {userSortType === "name" ? "이름순" : userSortType === "dept" ? "부서별" : "금액순"}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 6, transform: isSortMenuOpen ? 'rotate(180deg)' : 'none', transition: '0.2s' }}>
+                      <path d="m6 9 6 6 6-6"/>
+                    </svg>
+                  </div>
+                  {isSortMenuOpen && (
+                    <div className="sort-dropdown shadow-side">
+                      {[
+                        { val: 'name', label: '이름순' },
+                        { val: 'dept', label: '부서별' },
+                        { val: 'amount', label: '금액순' }
+                      ].map(opt => (
+                        <div 
+                          key={opt.val}
+                          className={`sort-option ${userSortType === opt.val ? 'active' : ''}`}
+                          onClick={() => {
+                            setUserSortType(opt.val);
+                            setIsSortMenuOpen(false);
+                          }}
+                        >
+                          {opt.label}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="filter-divider" style={{ width: '1px', height: '14px', background: '#eee', margin: '0 8px' }} />
+
+                <div className="sort-selector-wrapper" onClick={(e) => { 
+                  e.stopPropagation(); 
+                  setIsFilterMenuOpen(!isFilterMenuOpen);
+                  setIsSortMenuOpen(false);
+                }}>
+                  <div className="sort-trigger" style={{ color: filterType === 'pending' && totals.pendingPeople > 0 ? '#ef4444' : '#333' }}>
+                    {filterType === "pending" ? `승인요청 (${totals.pendingPeople})` : filterType === "all" ? `전체 (${totals.totalPeople})` : `승인완료 (${totals.approvedPeople})`}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 6, transform: isFilterMenuOpen ? 'rotate(180deg)' : 'none', transition: '0.2s' }}>
+                      <path d="m6 9 6 6 6-6"/>
+                    </svg>
+                  </div>
+                  {isFilterMenuOpen && (
+                    <div className="sort-dropdown shadow-side" style={{ left: 'auto', right: -10 }}>
+                      {[
+                        { val: 'pending', label: `승인요청 (${totals.pendingPeople})` },
+                        { val: 'all', label: `전체 (${totals.totalPeople})` },
+                        { val: 'approved', label: `승인완료 (${totals.approvedPeople})` }
+                      ].map(opt => (
+                        <div 
+                          key={opt.val}
+                          className={`sort-option ${filterType === opt.val ? 'active' : ''}`}
+                          onClick={() => {
+                            setFilterType(opt.val);
+                            setIsFilterMenuOpen(false);
+                          }}
+                        >
+                          {opt.label}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
+
           </div>
 
           <div className="user-grid">
-            {filteredUsers.map(user => (
-              <div
-                key={user.id}
-                className={`user-card ${user.pendingCount > 0 ? 'pending' : ''}`}
-                onClick={() => setSelectedUser(user)}
-              >
-                <div className="card-header">
-                  <div>
-                    <div className="user-name" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {user.name} <span className="dept-label" style={{ fontSize: '0.85rem', color: '#888', fontWeight: 600, marginTop: '2px' }}>{user.department}</span>
-                    </div>
-                  </div>
-                  {user.count > 0 && (
-                    <button
-                      className={`status-badge ${user.pendingCount > 0 ? 'pending' : ''}`}
-                      onClick={(e) => {
-                        if (user.pendingCount > 0) {
-                          e.stopPropagation();
-                          const firstIdx = allPendingRequests.findIndex(req => req.user.name === user.name);
-                          if (firstIdx !== -1) setReviewIndex(firstIdx);
-                          setIsReviewPanelOpen(true);
-                        }
-                      }}
-                    >
-                      {user.pendingCount > 0 ? <>승인요청(<span className="num-spacing">{user.pendingCount}</span>)</> : '승인 완료'}
-                    </button>
-                  )}
-                </div>
-
-                <div className="card-body">
-                  <div className="info-hero">
-                    <div className="info-label">{selectedMonth.split('.')[1]}월 총 사용 금액</div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div className="info-amount">₩{user.approvedSpent.toLocaleString()}</div>
-                      <button className={`more-link ${expandedUsers[user.id] ? 'open' : ''}`} onClick={(e) => toggleExpand(e, user.id)}>
-                        더보기
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className={`expandable-content ${expandedUsers[user.id] ? 'open' : ''}`}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '16px', borderTop: '1px solid #f5f5f5', marginTop: '16px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div className="info-label" style={{ margin: 0 }}>사용 횟수</div>
-                        <div style={{ fontWeight: 700 }}><span className="num-spacing">{user.count}</span>회</div>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div className="info-label" style={{ margin: 0 }}>평균 사용액</div>
-                        <div style={{ fontWeight: 700 }}>₩{user.avg.toLocaleString()}</div>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div className="info-label" style={{ margin: 0 }}>반려 금액</div>
-                        <div style={{ fontWeight: 700, color: user.rejectedSpent > 0 ? '#ef4444' : 'inherit' }}>₩{user.rejectedSpent.toLocaleString()}</div>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div className="info-label" style={{ margin: 0 }}>보류 금액</div>
-                        <div 
-                          style={{ 
-                            fontWeight: 700, 
-                            color: user.pendingSpent > 0 ? '#ef4444' : 'inherit', 
-                            textDecoration: user.pendingSpent > 0 ? 'underline' : 'none',
-                            cursor: user.pendingSpent > 0 ? 'pointer' : 'default'
-                          }}
-                          onClick={(e) => {
-                            if (user.pendingSpent > 0) {
-                              e.stopPropagation();
-                              const idx = allPendingRequests.findIndex(r => r.user.name === user.name);
-                              if (idx !== -1) setReviewIndex(idx);
-                              setIsReviewPanelOpen(true);
-                            }
-                          }}
-                        >
-                          ₩{user.pendingSpent.toLocaleString()}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div className="info-label" style={{ margin: 0 }}>승인 금액</div>
-                        <div style={{ fontWeight: 700 }}>₩{user.approvedSpent.toLocaleString()}</div>
-                      </div>
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center', 
-                        paddingTop: '20px', 
-                        paddingBottom: '12px',
-                        marginTop: '16px', 
-                        borderTop: '2px solid #eee' 
-                      }}>
-                        <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#000' }}>최종 입금 금액</div>
-                        <div style={{ fontSize: '1.35rem', fontWeight: 950, color: '#000' }}>
-                          ₩{Math.min(user.approvedSpent, user.monthWeekdays * 10000).toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+            {filteredUsers.length === 0 ? (
+              <div style={{ 
+                gridColumn: '1 / -1', 
+                width: '100%',
+                minHeight: '400px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '4rem 1rem', 
+                textAlign: 'center', 
+                background: 'transparent', 
+                color: '#bbb',
+                fontWeight: 600,
+                fontSize: '1.05rem',
+                margin: '1rem 0'
+              }}>
+                {filterType === 'pending' ? '현재 신청된 승인 요청 내역이 없습니다.' : '내역이 없습니다.'}
               </div>
-            ))}
-          </div>
+            ) : (
+              Array.from({ length: gridColumns }).map((_, colIdx) => (
+                <div key={colIdx} className="grid-column">
+                {filteredUsers
+                  .filter((_, i) => i % gridColumns === colIdx)
+                  .map(user => (
+                    <div
+                      key={user.id}
+                      className={`user-card ${user.pendingCount > 0 ? 'pending' : ''}`}
+                      onClick={() => setSelectedUser(user)}
+                    >
+                      <div className="card-header">
+                        <div>
+                          <div className="user-name" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {user.name} <span className="dept-label" style={{ fontSize: '0.85rem', color: '#888', fontWeight: 600, marginTop: '2px' }}>{user.department}</span>
+                          </div>
+                        </div>
+                        {user.count > 0 && (
+                          <button
+                            className={`status-badge ${user.pendingCount > 0 ? 'pending' : ''}`}
+                            onClick={(e) => {
+                              if (user.pendingCount > 0) {
+                                e.stopPropagation();
+                                const firstIdx = allPendingRequests.findIndex(req => req.user.name === user.name);
+                                if (firstIdx !== -1) setReviewIndex(firstIdx);
+                                setIsReviewPanelOpen(true);
+                              }
+                            }}
+                          >
+                            {user.pendingCount > 0 ? <>승인요청(<span className="num-spacing">{user.pendingCount}</span>)</> : '승인 완료'}
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="card-body">
+                        <div className="info-hero">
+                          <div className="info-label">{selectedMonth.split('.')[1]}월 총 사용 금액</div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div className="info-amount">₩{user.approvedSpent.toLocaleString()}</div>
+                            <button className={`more-link ${expandedUsers[user.id] ? 'open' : ''}`} onClick={(e) => toggleExpand(e, user.id)}>
+                              더보기
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className={`expandable-content ${expandedUsers[user.id] ? 'open' : ''}`}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '16px', borderTop: '1px solid #f5f5f5', marginTop: '16px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div className="info-label" style={{ margin: 0 }}>사용 횟수</div>
+                              <div style={{ fontWeight: 700 }}><span className="num-spacing">{user.count}</span>회</div>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div className="info-label" style={{ margin: 0 }}>평균 사용액</div>
+                              <div style={{ fontWeight: 700 }}>₩{user.avg.toLocaleString()}</div>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div className="info-label" style={{ margin: 0 }}>반려 금액</div>
+                              <div style={{ fontWeight: 700, color: user.rejectedSpent > 0 ? '#ef4444' : 'inherit' }}>₩{user.rejectedSpent.toLocaleString()}</div>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div className="info-label" style={{ margin: 0 }}>보류 금액</div>
+                              <div 
+                                style={{ 
+                                  fontWeight: 700, 
+                                  color: user.pendingSpent > 0 ? '#ef4444' : 'inherit', 
+                                  textDecoration: user.pendingSpent > 0 ? 'underline' : 'none',
+                                  cursor: user.pendingSpent > 0 ? 'pointer' : 'default'
+                                }}
+                                onClick={(e) => {
+                                  if (user.pendingSpent > 0) {
+                                    e.stopPropagation();
+                                    const idx = allPendingRequests.findIndex(r => r.user.name === user.name);
+                                    if (idx !== -1) setReviewIndex(idx);
+                                    setIsReviewPanelOpen(true);
+                                  }
+                                }}
+                              >
+                                ₩{user.pendingSpent.toLocaleString()}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div className="info-label" style={{ margin: 0 }}>승인 금액</div>
+                              <div style={{ fontWeight: 700 }}>₩{user.approvedSpent.toLocaleString()}</div>
+                            </div>
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'center', 
+                              paddingTop: '20px', 
+                              paddingBottom: '12px',
+                              marginTop: '16px', 
+                              borderTop: '2px solid #eee' 
+                            }}>
+                              <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#000' }}>최종 입금 금액</div>
+                              <div style={{ fontSize: '1.35rem', fontWeight: 950, color: '#000' }}>
+                                ₩{Math.min(user.approvedSpent, user.monthWeekdays * 10000).toLocaleString()}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            ))
+          )}
+        </div>
         </main>
       </div>
 

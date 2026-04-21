@@ -169,10 +169,48 @@ body {
 
 .filter-section {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 2.5rem;
+  gap: 0.75rem 2.5rem;
   margin-bottom: 1.2rem;
+  overflow: visible !important;
+}
+
+@media (max-width: 720px) {
+  .content-area-wrapper {
+    padding: 0 1.25rem 4rem;
+  }
+
+  .filter-section {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .month-picker {
+    font-size: 1.4rem;
+    gap: 1rem;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .filter-group {
+    width: 100%;
+    margin-left: 0;
+    display: flex;
+    justify-content: center;
+    overflow: visible !important;
+  }
+
+  .tab-group {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .notice-text {
+    display: none !important;
+  }
 }
 
 .month-picker {
@@ -235,6 +273,82 @@ body {
   z-index: -1;
 }
 
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-left: auto;
+  overflow: visible !important;
+}
+
+.tab-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  overflow: visible !important;
+}
+
+.sort-selector-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.sort-trigger {
+  display: flex;
+  align-items: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #333;
+  cursor: pointer;
+  padding: 4px 0;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.sort-trigger:hover {
+  opacity: 0.6;
+}
+
+.sort-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 140px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+  padding: 8px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid #f0f0f0;
+}
+
+.sort-option {
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.sort-option:hover {
+  background: #f5f5f5;
+  color: #111;
+}
+
+.sort-option.active {
+  background: #f0f0f0;
+  color: #111;
+}
+
 .filter-tab {
   font-size: 0.9rem;
   font-weight: 700;
@@ -244,7 +358,7 @@ body {
   border: 1.5px solid #eee;
   background: white;
   padding: 0.6rem 1.4rem;
-  border-radius: 40px; /* Fully rounded */
+  border-radius: 40px;
 }
 
 .filter-tab.active {
@@ -260,10 +374,17 @@ body {
 }
 
 .user-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  display: flex !important;
   gap: 1.5rem;
   width: 100%;
+  align-items: flex-start;
+}
+
+.grid-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .user-card {

@@ -40,7 +40,7 @@ function validate(d, allowed, existingSubs = []) {
 
   const catMatch = allowed.some(t => {
     const cStr = (d.category || "").split(/[\/,·\s]/);
-    return cStr.some(c => c.trim().includes(t) || t.includes(c.trim()));
+    return cStr.some(c => c.trim() && (c.trim().includes(t) || t.includes(c.trim())));
   });
   if (!catMatch) issues.push("지원 업종이 아닙니다. (업종: " + (d.category || "미확인") + ")");
   
@@ -714,7 +714,7 @@ export default function App() {
       const payload = {
         contents: [{
           parts: [
-            { text: "이 이미지는 결제 영수증 또는 승인 내역 스크린샷입니다. 이미지에서 글씨를 인식하여 다음 정보를 추출하고 반드시 JSON 형태로 반환하세요:\n1. storeName: 결제 가맹점, 음식점이나 가게의 정확한 상호명\n2. date: 결제 날짜 (반드시 YYYY-MM-DD 형식으로 변환)\n3. time: 결제 시간 (HH:MM 형식으로 변환)\n4. amount: 최종 승인 금액 숫자 (단위나 콤마 제외, 숫자만 입력)\n5. category: 가맹점 업종 정보 (예: 한식, 일식, 카페 등)\n\n다른 형태 없이 오직 { \"storeName\": \"\", \"date\": \"\", \"time\": \"\", \"amount\": \"\", \"category\": \"\" } 형태의 순수 JSON만 반환하세요." },
+            { text: "이 이미지는 결제 영수증 또는 승인 내역 스크린샷입니다. 이미지에서 글씨를 인식하여 다음 정보를 추출하고 반드시 JSON 형태로 반환하세요:\n1. storeName: 결제 가맹점, 음식점이나 가게의 정확한 상호명\n2. date: 결제 날짜 (반드시 YYYY-MM-DD 형식으로 변환)\n3. time: 결제 시간 (HH:MM 형식으로 변환)\n4. amount: 최종 승인 금액 숫자 (단위나 콤마 제외, 숫자만 입력)\n5. category: 가맹점 업종 정보 (예: 한식, 일식, 카페 등). 영수증에 업종이 명시되어 있지 않더라도, 상호명이 유명한 음식점/카페/브랜드라면 해당 지식을 바탕으로 업종을 기입하세요. 정말 알 수 없는 경우에만 빈 문자열(\"\")을 반환하세요.\n\n다른 형태 없이 오직 { \"storeName\": \"\", \"date\": \"\", \"time\": \"\", \"amount\": \"\", \"category\": \"\" } 형태의 순수 JSON만 반환하세요." },
             { inlineData: { mimeType: f.type || "image/jpeg", data: b64 } }
           ]
         }]
@@ -748,6 +748,7 @@ export default function App() {
       const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
       const cleaned = txt.replace(/```json|```/g, "").trim();
       let parsed = JSON.parse(cleaned);
+      console.log("AI 인식 결과:", parsed);
       
       let rawDate = parsed.date || parsed.usageDate || "";
       if (/^\d{2}\.\d{2}\.\d{2}/.test(rawDate)) rawDate = "20" + rawDate;

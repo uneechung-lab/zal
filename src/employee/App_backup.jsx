@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -33,19 +33,20 @@ function validate(d, allowed, existingSubs = []) {
 
   if (!d.date) {
     issues.push("?좎쭨 ?뺣낫瑜??뺤씤?????놁뒿?덈떎.");
+    issues.push("날짜 정보를 확인해 주십시오.");
   } else {
     const dow = new Date(d.date).getDay();
-    if (dow === 0 || dow === 6) issues.push("二쇰쭚/怨듯쑕???ъ슜? 吏?먮릺吏 ?딆뒿?덈떎.");
+    if (dow === 0 || dow === 6) issues.push("주말/공휴일 사용은 지원되지 않습니다.");
   }
 
   const catMatch = allowed.some(t => {
-    const cStr = (d.category || "").split(/[\/,쨌\s]/);
-    return cStr.some(c => c.trim().includes(t) || t.includes(c.trim()));
+    const cStr = (d.category || "").split(/[\/,·\s]/);
+    return cStr.some(c => c.trim() && (c.trim().includes(t) || t.includes(c.trim())));
   });
-  if (!catMatch) issues.push("吏???낆쥌???꾨떃?덈떎. (?낆쥌: " + (d.category || "誘명솗??) + ")");
+  if (!catMatch) issues.push("지원하지 않는 업종입니다. (업종: " + (d.category || "미확인") + ")");
   
   const cleanAmt = String(d.amount || "").replace(/[^\d]/g, "");
-  if (!cleanAmt || parseInt(cleanAmt) <= 0) issues.push("湲덉븸 ?뺣낫瑜??뺤씤?????놁뒿?덈떎.");
+  if (!cleanAmt || parseInt(cleanAmt) <= 0) issues.push("금액 정보를 확인해 주십시오.");
   
   return issues;
 }
