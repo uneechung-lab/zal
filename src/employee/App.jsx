@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import FeedbackSystem from "../FeedbackSystem";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -541,6 +542,21 @@ export default function App() {
     window.addEventListener('resize', setVh);
     return () => window.removeEventListener('resize', setVh);
   }, []);
+
+  const pathLabel = useMemo(() => {
+    const map = {
+      home: "사용자 > 홈",
+      list: "사용자 > 정산 내역",
+      detail: "사용자 > 요청 상세",
+      my: "사용자 > 마이페이지",
+      new: "사용자 > 영수증 등록",
+      menu: "사용자 > 메뉴 추천",
+      policy: "사용자 > 마이페이지 > 식대 지원 정책",
+      result: "사용자 > 등록 결과 확인",
+      exception: "사용자 > 예외 사유 입력"
+    };
+    return map[step] || "사용자 > 기타";
+  }, [step]);
 
   const checkUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -1973,7 +1989,7 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
         className="admin-btn"
         style={{ 
           position: "fixed", 
-          bottom: 24, 
+          bottom: 90, 
           right: 24, 
           background: "#000", 
           color: "#fff", 
@@ -1990,6 +2006,7 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
       >
         ADMIN
       </a>
+      <FeedbackSystem userName={user?.full_name} userEmail={user?.email} currentPath={pathLabel} />
     </div>
   );
 }

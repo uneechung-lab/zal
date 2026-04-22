@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import FeedbackSystem, { FeedbackAdminList } from "../FeedbackSystem";
 import { createClient } from "@supabase/supabase-js";
 import "./Admin.css";
 
@@ -190,6 +191,7 @@ export default function App() {
   const [userSortType, setUserSortType] = useState("name"); // name, dept, amount
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const [isFeedbackListOpen, setIsFeedbackListOpen] = useState(false);
 
   useEffect(() => {
     const closeMenus = () => {
@@ -379,6 +381,15 @@ export default function App() {
   }, [selectedMonth, rawSettlements]);
 
   const monthlyUsers = useMemo(() => transformData(rawSettlements, allProfiles, selectedMonth, adminLastSeen), [rawSettlements, allProfiles, selectedMonth, adminLastSeen]);
+  
+  const pathLabel = useMemo(() => {
+    if (isReviewPanelOpen) return "관리자 > 정산 신청 리뷰";
+    if (selectedUser) {
+      if (selectedHistoryItem) return `관리자 > 사용자 상세(${selectedUser.name}) > 채팅`;
+      return `관리자 > 사용자 상세(${selectedUser.name}) > 목록`;
+    }
+    return "관리자 > 대시보드";
+  }, [isReviewPanelOpen, selectedUser, selectedHistoryItem]);
 
   const allPendingRequests = useMemo(() => {
     const requests = [];
@@ -590,7 +601,8 @@ export default function App() {
               <span className="brand-zal">ZAL</span><span className="sep">:</span>잘먹
             </div>
           </div>
-          <div className="header-meta">
+          <div className="header-meta" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: '1px', height: '16px', background: '#eee' }}></div>
             관리자님 
             <button className="logout-icon-btn" title="로그아웃" onClick={handleLogout}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -1437,6 +1449,7 @@ export default function App() {
           </div>
         </div>
       )}
+      <FeedbackSystem userName="관리자" currentPath={pathLabel} showAdminView={true} />
     </div>
   );
 }

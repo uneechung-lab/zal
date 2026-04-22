@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import FeedbackSystem from './FeedbackSystem'
 import { createClient } from '@supabase/supabase-js'
 import './App.css'
 
@@ -424,7 +425,7 @@ function App() {
         className="admin-btn"
         style={{ 
           position: "fixed", 
-          bottom: 24, 
+          bottom: 90, 
           right: 24, 
           background: "#000", 
           color: "#fff", 
@@ -441,6 +442,7 @@ function App() {
       >
         ADMIN
       </a>
+      <FeedbackSystem userName={name || userId} currentPath={step === 'login' ? '인증 > 로그인' : '인증 > 회원가입'} />
     </div>
   )
 }
