@@ -1989,20 +1989,25 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
         className="admin-btn"
         style={{ 
           position: "fixed", 
-          bottom: 90, 
+          bottom: 92, 
           right: 24, 
+          width: 56,
+          height: 56,
           background: "#000", 
           color: "#fff", 
-          padding: "10px 20px", 
-          borderRadius: "12px", 
-          fontSize: "12px", 
-          fontWeight: 800, 
+          borderRadius: "50%", 
+          fontSize: "11px", 
+          fontWeight: 900, 
           textDecoration: "none", 
           zIndex: 100,
-          transition: "0.2s"
+          transition: "0.2s",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.12)"
         }}
-        onMouseOver={e => e.currentTarget.style.transform = "translateY(-2px)"}
-        onMouseOut={e => e.currentTarget.style.transform = "translateY(0)"}
+        onMouseOver={e => e.currentTarget.style.transform = "scale(1.05) translateY(-2px)"}
+        onMouseOut={e => e.currentTarget.style.transform = "scale(1) translateY(0)"}
       >
         ADMIN
       </a>
