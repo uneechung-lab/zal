@@ -526,10 +526,8 @@ export default function App() {
   const totals = useMemo(() => {
     const monthFiltered = rawSettlements.filter(s => s.date && s.date.startsWith(selectedMonth.replace('.', '-')));
     
-    // 승인된 금액 합계
-    const total = monthFiltered
-      .filter(s => s.status !== "예외요청" && s.status !== "보류" && s.status !== "반려")
-      .reduce((acc, curr) => acc + parseInt(curr.amount || 0), 0);
+    // 승인된 금액(한도 내) 합계
+    const total = monthlyUsers.reduce((acc, u) => acc + Math.min(u.approvedSpent, u.monthWeekdays * 10000), 0);
       
     // 보류 중인 금액 합계
     // Use monthlyUsers to get consistent counts with the tabs/cards
@@ -615,7 +613,7 @@ export default function App() {
       <section className="summary-strip">
         <div className="summary-grid">
           <div className="summary-label l1">오늘 ({new Date().toISOString().slice(5, 10).replace('-', '.')}) 기준</div>
-          <div className="summary-label l2">{selectedMonth.split('.')[1]}월 총 사용액</div>
+          <div className="summary-label l2">{selectedMonth.split('.')[1]}월 총 입금액</div>
           
           <div className="summary-greeting v1" onClick={() => {
             if (newMsgIdx !== -1) {
@@ -1095,9 +1093,9 @@ export default function App() {
 
                       <div className="card-body">
                         <div className="info-hero">
-                          <div className="info-label">{selectedMonth.split('.')[1]}월 총 사용 금액</div>
+                          <div className="info-label">{selectedMonth.split('.')[1]}월 총 입금 금액</div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div className="info-amount">₩{user.approvedSpent.toLocaleString()}</div>
+                            <div className="info-amount">₩{Math.min(user.approvedSpent, user.monthWeekdays * 10000).toLocaleString()}</div>
                             <button className={`more-link ${expandedUsers[user.id] ? 'open' : ''}`} onClick={(e) => toggleExpand(e, user.id)}>
                               더보기
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
@@ -1153,9 +1151,9 @@ export default function App() {
                               marginTop: '16px', 
                               borderTop: '2px solid #eee' 
                             }}>
-                              <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#000' }}>최종 입금 금액</div>
+                              <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#000' }}>총 사용 금액</div>
                               <div style={{ fontSize: '1.35rem', fontWeight: 950, color: '#000' }}>
-                                ₩{Math.min(user.approvedSpent, user.monthWeekdays * 10000).toLocaleString()}
+                                ₩{(user.approvedSpent + user.pendingSpent).toLocaleString()}
                               </div>
                             </div>
                           </div>

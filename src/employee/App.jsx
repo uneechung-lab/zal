@@ -104,6 +104,17 @@ function getWeekCount(year, month) {
   return getWeeksInMonth(year, month).length;
 }
 
+function getMonthWeekdays(year, month) {
+  const date = new Date(year, month - 1, 1);
+  let count = 0;
+  while (date.getMonth() === month - 1) {
+    const day = date.getDay();
+    if (day !== 0 && day !== 6) count++;
+    date.setDate(date.getDate() + 1);
+  }
+  return count;
+}
+
 function Badge({ status }) {
   const map = {
     "승인완료": { bg: "#E2F5EC", color: "#16a34a", label: "승인" },
@@ -927,7 +938,10 @@ export default function App() {
       return { approved: approvedSum, pending: pendingSum, rejected: rejectedSum };
     }, [monthFiltered]);
 
-    const approvedTotal = totals.approved;
+    const approvedSum = totals.approved;
+    const workingDays = getMonthWeekdays(selYear, selMonth);
+    const monthlyLimit = workingDays * 10000;
+    const approvedTotal = Math.min(approvedSum, monthlyLimit);
     const pendingTotal = totals.pending;
     const rejectedTotal = totals.rejected;
     const weekDates = getWeekDates(selYear, selMonth, selWeek);
