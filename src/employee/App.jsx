@@ -6,6 +6,19 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 import { createClient } from '@supabase/supabase-js';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+const HOLIDAYS = [
+  "2026-01-01",
+  "2026-02-16", "2026-02-17", "2026-02-18",
+  "2026-03-02",
+  "2026-05-01", "2026-05-05", "2026-05-25",
+  "2026-06-03",
+  "2026-06-06",
+  "2026-08-15", "2026-08-17",
+  "2026-09-24", "2026-09-25", "2026-09-26",
+  "2026-10-01", "2026-10-03", "2026-10-05", "2026-10-09",
+  "2026-12-25"
+];
+
 async function fetchCategories() {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/allowed_categories?select=name&order=name`, {
@@ -36,7 +49,7 @@ function validate(d, allowed, existingSubs = []) {
     issues.push("날짜 정보를 확인할 수 없습니다.");
   } else {
     const dow = new Date(d.date).getDay();
-    if (dow === 0 || dow === 6) issues.push("주말/공휴일 사용은 지원되지 않습니다.");
+    if (dow === 0 || dow === 6 || HOLIDAYS.includes(d.date)) issues.push("주말/공휴일 사용은 지원되지 않습니다.");
   }
 
   const catMatch = allowed.some(t => {
@@ -109,7 +122,8 @@ function getMonthWeekdays(year, month) {
   let count = 0;
   while (date.getMonth() === month - 1) {
     const day = date.getDay();
-    if (day !== 0 && day !== 6) count++;
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    if (day !== 0 && day !== 6 && !HOLIDAYS.includes(dateStr)) count++;
     date.setDate(date.getDate() + 1);
   }
   return count;
@@ -845,6 +859,16 @@ export default function App() {
 
   const handleFile = async e => {
     const f = e.target.files[0]; if (!f) return;
+
+    // 오늘이 공휴일/주말인지 체크 (업로드 액션 자체를 차단)
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const dow = now.getDay();
+    if (dow === 0 || dow === 6 || HOLIDAYS.includes(todayStr)) {
+      setModal("holiday_error");
+      return;
+    }
+
     setFile(f);
     processFile(f);
   };
@@ -1544,11 +1568,11 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
               <span style={{ fontSize: 20, fontWeight: 900, color: "#000" }}>₩{monthTotal.toLocaleString()}</span>
             </div>
             <div style={{ height: 8, background: "#f2f2f2", borderRadius: 10, position: "relative", marginBottom: 14 }}>
-              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.min(100, (monthTotal/220000)*100)}%`, background: "#FEC601", borderRadius: 10 }} />
+              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.min(100, (monthTotal/(getMonthWeekdays(myYear, myMonth)*10000))*100)}%`, background: "#FEC601", borderRadius: 10 }} />
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#bbb", fontWeight: 700 }}>
               <span>현재지출</span>
-              <span>총 한도 ₩220,000</span>
+              <span>총 한도 ₩{(getMonthWeekdays(myYear, myMonth)*10000).toLocaleString()}</span>
             </div>
           </div>
 
@@ -1798,7 +1822,7 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
           <>
             <div style={{ fontSize: 56, marginBottom: 24 }}>🚫</div>
             <h3 style={{ fontSize: 20, fontWeight: 800, color: "#111", margin: "0 0 12px", letterSpacing: "-0.5px" }}>등록 불가</h3>
-            <p style={{ fontSize: 15, color: "#666", margin: "0 0 40px", lineHeight: 1.6, fontWeight: 500 }}>공휴일의 영수증은<br/>등록이 불가능 합니다.</p>
+            <p style={{ fontSize: 15, color: "#666", margin: "0 0 40px", lineHeight: 1.6, fontWeight: 500 }}>주말 및 공휴일에는<br/>영수증 등록이 불가능합니다.</p>
             <button onClick={onClose} style={{ width: "100%", padding: "20px", borderRadius: 20, border: "none", background: "#1A1C30", color: "#fff", fontWeight: 800, fontSize: 17, cursor: "pointer" }}>확인</button>
           </>
         ) : type === "quota_error" ? (

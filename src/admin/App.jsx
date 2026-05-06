@@ -7,6 +7,19 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+const HOLIDAYS = [
+  "2026-01-01",
+  "2026-02-16", "2026-02-17", "2026-02-18",
+  "2026-03-02",
+  "2026-05-01", "2026-05-05", "2026-05-25",
+  "2026-06-03",
+  "2026-06-06",
+  "2026-08-15", "2026-08-17",
+  "2026-09-24", "2026-09-25", "2026-09-26",
+  "2026-10-01", "2026-10-03", "2026-10-05", "2026-10-09",
+  "2026-12-25"
+];
+
 // Helper to count weekdays (Mon-Fri) in a given month (YYYY.MM format)
 const getMonthWeekdays = (monthStr) => {
   const [y, m] = monthStr.split('.').map(Number);
@@ -14,7 +27,8 @@ const getMonthWeekdays = (monthStr) => {
   let count = 0;
   while (date.getMonth() === m - 1) {
     const day = date.getDay();
-    if (day !== 0 && day !== 6) count++;
+    const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    if (day !== 0 && day !== 6 && !HOLIDAYS.includes(dateStr)) count++;
     date.setDate(date.getDate() + 1);
   }
   return count;
@@ -48,7 +62,7 @@ function validate(d, allowed, existingSubs = []) {
     issues.push("날짜 정보를 확인할 수 없습니다.");
   } else {
     const dow = new Date(d.date).getDay();
-    if (dow === 0 || dow === 6) issues.push("주말/공휴일 사용은 지원되지 않습니다.");
+    if (dow === 0 || dow === 6 || HOLIDAYS.includes(d.date)) issues.push("주말/공휴일 사용은 지원되지 않습니다.");
   }
   // 업종 검사
   const catMatch = allowed.some(t => {
