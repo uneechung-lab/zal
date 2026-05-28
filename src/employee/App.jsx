@@ -643,6 +643,11 @@ export default function App() {
         department: prof?.department || "소속 없음"
       });
     } else {
+      // 비밀번호 재설정(recovery) 요청 중인 경우 리다이렉트를 방지합니다.
+      if (globalIsRecoverySession || window.location.hash.includes('type=recovery') || localStorage.getItem('is_resetting_password') === 'true') {
+        console.log("Password recovery in progress, skipping login redirect");
+        return;
+      }
       // 세션 없으면 로그인 화면으로 (index.html)
       window.location.href = '/';
     }
