@@ -32,6 +32,7 @@ function App() {
   const [step, setStep] = useState('login')
   const [userId, setUserId] = useState('')
   const [password, setPassword] = useState('')
+  const [otpCode, setOtpCode] = useState('')
   const [name, setName] = useState('')
   const [dept, setDept] = useState('')
   const [isDeptOpen, setIsDeptOpen] = useState(false)
@@ -156,8 +157,30 @@ function App() {
       alert(`비밀번호 재설정 요청 실패: ${error.message}`);
     } else {
       localStorage.setItem('is_resetting_password', 'true');
-      setModalType('password_reset_sent');
+      setStep('verify_otp');
       window.open('https://m.mail.daum.net/', '_blank');
+    }
+  }
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (!otpCode || otpCode.length < 6) {
+      alert("올바른 인증번호를 입력해 주세요.");
+      return;
+    }
+    setIsLoading(true);
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: `${userId}@daumit.net`,
+      token: otpCode,
+      type: 'recovery'
+    });
+    setIsLoading(false);
+    
+    if (error) {
+      alert(`인증 실패: ${error.message}`);
+    } else {
+      localStorage.setItem('is_resetting_password', 'true');
+      window.location.href = '/employee.html';
     }
   }
 
@@ -273,7 +296,7 @@ function App() {
 
       <div className="app-container" style={{ width: 460, flexShrink: 0, height: "100%", boxShadow: "30px 30px 60px -15px rgba(0,0,0,0.12)", borderLeft: "1px solid rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", background: "#FFFBF0" }}>
         <div className="login-container" style={{ width: '100%', maxWidth: 'none', margin: 0, height: '100%', paddingBottom: '40px' }}>
-          {step === 'login' ? (
+          {step === 'login' && (
             <div className="fade-in">
               <header className="header" style={{ marginBottom: 48, marginLeft: -16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
@@ -334,7 +357,9 @@ function App() {
                 <button type="button" onClick={handleForgotPassword} className="link-btn">비밀번호 찾기</button>
               </main>
             </div>
-          ) : (
+          )}
+
+          {step === 'join' && (
             <div className="fade-in">
               <header className="header" style={{ marginBottom: 40 }}>
                 <button onClick={() => setStep('login')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginLeft: -8, marginBottom: 20, display: 'block' }}>
@@ -433,6 +458,41 @@ function App() {
                   
                   <button type="submit" disabled={isLoading} className="login-btn" style={{ marginTop: 40, marginBottom: 80 }}>
                     {isLoading ? '메일 전송 중...' : '인증 메일 발송하기'}
+                  </button>
+                </form>
+              </main>
+            </div>
+          )}
+
+          {step === 'verify_otp' && (
+            <div className="fade-in">
+              <header className="header" style={{ marginBottom: 40 }}>
+                <button onClick={() => setStep('login')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginLeft: -8, marginBottom: 20, display: 'block' }}>
+                  <Icon.Back />
+                </button>
+                <h1 className="title">
+                  <div className="accent-line">인증번호 입력</div><br/>
+                  <span>메일로 발송된 8자리 인증 코드를 입력해 주세요.</span>
+                </h1>
+              </header>
+
+              <main className="form-section">
+                <form onSubmit={handleVerifyOtp}>
+                  <div className="input-card" style={{ marginBottom: 24 }}>
+                    <input 
+                      type="text" 
+                      className="input-main" 
+                      placeholder="8자리 인증번호 입력" 
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.trim())}
+                      maxLength={8}
+                      style={{ textAlign: 'center', letterSpacing: '4px', fontWeight: 800, fontSize: '20px' }}
+                      required
+                    />
+                  </div>
+                  
+                  <button type="submit" disabled={isLoading} className="login-btn" style={{ marginTop: 20 }}>
+                    {isLoading ? '인증 확인 중...' : '인증 완료 및 로그인'}
                   </button>
                 </form>
               </main>
