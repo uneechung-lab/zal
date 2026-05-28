@@ -135,11 +135,31 @@ function App() {
     }
   }
 
+  const handleForgotPassword = async () => {
+    if (!userId) {
+      alert("비밀번호를 재설정할 이메일 아이디(이메일 주소의 앞자리)를 먼저 입력해 주세요.");
+      return;
+    }
+    setIsLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(`${userId}@daumit.net`, {
+      redirectTo: `${window.location.origin}/employee.html`,
+    });
+    setIsLoading(false);
+    if (error) {
+      alert(`비밀번호 재설정 요청 실패: ${error.message}`);
+    } else {
+      localStorage.setItem('is_resetting_password', 'true');
+      setModalType('password_reset_sent');
+      window.open('https://m.mail.daum.net/', '_blank');
+    }
+  }
+
   const Modal = () => {
     const isSent = modalType === 'sent'
     const isNotConfirmed = modalType === 'not_confirmed'
     const isRateLimit = modalType === 'rate_limit'
     const isAuthError = modalType === 'auth_error'
+    const isPasswordResetSent = modalType === 'password_reset_sent'
 
     return (
       <div className="modal-overlay">
@@ -148,13 +168,14 @@ function App() {
             {(isNotConfirmed || isRateLimit || isAuthError) ? <Icon.Alert /> : <Icon.Check />}
           </div>
           <h3 className="modal-title">
-            {isNotConfirmed ? '인증 확인 필요' : isRateLimit ? '잠시 후 다시 시도' : isAuthError ? '확인 필요' : '메일 발송 완료'}
+            {isNotConfirmed ? '인증 확인 필요' : isRateLimit ? '잠시 후 다시 시도' : isAuthError ? '확인 필요' : isPasswordResetSent ? '재설정 메일 발송' : '메일 발송 완료'}
           </h3>
           <p className="modal-desc">
             {isNotConfirmed && <>아직 이메일 인증이 완료되지 않았습니다.<br/>메일함에서 인증 링크를 클릭해 주세요.</>}
             {isRateLimit && <>보안을 위해 짧은 시간에 여러 번 보낼 수 없습니다.<br/>약 1분 뒤에 다시 시도해 주세요.</>}
             {isSent && <>인증 메일이 발송되었습니다.<br/>메일함 확인 후 로그인해 주세요.</>}
             {isAuthError && <>{customMsg.split('\n').map((line, i) => <span key={i}>{line}<br/></span>)}</>}
+            {isPasswordResetSent && <>비밀번호 재설정 메일이 발송되었습니다.<br/>메일함 확인 후 비밀번호를 재설정해 주세요.</>}
           </p>
           <button className="modal-btn" onClick={() => setModalType(null)}>확인</button>
         </div>
@@ -303,7 +324,7 @@ function App() {
                   <button type="button" onClick={() => setStep('join')} className="join-btn">오늘 처음이신가요?</button>
                 </form>
 
-                <button className="link-btn">비밀번호 찾기</button>
+                <button type="button" onClick={handleForgotPassword} className="link-btn">비밀번호 찾기</button>
               </main>
             </div>
           ) : (

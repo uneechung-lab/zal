@@ -371,9 +371,24 @@ export default function App() {
     fetchCategories();
   }, []);
 
-  const [selectedMonth, setSelectedMonth] = useState("2026.04");
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    return `${y}.${m}`;
+  });
 
-  const monthOptions = ["2026.01", "2026.02", "2026.03", "2026.04"];
+  const monthOptions = useMemo(() => {
+    const options = [];
+    const now = new Date();
+    for (let i = 3; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      options.push(`${y}.${m}`);
+    }
+    return options;
+  }, []);
 
   const handlePrevMonth = () => {
     const idx = monthOptions.indexOf(selectedMonth);

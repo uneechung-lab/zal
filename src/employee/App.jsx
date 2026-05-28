@@ -6,6 +6,16 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 import { createClient } from '@supabase/supabase-js';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+let globalIsRecoverySession = false;
+if (window.location.hash.includes('type=recovery') || window.location.hash.includes('recovery_token=')) {
+  globalIsRecoverySession = true;
+}
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === "PASSWORD_RECOVERY") {
+    globalIsRecoverySession = true;
+  }
+});
+
 const HOLIDAYS = [
   "2026-01-01",
   "2026-02-16", "2026-02-17", "2026-02-18",
@@ -504,6 +514,46 @@ export default function App() {
   const [deleteId, setDeleteId] = useState(null);
   const [user, setUser] = useState(null);
   const fileRef = useRef();
+
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(() => {
+    return globalIsRecoverySession || localStorage.getItem('is_resetting_password') === 'true';
+  });
+  const [newPassword, setNewPassword] = useState("");
+
+  useEffect(() => {
+    if (globalIsRecoverySession || localStorage.getItem('is_resetting_password') === 'true') {
+      setIsResetPasswordOpen(true);
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setIsResetPasswordOpen(true);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      alert("비밀번호는 최소 6자리 이상이어야 합니다.");
+      return;
+    }
+    
+    setModal("checking");
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setModal(null);
+
+    if (error) {
+      alert(`비밀번호 재설정 실패: ${error.message}`);
+    } else {
+      alert("비밀번호가 성공적으로 재설정되었습니다!");
+      setIsResetPasswordOpen(false);
+      setNewPassword("");
+      localStorage.removeItem('is_resetting_password');
+      window.location.hash = "";
+    }
+  };
 
   const [lastSeen, setLastSeen] = useState(() => {
     try {
@@ -2019,6 +2069,35 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
           </div>
         )}
         <BottomSheetPicker isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)} year={selYear} month={selMonth} week={selWeek} onConfirm={(y, m, w) => { setSelYear(y); setSelMonth(m); setSelWeek(w); }} />
+        {isResetPasswordOpen && (
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", zIndex: 12000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+            <div style={{ background: "#fff", borderRadius: 32, padding: "40px 28px 32px", width: "100%", maxWidth: 360, boxShadow: "0 20px 40px rgba(0,0,0,0.15)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <h3 style={{ fontSize: 24, fontWeight: 900, color: "#111", margin: 0 }}>비밀번호 재설정</h3>
+                <button onClick={() => { setIsResetPasswordOpen(false); localStorage.removeItem('is_resetting_password'); window.location.hash = ""; }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Icon.Close /></button>
+              </div>
+              <p style={{ fontSize: 13, color: "#aaa", margin: "4px 0 24px", fontWeight: 600 }}>새로 사용할 비밀번호를 입력해 주세요.</p>
+              
+              <form onSubmit={handleUpdatePassword}>
+                <div style={{ background: "#f9f9f9", borderRadius: 20, border: "1.5px solid #eee", padding: "8px 16px", marginBottom: 24 }}>
+                  <input 
+                    type="password" 
+                    placeholder="새 비밀번호 입력 (6자리 이상)" 
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    style={{ width: "100%", border: "none", outline: "none", background: "none", padding: "10px 0", fontSize: 16, fontWeight: 600 }}
+                    required
+                  />
+                </div>
+                
+                <div style={{ display: "flex", gap: 12 }}>
+                  <button type="button" onClick={() => { setIsResetPasswordOpen(false); localStorage.removeItem('is_resetting_password'); window.location.hash = ""; }} style={{ flex: 1, padding: "18px", background: "#fff", color: "#000", fontWeight: 800, fontSize: 16, border: "1.5px solid #000", borderRadius: 20, cursor: "pointer" }}>취소</button>
+                  <button type="submit" style={{ flex: 1.6, padding: "18px", background: "#000", color: "#fff", fontWeight: 800, fontSize: 16, border: "none", borderRadius: 20, cursor: "pointer" }}>변경하기</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
       <a 
         href="/admin.html" 
