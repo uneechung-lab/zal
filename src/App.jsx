@@ -49,6 +49,13 @@ function App() {
   }, [autoLogin]);
 
   useEffect(() => {
+    // 이메일 링크 만료/오류 해시 감지 및 알림
+    const hash = window.location.hash;
+    if (hash.includes('error_code=otp_expired') || hash.includes('otp_expired') || hash.includes('error=access_denied')) {
+      alert("비밀번호 재설정 링크의 유효기간이 만료되었거나 이미 사용되었습니다.\n\n아이디를 입력하고 [비밀번호 찾기] 버튼을 다시 눌러 새 메일을 받아주세요!");
+      window.location.hash = "";
+    }
+
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       // If there's a session, redirect to the employee app
