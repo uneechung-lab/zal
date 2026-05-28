@@ -507,6 +507,9 @@ export default function App() {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [selectedSub, setSelectedSub] = useState(null);
   const [filter, setFilter] = useState("전체");
+  const [viewMode, setViewMode] = useState("list");
+  const [listYear, setListYear] = useState(initialWeek.y);
+  const [listMonth, setListMonth] = useState(initialWeek.m);
   const [replyText, setReplyText] = useState("");
   const [localChats, setLocalChats] = useState({});
   const [isImgModal, setIsImgModal] = useState(false);
@@ -1217,10 +1220,31 @@ export default function App() {
     "반려": "반려"
   };
 
-  const AppList = () => {
+  const AppList = ({
+    reset,
+    filter,
+    setFilter,
+    subs,
+    statusMapForFilter,
+    setSelectedSub,
+    setStep,
+    setDeleteId,
+    viewMode,
+    setViewMode,
+    listYear,
+    setListYear,
+    listMonth,
+    setListMonth
+  }) => {
     const [sortType, setSortType] = useState("upload");
 
-    const filteredSubs = subs.filter(s => {
+    const monthFilteredSubs = subs.filter(s => {
+      if (!s.date) return false;
+      const p = s.date.split("-");
+      return parseInt(p[0]) === listYear && parseInt(p[1]) === listMonth;
+    });
+
+    const filteredSubs = monthFilteredSubs.filter(s => {
       if (filter === "전체") return true;
       if (filter === "보류") return s.status === "예외요청" || s.status === "보류";
       return s.status === statusMapForFilter[filter];
@@ -1233,72 +1257,290 @@ export default function App() {
 
     return (
       <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden" }}>
-        <div style={{ padding: "24px 28px", display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ padding: "24px 28px 12px", display: "flex", alignItems: "center", gap: 16 }}>
           <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Icon.Back /></button>
           <span style={{ fontWeight: 800, fontSize: 18 }}>정산 내역</span>
         </div>
 
+        {/* New Header Area: Month selector & View Toggle */}
+        <div style={{ padding: "0 28px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          {/* Left side: Month selector */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button 
+              onClick={() => {
+                let nm = listMonth - 1;
+                let ny = listYear;
+                if (nm < 1) { nm = 12; ny--; }
+                setListYear(ny);
+                setListMonth(nm);
+              }}
+              style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", padding: 4 }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <span style={{ fontSize: 18, fontWeight: 900, color: "#111" }}>{listYear}년 {String(listMonth).padStart(2, "0")}월</span>
+            <button 
+              onClick={() => {
+                let nm = listMonth + 1;
+                let ny = listYear;
+                if (nm > 12) { nm = 1; ny++; }
+                const now = new Date();
+                if (ny > now.getFullYear() || (ny === now.getFullYear() && nm > now.getMonth() + 1)) {
+                  return;
+                }
+                setListYear(ny);
+                setListMonth(nm);
+              }}
+              style={{ 
+                background: "none", 
+                border: "none", 
+                cursor: "pointer", 
+                display: "flex", 
+                alignItems: "center", 
+                padding: 4,
+                opacity: (() => {
+                  const now = new Date();
+                  const nextY = listMonth === 12 ? listYear + 1 : listYear;
+                  const nextM = listMonth === 12 ? 1 : listMonth + 1;
+                  return (nextY > now.getFullYear() || (nextY === now.getFullYear() && nextM > now.getMonth() + 1)) ? 0.3 : 1;
+                })(),
+                pointerEvents: (() => {
+                  const now = new Date();
+                  const nextY = listMonth === 12 ? listYear + 1 : listYear;
+                  const nextM = listMonth === 12 ? 1 : listMonth + 1;
+                  return (nextY > now.getFullYear() || (nextY === now.getFullYear() && nextM > now.getMonth() + 1)) ? "none" : "auto";
+                })()
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+          </div>
+
+          {/* Right side: List / Calendar Toggle */}
+          <div style={{ display: "flex", background: "#f5f5f5", borderRadius: 12, padding: 3, border: "1.5px solid #eee" }}>
+            <button 
+              onClick={() => setViewMode("list")}
+              style={{ 
+                background: viewMode === "list" ? "#fff" : "transparent",
+                border: viewMode === "list" ? "1.5px solid #111" : "none",
+                borderRadius: 9,
+                padding: "6px 12px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: viewMode === "list" ? "0 2px 6px rgba(0,0,0,0.05)" : "none",
+                marginRight: 2
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={viewMode === "list" ? "#111" : "#888"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+              </svg>
+            </button>
+            <button 
+              onClick={() => setViewMode("calendar")}
+              style={{ 
+                background: viewMode === "calendar" ? "#fff" : "transparent",
+                border: viewMode === "calendar" ? "1.5px solid #111" : "none",
+                borderRadius: 9,
+                padding: "6px 12px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: viewMode === "calendar" ? "0 2px 6px rgba(0,0,0,0.05)" : "none"
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={viewMode === "calendar" ? "#111" : "#888"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Pills */}
         <div style={{ padding: "0 28px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", gap: 8 }}>
             {["전체", "승인", "보류", "반려"].map(f => (
               <button key={f} onClick={() => setFilter(f)} style={{ background: filter === f ? "#000" : "#fff", color: filter === f ? "#fff" : "#999", border: "none", borderRadius: 30, padding: "8px 16px", fontSize: 13, fontWeight: 800, cursor: "pointer", transition: "0.2s" }}>{f}</button>
             ))}
           </div>
-          <div style={{ display: "flex" }}>
-            <button 
-              onClick={() => setSortType(prev => prev === "date" ? "upload" : "date")} 
-              style={{ background: "none", border: "none", fontSize: 13, color: "#111", fontWeight: 800, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <span>{sortType === "date" ? "날짜순" : "업로드순"}</span>
-              <div style={{ display: "flex", flexDirection: "column", fontSize: 8, color: "#bbb", lineHeight: 1, gap: 2 }}>
-                <span>▲</span>
-                <span>▼</span>
-              </div>
-            </button>
-          </div>
+          {viewMode === "list" && (
+            <div style={{ display: "flex" }}>
+              <button 
+                onClick={() => setSortType(prev => prev === "date" ? "upload" : "date")} 
+                style={{ background: "none", border: "none", fontSize: 13, color: "#111", fontWeight: 800, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <span>{sortType === "date" ? "날짜순" : "업로드순"}</span>
+                <div style={{ display: "flex", flexDirection: "column", fontSize: 8, color: "#bbb", lineHeight: 1, gap: 2 }}>
+                  <span>▲</span>
+                  <span>▼</span>
+                </div>
+              </button>
+            </div>
+          )}
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "12px 28px 100px" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {sortedSubs.map((s, i) => (
-              <div key={i} onClick={() => { setSelectedSub(s); setStep("detail"); }} style={{ background: "#fff", borderRadius: 28, padding: "24px", position: "relative", boxShadow: "0 10px 30px rgba(0,0,0,0.03)", cursor: "pointer" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                  <div>
-                    <p style={{ margin: "0 0 6px", fontSize: 12, color: "#bbb", fontWeight: 700 }}>{s.date} · {s.category}</p>
-                    <h4 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: "#111", letterSpacing: "-0.5px" }}>{s.store_name || s.storeName}</h4>
+        {/* Content Area */}
+        {viewMode === "list" ? (
+          <div style={{ flex: 1, overflowY: "auto", padding: "12px 28px 100px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {sortedSubs.map((s, i) => (
+                <div key={i} onClick={() => { setSelectedSub(s); setStep("detail"); }} style={{ background: "#fff", borderRadius: 28, padding: "24px", position: "relative", boxShadow: "0 10px 30px rgba(0,0,0,0.03)", cursor: "pointer" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                    <div>
+                      <p style={{ margin: "0 0 6px", fontSize: 12, color: "#bbb", fontWeight: 700 }}>{s.date} · {s.category}</p>
+                      <h4 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: "#111", letterSpacing: "-0.5px" }}>{s.store_name || s.storeName}</h4>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {(() => {
+                        const logs = s.reject_reason || s.rejectReason;
+                        if (logs && logs.startsWith('[')) {
+                          try {
+                            const parsed = JSON.parse(logs);
+                            const lastMsg = parsed[parsed.length - 1];
+                            const lastT = lastMsg?.time || s.created_at;
+                            const seenT = lastSeen[s.id] || "";
+                            if (lastT > seenT && lastMsg?.sender !== 'user') {
+                              return <div style={{ width: 8, height: 8, background: "#E24B4A", borderRadius: "50%", boxShadow: "0 0 10px rgba(226,75,74,0.4)" }} />;
+                            }
+                          } catch(e){}
+                        }
+                        return null;
+                      })()}
+                      <Badge status={s.status} />
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {(() => {
-                      const logs = s.reject_reason || s.rejectReason;
-                      if (logs && logs.startsWith('[')) {
-                        try {
-                          const parsed = JSON.parse(logs);
-                          const lastMsg = parsed[parsed.length - 1];
-                          const lastT = lastMsg?.time || s.created_at;
-                          const seenT = lastSeen[s.id] || "";
-                          if (lastT > seenT && lastMsg?.sender !== 'user') {
-                            return <div style={{ width: 8, height: 8, background: "#E24B4A", borderRadius: "50%", boxShadow: "0 0 10px rgba(226,75,74,0.4)" }} />;
-                          }
-                        } catch(e){}
-                      }
-                      return null;
-                    })()}
-                    <Badge status={s.status} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 24 }}>
+                    <span style={{ fontSize: 20, fontWeight: 900, color: "#000" }}>₩{parseInt(s.amount || 0).toLocaleString()}</span>
+                    <div 
+                      onClick={(e) => { e.stopPropagation(); setDeleteId(s.id); }}
+                      style={{ width: 40, height: 40, background: "#fff", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px solid #eee", cursor: "pointer", transition: "0.2s" }}
+                    >
+                      <Icon.Trash size={20} color="#999" />
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 24 }}>
-                  <span style={{ fontSize: 20, fontWeight: 900, color: "#000" }}>₩{parseInt(s.amount || 0).toLocaleString()}</span>
-                  <div 
-                    onClick={(e) => { e.stopPropagation(); setDeleteId(s.id); }}
-                    style={{ width: 40, height: 40, background: "#fff", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px solid #eee", cursor: "pointer", transition: "0.2s" }}
-                  >
-                    <Icon.Trash size={20} color="#999" />
-                  </div>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Calendar View (Mon-Fri) */
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            {/* Days of week header */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, padding: "12px 28px", borderBottom: "1.5px solid #eee", textAlign: "center" }}>
+              {["월", "화", "수", "목", "금"].map((d, idx) => (
+                <span key={idx} style={{ fontSize: 13, fontWeight: 800, color: "#666" }}>{d}</span>
+              ))}
+            </div>
+            
+            {/* Calendar Grid */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "16px 28px 100px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {getWeeksInMonth(listYear, listMonth).map((week, wIdx) => (
+                  <div key={wIdx} style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, textAlign: "center" }}>
+                    {week.map((date, dIdx) => {
+                      if (!date) {
+                        return <div key={dIdx} style={{ height: 72 }} />;
+                      }
+
+                      const localY = date.getFullYear();
+                      const localM = String(date.getMonth() + 1).padStart(2, '0');
+                      const localD = String(date.getDate()).padStart(2, '0');
+                      const dateKey = `${localY}-${localM}-${localD}`;
+
+                      // Find the single submission allowed for this day
+                      const daySub = subs.find(s => s.date === dateKey && (s.status === "승인완료" || s.status === "예외요청" || s.status === "보류" || s.status === "반려" || s.status === "승인대기"));
+
+                      const today = new Date();
+                      const isToday = localY === today.getFullYear() && date.getMonth() === today.getMonth() && date.getDate() === today.getDate();
+
+                      // Check if it fits the status filter
+                      let matchesFilter = true;
+                      if (daySub) {
+                        if (filter === "보류") {
+                          matchesFilter = daySub.status === "예외요청" || daySub.status === "보류";
+                        } else if (filter !== "전체") {
+                          matchesFilter = daySub.status === statusMapForFilter[filter];
+                        }
+                      } else {
+                        // If no sub, only show in "전체"
+                        matchesFilter = filter === "전체";
+                      }
+
+                      const displaySub = matchesFilter ? daySub : null;
+
+                      let isIssue = false;
+                      if (displaySub) {
+                        isIssue = displaySub.status === "반려" || displaySub.status === "보류" || displaySub.status === "예외요청";
+                      }
+                      const amountColor = isIssue ? "#E24B4A" : "#3b82f6";
+
+                      return (
+                        <div 
+                          key={dIdx} 
+                          onClick={() => {
+                            if (displaySub) {
+                              setSelectedSub(displaySub);
+                              setStep("detail");
+                            }
+                          }}
+                          style={{ 
+                            height: 72, 
+                            display: "flex", 
+                            flexDirection: "column", 
+                            alignItems: "center", 
+                            justifyContent: "space-between", 
+                            padding: "8px 4px", 
+                            borderRadius: 16, 
+                            cursor: displaySub ? "pointer" : "default",
+                            background: displaySub ? "#fff" : "transparent",
+                            boxShadow: displaySub ? "0 4px 12px rgba(0,0,0,0.02)" : "none"
+                          }}
+                        >
+                          {/* Day Number */}
+                          <div style={{ 
+                            width: 28, 
+                            height: 28, 
+                            borderRadius: "50%", 
+                            background: isToday ? "#e5e7eb" : "transparent", 
+                            display: "flex", 
+                            alignItems: "center", 
+                            justifyContent: "center",
+                            fontSize: 13,
+                            fontWeight: isToday ? 900 : 700,
+                            color: isToday ? "#111" : (displaySub ? "#111" : "#bbb")
+                          }}>
+                            {date.getDate()}
+                          </div>
+
+                          {/* Amount */}
+                          <div style={{ minHeight: 18, display: "flex", alignItems: "center" }}>
+                            {displaySub ? (
+                              <span style={{ fontSize: 12, fontWeight: 900, color: amountColor }}>
+                                {parseInt(displaySub.amount || 0).toLocaleString()}
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 11, color: "#ccc" }}>-</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -1551,12 +1793,41 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
       }
     };
 
+    const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
+
     const monthSubs = subs.filter(s => {
       if (!s.date) return false;
       const p = s.date.split("-");
-      return parseInt(p[0]) === myYear && parseInt(p[1]) === myMonth && (s.status === "승인완료" || s.status === "예외요청" || s.status === "보류");
+      return parseInt(p[0]) === myYear && parseInt(p[1]) === myMonth && (s.status === "승인완료" || s.status === "승인대기");
     });
-    const monthTotal = monthSubs.reduce((a, s) => a + parseInt(s.amount || 0), 0);
+    const myLimit = getMonthWeekdays(myYear, myMonth) * 10000;
+    const monthApprovedSum = monthSubs.reduce((a, s) => a + parseInt(s.amount || 0), 0);
+    const monthTotal = Math.min(monthApprovedSum, myLimit);
+
+    // Calculate detailed stats for the selected month
+    const myMonthSubs = subs.filter(s => {
+      if (!s.date) return false;
+      const p = s.date.split("-");
+      return parseInt(p[0]) === myYear && parseInt(p[1]) === myMonth;
+    });
+
+    let approvedSpent = 0;
+    let pendingSpent = 0;
+    let rejectedSpent = 0;
+    myMonthSubs.forEach(s => {
+      const amt = parseInt(s.amount || 0);
+      if (s.status === "승인완료" || s.status === "승인대기") {
+        approvedSpent += amt;
+      } else if (s.status === "예외요청" || s.status === "보류") {
+        pendingSpent += amt;
+      } else if (s.status === "반려") {
+        rejectedSpent += amt;
+      }
+    });
+
+    const useCount = myMonthSubs.length;
+    const totalSpent = approvedSpent + pendingSpent + rejectedSpent;
+    const avgSpent = useCount > 0 ? Math.floor(totalSpent / useCount) : 0;
 
     return (
       <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, height: "100%", overflow: "hidden" }}>
@@ -1614,7 +1885,7 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
             </button>
           </div>
 
-          <div style={{ background: "#fff", borderRadius: 28, padding: "24px", marginBottom: 16, boxShadow: "0 10px 40px rgba(0,0,0,0.03)" }}>
+          <div style={{ background: "#fff", borderRadius: 28, padding: "24px", marginBottom: 16, boxShadow: "0 10px 40px rgba(0,0,0,0.03)", transition: "all 0.3s ease" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: "#E2F5EC", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>📊</div>
@@ -1623,12 +1894,89 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
               <span style={{ fontSize: 20, fontWeight: 900, color: "#000" }}>₩{monthTotal.toLocaleString()}</span>
             </div>
             <div style={{ height: 8, background: "#f2f2f2", borderRadius: 10, position: "relative", marginBottom: 14 }}>
-              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.min(100, (monthTotal/(getMonthWeekdays(myYear, myMonth)*10000))*100)}%`, background: "#FEC601", borderRadius: 10 }} />
+              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.min(100, (monthTotal/myLimit)*100)}%`, background: "#FEC601", borderRadius: 10 }} />
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#bbb", fontWeight: 700 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#bbb", fontWeight: 700, marginBottom: 16 }}>
               <span>현재지출</span>
-              <span>총 한도 ₩{(getMonthWeekdays(myYear, myMonth)*10000).toLocaleString()}</span>
+              <span>총 한도 ₩{myLimit.toLocaleString()}</span>
             </div>
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <button 
+                onClick={() => setIsDetailsExpanded(!isDetailsExpanded)}
+                style={{ 
+                  background: "#F2F4F7", 
+                  border: "none", 
+                  borderRadius: 12, 
+                  padding: "5px 12px", 
+                  fontSize: 11, 
+                  fontWeight: 800, 
+                  color: "#667085", 
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4
+                }}
+              >
+                자세히
+                <span style={{ 
+                  display: "inline-block", 
+                  transform: isDetailsExpanded ? "rotate(180deg)" : "rotate(0deg)", 
+                  transition: "transform 0.2s ease",
+                  fontSize: 8
+                }}>
+                  ▼
+                </span>
+              </button>
+            </div>
+
+            {isDetailsExpanded && (
+              <>
+                <div style={{ margin: "20px 0 16px", borderTop: "1px solid #f2f2f2" }} />
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 13, color: "#888", fontWeight: 700 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>사용 횟수</span>
+                    <span style={{ color: "#111", fontSize: 14, fontWeight: 900 }}>{useCount}회</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>평균 사용액</span>
+                    <span style={{ color: "#111", fontSize: 14, fontWeight: 900 }}>₩{avgSpent.toLocaleString()}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>반려 금액</span>
+                    <span style={{ color: rejectedSpent > 0 ? "#E24B4A" : "#111", fontSize: 14, fontWeight: 900 }}>₩{rejectedSpent.toLocaleString()}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>보류 금액</span>
+                    <span 
+                      onClick={() => {
+                        setFilter("보류");
+                        setStep("list");
+                      }}
+                      style={{ 
+                        color: pendingSpent > 0 ? "#E24B4A" : "#111", 
+                        fontSize: 14, 
+                        fontWeight: 900, 
+                        textDecoration: "underline",
+                        cursor: "pointer"
+                      }}
+                    >
+                      ₩{pendingSpent.toLocaleString()}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>승인 금액</span>
+                    <span style={{ color: "#111", fontSize: 14, fontWeight: 900 }}>₩{approvedSpent.toLocaleString()}</span>
+                  </div>
+                  
+                  <div style={{ margin: "12px 0 4px", borderTop: "1px solid #f2f2f2" }} />
+                  
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 15, fontWeight: 900, color: "#000" }}>
+                    <span>총 사용 금액</span>
+                    <span>₩{totalSpent.toLocaleString()}</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           <div style={{ background: "#fff", borderRadius: 28, padding: "20px 24px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 10px 40px rgba(0,0,0,0.03)" }}>
@@ -1820,6 +2168,12 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
       setSelectedSub={setSelectedSub} 
       setStep={setStep} 
       setDeleteId={setDeleteId} 
+      viewMode={viewMode}
+      setViewMode={setViewMode}
+      listYear={listYear}
+      setListYear={setListYear}
+      listMonth={listMonth}
+      setListMonth={setListMonth}
     />, 
     result: <AppResult 
       reset={reset} 

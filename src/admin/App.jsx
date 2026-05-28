@@ -34,6 +34,36 @@ const getMonthWeekdays = (monthStr) => {
   return count;
 };
 
+function getWeeksInMonth(year, month) {
+  const weeks = [];
+  const firstDay = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0);
+  
+  let current = new Date(firstDay);
+  // Find Monday of the week containing the first day
+  while (current.getDay() !== 1) {
+    current.setDate(current.getDate() - 1);
+  }
+  
+  while (current <= lastDay) {
+    const week = [];
+    let hasDayInMonth = false;
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(current);
+      d.setDate(current.getDate() + i);
+      if (d.getMonth() + 1 === month && d.getFullYear() === year) {
+        week.push(d);
+        hasDayInMonth = true;
+      } else {
+        week.push(null);
+      }
+    }
+    if (hasDayInMonth) weeks.push(week);
+    current.setDate(current.getDate() + 7);
+  }
+  return weeks;
+}
+
 // Data transformation helper
 const Icon = {
   Alert: ({ size = 16 }) => (
@@ -237,6 +267,9 @@ export default function App() {
   const [actionLogs, setActionLogs] = useState([]);
   const [historyFilter, setHistoryFilter] = useState("전체");
   const [historySortType, setHistorySortType] = useState("upload");
+  const [historyViewMode, setHistoryViewMode] = useState("list");
+  const [historyListYear, setHistoryListYear] = useState(() => new Date().getFullYear());
+  const [historyListMonth, setHistoryListMonth] = useState(() => new Date().getMonth() + 1);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
   const [historyInput, setHistoryInput] = useState("");
   const [historyChats, setHistoryChats] = useState({});
@@ -1230,6 +1263,110 @@ export default function App() {
                       <div className="dept-label" style={{ fontSize: '0.85rem', color: '#888', fontWeight: 600 }}>{selectedUser.department}</div>
                     </div>
 
+                    {/* New Month Selector & View Mode Switcher for Admin Drawer */}
+                    <div style={{ padding: "0 0 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      {/* Left: Month selector */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <button 
+                          onClick={() => {
+                            let nm = historyListMonth - 1;
+                            let ny = historyListYear;
+                            if (nm < 1) { nm = 12; ny--; }
+                            setHistoryListYear(ny);
+                            setHistoryListMonth(nm);
+                          }}
+                          style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", padding: 4 }}
+                        >
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                        </button>
+                        <span style={{ fontSize: 16, fontWeight: 900, color: "#111" }}>{historyListYear}년 {String(historyListMonth).padStart(2, "0")}월</span>
+                        <button 
+                          onClick={() => {
+                            let nm = historyListMonth + 1;
+                            let ny = historyListYear;
+                            if (nm > 12) { nm = 1; ny++; }
+                            const now = new Date();
+                            if (ny > now.getFullYear() || (ny === now.getFullYear() && nm > now.getMonth() + 1)) {
+                              return;
+                            }
+                            setHistoryListYear(ny);
+                            setHistoryListMonth(nm);
+                          }}
+                          style={{ 
+                            background: "none", 
+                            border: "none", 
+                            cursor: "pointer", 
+                            display: "flex", 
+                            alignItems: "center", 
+                            padding: 4,
+                            opacity: (() => {
+                              const now = new Date();
+                              const nextY = historyListMonth === 12 ? historyListYear + 1 : historyListYear;
+                              const nextM = historyListMonth === 12 ? 1 : historyListMonth + 1;
+                              return (nextY > now.getFullYear() || (nextY === now.getFullYear() && nextM > now.getMonth() + 1)) ? 0.3 : 1;
+                            })(),
+                            pointerEvents: (() => {
+                              const now = new Date();
+                              const nextY = historyListMonth === 12 ? historyListYear + 1 : historyListYear;
+                              const nextM = historyListMonth === 12 ? 1 : historyListMonth + 1;
+                              return (nextY > now.getFullYear() || (nextY === now.getFullYear() && nextM > now.getMonth() + 1)) ? "none" : "auto";
+                            })()
+                          }}
+                        >
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </button>
+                      </div>
+
+                      {/* Right: View Mode Toggle */}
+                      <div style={{ display: "flex", background: "#f5f5f5", borderRadius: 12, padding: 3, border: "1.5px solid #eee" }}>
+                        <button 
+                          onClick={() => setHistoryViewMode("list")}
+                          style={{ 
+                            background: historyViewMode === "list" ? "#fff" : "transparent",
+                            border: historyViewMode === "list" ? "1.5px solid #111" : "none",
+                            borderRadius: 9,
+                            padding: "6px 10px",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            boxShadow: historyViewMode === "list" ? "0 2px 6px rgba(0,0,0,0.05)" : "none",
+                            marginRight: 2
+                          }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={historyViewMode === "list" ? "#111" : "#888"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="8" y1="6" x2="21" y2="6"></line>
+                            <line x1="8" y1="12" x2="21" y2="12"></line>
+                            <line x1="8" y1="18" x2="21" y2="18"></line>
+                            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                          </svg>
+                        </button>
+                        <button 
+                          onClick={() => setHistoryViewMode("calendar")}
+                          style={{ 
+                            background: historyViewMode === "calendar" ? "#fff" : "transparent",
+                            border: historyViewMode === "calendar" ? "1.5px solid #111" : "none",
+                            borderRadius: 9,
+                            padding: "6px 10px",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            boxShadow: historyViewMode === "calendar" ? "0 2px 6px rgba(0,0,0,0.05)" : "none"
+                          }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={historyViewMode === "calendar" ? "#111" : "#888"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="history-list-filter-row">
                       <div className="filter-chips">
                         {["전체", "승인", "보류", "반려"].map(f => (
@@ -1242,56 +1379,184 @@ export default function App() {
                           </button>
                         ))}
                       </div>
-                      <button 
-                        className="sort-toggle-btn"
-                        onClick={() => setHistorySortType(prev => prev === "upload" ? "date" : "upload")}
-                      >
-                        <span>{historySortType === "upload" ? "업로드순" : "날짜순"}</span>
-                        <div className="sort-arrows">
-                           <span className="arrow">▲</span>
-                           <span className="arrow">▼</span>
-                        </div>
-                      </button>
+                      {historyViewMode === "list" && (
+                        <button 
+                          className="sort-toggle-btn"
+                          onClick={() => setHistorySortType(prev => prev === "upload" ? "date" : "upload")}
+                        >
+                          <span>{historySortType === "upload" ? "업로드순" : "날짜순"}</span>
+                          <div className="sort-arrows">
+                             <span className="arrow">▲</span>
+                             <span className="arrow">▼</span>
+                          </div>
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  <div className="history-list no-scrollbar" style={{ paddingBottom: '2rem' }}>
-                    {(selectedUser.history || [])
-                      .filter(item => {
-                        if (historyFilter === "전체") return true;
-                        if (historyFilter === "승인") return item.status === "승인완료";
-                        if (historyFilter === "보류") return item.status === "보류" || item.status === "예외요청";
-                        if (historyFilter === "반려") return item.status === "반려";
-                        return false;
-                      })
-                      .map((item, idx) => {
-                        const isViolation = item.status === "보류" || item.status === "예외요청";
-                        const isApproved = item.status === "승인완료";
-                        const isRejected = item.status === "반려";
-                        return (
-                          <div key={idx} className="history-item-card" onClick={() => setSelectedHistoryItem(item)}>
-                            <div className="history-card-top">
-                              <span className="history-meta">{item.date.split(' ')[0]} · 식당</span>
-                              <span className={`history-status-badge ${isApproved ? 'approved' : (isRejected ? 'pending' : 'pending')}`} style={{ background: isRejected ? '#FEE2E2' : '', color: isRejected ? '#E24B4A' : '' }}>
-                                {item.status}
-                              </span>
+                  {historyViewMode === "list" ? (
+                    <div className="history-list no-scrollbar" style={{ paddingBottom: '2rem' }}>
+                      {(() => {
+                        const monthFilteredHistory = (selectedUser.history || []).filter(item => {
+                          if (!item.date) return false;
+                          const p = item.date.split(" ")[0].split("-");
+                          return parseInt(p[0]) === historyListYear && parseInt(p[1]) === historyListMonth;
+                        });
+
+                        const filteredHistory = monthFilteredHistory.filter(item => {
+                          if (historyFilter === "전체") return true;
+                          if (historyFilter === "승인") return item.status === "승인완료";
+                          if (historyFilter === "보류") return item.status === "보류" || item.status === "예외요청";
+                          if (historyFilter === "반려") return item.status === "반려";
+                          return false;
+                        });
+
+                        const sortedHistory = [...filteredHistory].sort((a, b) => {
+                          if (historySortType === "date") return new Date(a.date) - new Date(b.date);
+                          return new Date(b.date) - new Date(a.date);
+                        });
+
+                        return sortedHistory.map((item, idx) => {
+                          const isViolation = item.status === "보류" || item.status === "예외요청";
+                          const isApproved = item.status === "승인완료";
+                          const isRejected = item.status === "반려";
+                          return (
+                            <div key={idx} className="history-item-card" onClick={() => setSelectedHistoryItem(item)}>
+                              <div className="history-card-top">
+                                <span className="history-meta">{item.date.split(' ')[0]} · {item.category || "식당"}</span>
+                                <span className={`history-status-badge ${isApproved ? 'approved' : (isRejected ? 'pending' : 'pending')}`} style={{ background: isRejected ? '#FEE2E2' : '', color: isRejected ? '#E24B4A' : '' }}>
+                                  {item.status}
+                                </span>
+                              </div>
+                              <div className="history-card-title">
+                                {item.store || item.desc}
+                              </div>
+                              <div className="history-card-footer">
+                                <div className="history-amount">₩{item.amount.toLocaleString()}</div>
+                                <button className="history-delete-btn" onClick={(e) => { e.stopPropagation(); alert('정산 내역을 삭제하시겠습니까?'); }}>
+                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                                </button>
+                              </div>
                             </div>
-                            <div className="history-card-title">
-                              {item.store || item.desc}
-                            </div>
-                            <div className="history-card-footer">
-                              <div className="history-amount">₩{item.amount.toLocaleString()}</div>
-                              <button className="history-delete-btn" onClick={(e) => { e.stopPropagation(); alert('정산 내역을 삭제하시겠습니까?'); }}>
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-                              </button>
-                            </div>
+                          );
+                        });
+                      })()}
+                      {(selectedUser.history || []).filter(item => {
+                        if (!item.date) return false;
+                        const p = item.date.split(" ")[0].split("-");
+                        return parseInt(p[0]) === historyListYear && parseInt(p[1]) === historyListMonth;
+                      }).length === 0 && (
+                        <div style={{ color: '#ccc', textAlign: 'center', padding: '5rem 0' }}>정산 내역이 없습니다.</div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Calendar View (Mon-Fri) for Admin Drawer */
+                    <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", paddingBottom: "2rem" }}>
+                      {/* Weekday headers */}
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, padding: "12px 4px", borderBottom: "1.5px solid #eee", textAlign: "center" }}>
+                        {["월", "화", "수", "목", "금"].map((d, idx) => (
+                          <span key={idx} style={{ fontSize: 13, fontWeight: 800, color: "#666" }}>{d}</span>
+                        ))}
+                      </div>
+
+                      {/* Weeks */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "12px 4px" }}>
+                        {getWeeksInMonth(historyListYear, historyListMonth).map((week, wIdx) => (
+                          <div key={wIdx} style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, textAlign: "center" }}>
+                            {week.map((date, dIdx) => {
+                              if (!date) {
+                                return <div key={dIdx} style={{ height: 64 }} />;
+                              }
+
+                              const localY = date.getFullYear();
+                              const localM = String(date.getMonth() + 1).padStart(2, '0');
+                              const localD = String(date.getDate()).padStart(2, '0');
+                              const dateKey = `${localY}-${localM}-${localD}`;
+
+                              // Find history item matching this date
+                              const daySub = (selectedUser.history || []).find(h => h.date && h.date.split(' ')[0] === dateKey);
+
+                              const today = new Date();
+                              const isToday = localY === today.getFullYear() && date.getMonth() === today.getMonth() && date.getDate() === today.getDate();
+
+                              // Filter condition
+                              let matchesFilter = true;
+                              if (daySub) {
+                                if (historyFilter === "승인") {
+                                  matchesFilter = daySub.status === "승인완료";
+                                } else if (historyFilter === "보류") {
+                                  matchesFilter = daySub.status === "보류" || daySub.status === "예외요청";
+                                } else if (historyFilter === "반려") {
+                                  matchesFilter = daySub.status === "반려";
+                                }
+                              } else {
+                                matchesFilter = historyFilter === "전체";
+                              }
+
+                              const displaySub = matchesFilter ? daySub : null;
+
+                              let isIssue = false;
+                              if (displaySub) {
+                                isIssue = displaySub.status === "반려" || displaySub.status === "보류" || displaySub.status === "예외요청";
+                              }
+                              const amountColor = isIssue ? "#E24B4A" : "#3b82f6";
+
+                              return (
+                                <div 
+                                  key={dIdx}
+                                  onClick={() => {
+                                    if (displaySub) {
+                                      setSelectedHistoryItem(displaySub);
+                                    }
+                                  }}
+                                  style={{
+                                    height: 64,
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    padding: "6px 2px",
+                                    borderRadius: 12,
+                                    cursor: displaySub ? "pointer" : "default",
+                                    background: displaySub ? "#fff" : "transparent",
+                                    boxShadow: displaySub ? "0 4px 12px rgba(0,0,0,0.02)" : "none",
+                                    border: displaySub ? "1px solid #f0f0f0" : "none"
+                                  }}
+                                >
+                                  {/* Day Number */}
+                                  <div style={{
+                                    width: 24,
+                                    height: 24,
+                                    borderRadius: "50%",
+                                    background: isToday ? "#e5e7eb" : "transparent",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: 12,
+                                    fontWeight: isToday ? 900 : 700,
+                                    color: isToday ? "#111" : (displaySub ? "#111" : "#bbb")
+                                  }}>
+                                    {date.getDate()}
+                                  </div>
+
+                                  {/* Amount */}
+                                  <div style={{ minHeight: 16, display: "flex", alignItems: "center" }}>
+                                    {displaySub ? (
+                                      <span style={{ fontSize: 10, fontWeight: 900, color: amountColor }}>
+                                        {parseInt(displaySub.amount || 0).toLocaleString()}
+                                      </span>
+                                    ) : (
+                                      <span style={{ fontSize: 10, color: "#ccc" }}>-</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                        );
-                      })}
-                    {selectedUser.history.length === 0 && (
-                      <div style={{ color: '#ccc', textAlign: 'center', padding: '5rem 0' }}>정산 내역이 없습니다.</div>
-                    )}
-                  </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="history-detail-view no-scrollbar" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
