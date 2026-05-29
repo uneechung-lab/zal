@@ -1977,14 +1977,14 @@ export default function App() {
                 <span className="summary-sidebar-value">{selectedPrintIds.size}건</span>
               </div>
               <div className="summary-sidebar-stat-row" style={{ borderTop: '1px solid #f5f5f5', paddingTop: '12px' }}>
-                <span className="summary-sidebar-label" style={{ color: '#000', fontSize: '0.95rem' }}>영수증 합계 금액</span>
-                <span className="summary-sidebar-value" style={{ fontSize: '1.25rem', fontWeight: 950, color: '#ef4444' }}>
+                <span className="summary-sidebar-label" style={{ color: '#000', fontWeight: 700 }}>영수증 합계 금액</span>
+                <span className="summary-sidebar-value" style={{ color: '#ef4444' }}>
                   ₩{totalSelectedAmount.toLocaleString()}
                 </span>
               </div>
               <div className="summary-sidebar-stat-row" style={{ borderTop: '1px solid #f5f5f5', paddingTop: '12px' }}>
-                <span className="summary-sidebar-label" style={{ color: '#000', fontSize: '0.95rem' }}>{selectedMonth.split('.')[1]}월 총 입금 금액</span>
-                <span className="summary-sidebar-value" style={{ fontSize: '1.25rem', fontWeight: 950, color: '#111' }}>
+                <span className="summary-sidebar-label" style={{ color: '#000', fontWeight: 700 }}>{selectedMonth.split('.')[1]}월 총 입금 금액</span>
+                <span className="summary-sidebar-value" style={{ color: '#111' }}>
                   ₩{totals.total.toLocaleString()}
                 </span>
               </div>
