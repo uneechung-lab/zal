@@ -135,7 +135,7 @@ export default function FeedbackSystem({ userName, userEmail, currentPath, showA
 
   return (
     <>
-      <div style={{ position: "fixed", bottom: 24, right: 24, display: "flex", flexDirection: "column", gap: 12, zIndex: 10000 }}>
+      <div style={{ position: "fixed", bottom: showAdminView ? 24 : 96, right: 24, display: "flex", flexDirection: "column", gap: 12, zIndex: 10000 }}>
         {/* Status List FAB (White) - Only for Admin */}
         {showAdminView && (
           <button 
