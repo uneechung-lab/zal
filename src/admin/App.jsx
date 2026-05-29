@@ -1976,15 +1976,15 @@ export default function App() {
                 <span className="summary-sidebar-label">선택된 건수</span>
                 <span className="summary-sidebar-value">{selectedPrintIds.size}건</span>
               </div>
-              <div className="summary-sidebar-stat-row" style={{ borderTop: '1px solid #f5f5f5', paddingTop: '12px' }}>
+              <div className="summary-sidebar-stat-row">
                 <span className="summary-sidebar-label" style={{ color: '#000', fontWeight: 700 }}>영수증 합계 금액</span>
                 <span className="summary-sidebar-value" style={{ color: '#ef4444' }}>
                   ₩{totalSelectedAmount.toLocaleString()}
                 </span>
               </div>
-              <div className="summary-sidebar-stat-row" style={{ borderTop: '1px solid #f5f5f5', paddingTop: '12px' }}>
-                <span className="summary-sidebar-label" style={{ color: '#000', fontWeight: 700 }}>{selectedMonth.split('.')[1]}월 총 입금 금액</span>
-                <span className="summary-sidebar-value" style={{ color: '#111' }}>
+              <div className="summary-sidebar-stat-row" style={{ borderTop: '1.5px solid #eee', paddingTop: '16px', marginTop: '4px' }}>
+                <span className="summary-sidebar-label" style={{ color: '#000', fontSize: '0.95rem', fontWeight: 800 }}>{selectedMonth.split('.')[1]}월 총 입금 금액</span>
+                <span className="summary-sidebar-value" style={{ fontSize: '1.35rem', fontWeight: 950, color: '#111' }}>
                   ₩{totals.total.toLocaleString()}
                 </span>
               </div>
@@ -2551,13 +2551,17 @@ export default function App() {
       {/* Print only section for window.print() */}
       <div className="print-section">
         <h1 className="print-title">{selectedMonth} 승인 영수증 내역서</h1>
-        <div className="print-summary">
-          <span>출력 일시: {new Date().toLocaleString('ko-KR')}</span>
-          <span>총 인쇄 건수: {selectedPrintIds.size}건</span>
-          <span>총 인쇄 금액: ₩{approvedSettlementsForMonth
-            .filter(s => selectedPrintIds.has(s.id))
-            .reduce((sum, s) => sum + parseInt(s.amount || 0), 0)
-            .toLocaleString()}</span>
+        <div className="print-summary" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '20px', fontSize: '14px', fontWeight: 'bold' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span>출력 일시: {new Date().toLocaleString('ko-KR')}</span>
+            <span>선택된 건수: {selectedPrintIds.size}건</span>
+            <span>영수증 합계 금액: <span style={{ color: '#ef4444' }}>₩{totalSelectedAmount.toLocaleString()}</span></span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <span style={{ fontSize: '16px', fontWeight: 900, border: '1.5px solid #000', padding: '6px 12px', borderRadius: '6px', background: '#fcfcfc' }}>
+              {selectedMonth.split('.')[1]}월 총 입금 금액: ₩{totals.total.toLocaleString()}
+            </span>
+          </div>
         </div>
         {printViewMode === "list" ? (
           <table className="print-table">
