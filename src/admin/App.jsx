@@ -2085,7 +2085,7 @@ export default function App() {
                   justifyContent: 'center',
                   gap: '8px',
                   cursor: selectedPrintIds.size === 0 ? 'not-allowed' : 'pointer',
-                  marginBottom: '4px',
+                  marginBottom: '0px',
                   transition: 'all 0.2s ease-in-out',
                 }}
               >
@@ -2116,6 +2116,8 @@ export default function App() {
                   justifyContent: 'center',
                   gap: '8px',
                   cursor: (selectedPrintIds.size === 0 || isDownloadingZip) ? 'not-allowed' : 'pointer',
+                  marginTop: '0px',
+                  marginBottom: '0px',
                   transition: 'all 0.2s ease-in-out',
                 }}
               >
