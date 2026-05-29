@@ -1451,8 +1451,19 @@ export default function App() {
 
       return (
         <div className="custom-screen-wrapper">
-          <div className="screen-header-row">
-            <h1 className="screen-title">{selectedMonth} 영수증 출력</h1>
+          <div className="screen-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h1 className="screen-title" style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: 0 }}>
+              <div className="month-picker" style={{ margin: 0, padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button className="picker-arrow" onClick={handlePrevMonth} disabled={selectedMonth === monthOptions[0]}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                </button>
+                <div style={{ minWidth: '100px', textAlign: 'center', fontSize: '1.75rem', fontWeight: 950 }}>{selectedMonth}</div>
+                <button className="picker-arrow" onClick={handleNextMonth} disabled={selectedMonth === monthOptions[monthOptions.length - 1]}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+                </button>
+              </div>
+              영수증 출력
+            </h1>
           </div>
 
           <div className="print-dashboard-layout">
