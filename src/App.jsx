@@ -535,7 +535,7 @@ function App() {
       >
         ADMIN
       </a>
-      <FeedbackSystem userName={name || userId} currentPath={step === 'login' ? '인증 > 로그인' : '인증 > 회원가입'} />
+      <FeedbackSystem userName={name || userId} currentPath={step === 'login' ? '인증 > 로그인' : '인증 > 회원가입'} showAdminView={true} />
     </div>
   )
 }
