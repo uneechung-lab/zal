@@ -2066,24 +2066,56 @@ export default function App() {
                   ₩{(totals?.total || 0).toLocaleString()}
                 </span>
               </div>
+              {/* 인쇄하기 (블랙 캡슐 버튼) */}
+              <button
+                className="btn-trigger-print"
+                disabled={selectedPrintIds.size === 0}
+                onClick={() => window.print()}
+                style={{
+                  width: '100%',
+                  height: '52px',
+                  borderRadius: '24px',
+                  border: 'none',
+                  background: selectedPrintIds.size === 0 ? '#f5f5f5' : '#000',
+                  color: selectedPrintIds.size === 0 ? '#ccc' : '#fff',
+                  fontWeight: '800',
+                  fontSize: '15px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  cursor: selectedPrintIds.size === 0 ? 'not-allowed' : 'pointer',
+                  marginBottom: '12px',
+                  transition: 'all 0.2s ease-in-out',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                  <rect x="6" y="14" width="12" height="8"></rect>
+                </svg>
+                인쇄하기
+              </button>
+
+              {/* 다운로드 (화이트 캡슐 버튼) */}
               <button
                 className="btn-trigger-zip-download"
                 disabled={selectedPrintIds.size === 0 || isDownloadingZip}
                 onClick={handleDownloadZip}
                 style={{
                   width: '100%',
-                  padding: '12px',
-                  borderRadius: '12px',
-                  border: '1.5px solid #111',
-                  background: isDownloadingZip ? '#f5f5f5' : '#111',
-                  color: isDownloadingZip ? '#999' : '#fff',
-                  fontWeight: 'bold',
+                  height: '52px',
+                  borderRadius: '24px',
+                  border: selectedPrintIds.size === 0 ? '1.5px solid #eee' : '1.5px solid #000',
+                  background: '#fff',
+                  color: (selectedPrintIds.size === 0 || isDownloadingZip) ? '#ccc' : '#000',
+                  fontWeight: '800',
+                  fontSize: '15px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
                   cursor: (selectedPrintIds.size === 0 || isDownloadingZip) ? 'not-allowed' : 'pointer',
-                  marginBottom: '10px',
                   transition: 'all 0.2s ease-in-out',
                 }}
               >
@@ -2092,30 +2124,18 @@ export default function App() {
                     <svg className="spinner" width="16" height="16" viewBox="0 0 50 50" style={{ animation: 'spin 1s linear infinite' }}>
                       <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" strokeWidth="5" strokeDasharray="80 200" />
                     </svg>
-                    <span>이미지 준비 중 ({zipDownloadProgress})</span>
+                    <span>준비 중 ({zipDownloadProgress})</span>
                   </>
                 ) : (
                   <>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                       <polyline points="7 10 12 15 17 10" />
                       <line x1="12" y1="15" x2="12" y2="3" />
                     </svg>
-                    <span>영수증 이미지 ZIP 다운로드</span>
+                    <span>다운로드</span>
                   </>
                 )}
-              </button>
-              <button
-                className="btn-trigger-print"
-                disabled={selectedPrintIds.size === 0}
-                onClick={() => window.print()}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="6 9 6 2 18 2 18 9"></polyline>
-                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                  <rect x="6" y="14" width="12" height="8"></rect>
-                </svg>
-                인쇄 페이지 생성
               </button>
             </div>
           </div>
