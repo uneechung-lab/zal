@@ -242,6 +242,8 @@ const transformData = (settlements, profiles, month, adminLastSeen = {}) => {
   }));
 };
 export default function App() {
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
   const [currentView, setCurrentView] = useState("dashboard"); // dashboard, categories, print
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -449,7 +451,17 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && session.user?.email === 'admin@daumit.net') {
+        setIsAdminLoggedIn(true);
+        fetchData();
+      } else {
+        // Redirect to external login page
+        window.location.href = 'https://daum-showroom.vercel.app/admin/login.html?returnTo=' + encodeURIComponent(window.location.href);
+      }
+    };
+    checkSession();
   }, []);
 
   const [adminLastSeen, setAdminLastSeen] = useState(() => {
@@ -815,7 +827,8 @@ export default function App() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    window.location.href = '/';
+    setIsAdminLoggedIn(false);
+    window.location.href = 'https://daum-showroom.vercel.app/admin/login.html?brand=zal';
   };
 
   const handleDownloadZip = async () => {
@@ -921,6 +934,20 @@ export default function App() {
         return false;
      });
   }, [allPendingRequests, adminLastSeen]);
+
+  if (checkingSession || !isAdminLoggedIn) {
+    return (
+      <div style={{ display: 'flex', width: '100vw', height: '100vh', background: '#fdfbf7', justifyContent: 'center', alignItems: 'center', fontFamily: "'Pretendard', sans-serif" }}>
+        <div style={{ width: '48px', height: '48px', border: '5px solid #eaeaea', borderTop: '5px solid #FEC601', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-container">
