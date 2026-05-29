@@ -597,7 +597,7 @@ export default function App() {
 
   const [printSelectedDept, setPrintSelectedDept] = useState("전체");
   const [printSearchEmployee, setPrintSearchEmployee] = useState("");
-  const [printViewMode, setPrintViewMode] = useState("list");
+  const [printViewMode, setPrintViewMode] = useState("card");
 
   const uniqueDepartments = useMemo(() => {
     const depts = new Set();
@@ -1532,8 +1532,8 @@ export default function App() {
             </h1>
           </div>
 
-          {/* New Row: Filter Area */}
-          <div className="print-filter-row" style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+          {/* New Row: Filter and View Mode Switcher */}
+          <div className="print-filter-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
             {/* Left: Filter area */}
             <div className="filter-area" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
               {/* Department Selection */}
@@ -1612,73 +1612,73 @@ export default function App() {
                 )}
               </div>
             </div>
+
+            {/* Right: View Mode Toggle */}
+            <div className="view-selector-wrapper" style={{ display: 'flex', background: '#f5f5f5', borderRadius: 12, padding: 3, border: '1.5px solid #eee' }}>
+              <button 
+                onClick={() => setPrintViewMode("list")}
+                style={{ 
+                  background: printViewMode === "list" ? "#fff" : "transparent",
+                  border: printViewMode === "list" ? "1.5px solid #111" : "none",
+                  borderRadius: 9,
+                  padding: "6px 14px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  boxShadow: printViewMode === "list" ? "0 2px 6px rgba(0,0,0,0.05)" : "none",
+                  fontSize: "0.85rem",
+                  fontWeight: 750,
+                  color: printViewMode === "list" ? "#111" : "#888",
+                  transition: 'all 0.2s'
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+                목록형
+              </button>
+              <button 
+                onClick={() => setPrintViewMode("card")}
+                style={{ 
+                  background: printViewMode === "card" ? "#fff" : "transparent",
+                  border: printViewMode === "card" ? "1.5px solid #111" : "none",
+                  borderRadius: 9,
+                  padding: "6px 14px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  boxShadow: printViewMode === "card" ? "0 2px 6px rgba(0,0,0,0.05)" : "none",
+                  fontSize: "0.85rem",
+                  fontWeight: 750,
+                  color: printViewMode === "card" ? "#111" : "#888",
+                  transition: 'all 0.2s'
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="9" rx="1"></rect>
+                  <rect x="14" y="3" width="7" height="5" rx="1"></rect>
+                  <rect x="14" y="12" width="7" height="9" rx="1"></rect>
+                  <rect x="3" y="16" width="7" height="5" rx="1"></rect>
+                </svg>
+                카드뷰
+              </button>
+            </div>
           </div>
 
           <div className="print-dashboard-layout">
             <div className="print-list-panel">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                 <div style={{ fontSize: '1.1rem', fontWeight: 900 }}>
                   총 <span style={{ color: '#ef4444' }}>{filteredApprovedSettlements.length}</span>개의 영수증이 승인되었습니다.
-                </div>
-                
-                {/* Right: View Mode Toggle */}
-                <div className="view-selector-wrapper" style={{ display: 'flex', background: '#f5f5f5', borderRadius: 12, padding: 3, border: '1.5px solid #eee' }}>
-                  <button 
-                    onClick={() => setPrintViewMode("list")}
-                    style={{ 
-                      background: printViewMode === "list" ? "#fff" : "transparent",
-                      border: printViewMode === "list" ? "1.5px solid #111" : "none",
-                      borderRadius: 9,
-                      padding: "6px 14px",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "6px",
-                      boxShadow: printViewMode === "list" ? "0 2px 6px rgba(0,0,0,0.05)" : "none",
-                      fontSize: "0.85rem",
-                      fontWeight: 750,
-                      color: printViewMode === "list" ? "#111" : "#888",
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="8" y1="6" x2="21" y2="6"></line>
-                      <line x1="8" y1="12" x2="21" y2="12"></line>
-                      <line x1="8" y1="18" x2="21" y2="18"></line>
-                      <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                      <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                      <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                    </svg>
-                    목록형
-                  </button>
-                  <button 
-                    onClick={() => setPrintViewMode("card")}
-                    style={{ 
-                      background: printViewMode === "card" ? "#fff" : "transparent",
-                      border: printViewMode === "card" ? "1.5px solid #111" : "none",
-                      borderRadius: 9,
-                      padding: "6px 14px",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "6px",
-                      boxShadow: printViewMode === "card" ? "0 2px 6px rgba(0,0,0,0.05)" : "none",
-                      fontSize: "0.85rem",
-                      fontWeight: 750,
-                      color: printViewMode === "card" ? "#111" : "#888",
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="7" height="9" rx="1"></rect>
-                      <rect x="14" y="3" width="7" height="5" rx="1"></rect>
-                      <rect x="14" y="12" width="7" height="9" rx="1"></rect>
-                      <rect x="3" y="16" width="7" height="5" rx="1"></rect>
-                    </svg>
-                    카드뷰
-                  </button>
                 </div>
               </div>
 
