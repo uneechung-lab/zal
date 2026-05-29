@@ -1714,13 +1714,13 @@ body {
 
 .btn-trigger-print {
   width: 100%;
-  padding: 14px;
-  border-radius: 16px;
-  background: #111;
-  color: white;
+  height: 52px;
+  border-radius: 10px !important;
+  background: #000 !important;
+  color: white !important;
   border: none;
-  font-size: 1rem;
-  font-weight: 850;
+  font-size: 15px;
+  font-weight: 800;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
@@ -1728,6 +1728,37 @@ body {
   justify-content: center;
   gap: 8px;
   margin-bottom: 0 !important;
+}
+
+.btn-trigger-print:disabled {
+  background: #f5f5f5 !important;
+  color: #ccc !important;
+  cursor: not-allowed !important;
+}
+
+.btn-trigger-zip-download {
+  width: 100%;
+  height: 52px;
+  border-radius: 10px !important;
+  border: 1.5px solid #000 !important;
+  background: #fff !important;
+  color: #000 !important;
+  font-weight: 800;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.btn-trigger-zip-download:disabled {
+  border-color: #eee !important;
+  color: #ccc !important;
+  cursor: not-allowed !important;
 }
 
 .btn-trigger-print:hover {
