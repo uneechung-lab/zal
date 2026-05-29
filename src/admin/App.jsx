@@ -1678,7 +1678,7 @@ export default function App() {
             <div className="print-list-panel">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                 <div style={{ fontSize: '1.1rem', fontWeight: 900 }}>
-                  {printViewMode === "list" ? "승인된 영수증 리스트" : "승인된 영수증 카드뷰"}
+                  총 <span style={{ color: '#ef4444' }}>{filteredApprovedSettlements.length}</span>개의 영수증이 승인되었습니다.
                 </div>
               </div>
 
