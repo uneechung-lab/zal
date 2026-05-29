@@ -20,9 +20,10 @@ const HOLIDAYS = [
   "2026-12-25"
 ];
 
-// Helper to count weekdays (Mon-Fri) in a given month (YYYY.MM format)
 const getMonthWeekdays = (monthStr) => {
+  if (!monthStr || !monthStr.includes('.')) return 0;
   const [y, m] = monthStr.split('.').map(Number);
+  if (isNaN(y) || isNaN(m)) return 0;
   const date = new Date(y, m - 1, 1);
   let count = 0;
   while (date.getMonth() === m - 1) {
@@ -493,6 +494,13 @@ export default function App() {
     return `${y}.${m}`;
   });
 
+  const selectedMonthNum = useMemo(() => {
+    if (selectedMonth && selectedMonth.includes('.')) {
+      return selectedMonth.split('.')[1];
+    }
+    return '';
+  }, [selectedMonth]);
+
   const monthOptions = useMemo(() => {
     const options = [];
     const now = new Date();
@@ -907,7 +915,7 @@ export default function App() {
           <section className="summary-strip">
         <div className="summary-grid">
           <div className="summary-label l1">오늘 ({new Date().toISOString().slice(5, 10).replace('-', '.')}) 기준</div>
-          <div className="summary-label l2">{selectedMonth.split('.')[1]}월 총 입금액</div>
+          <div className="summary-label l2">{selectedMonthNum}월 총 입금액</div>
           
           <div className="summary-greeting v1" onClick={() => {
             if (newMsgIdx !== -1) {
@@ -1388,7 +1396,7 @@ export default function App() {
 
                       <div className="card-body">
                         <div className="info-hero">
-                          <div className="info-label">{selectedMonth.split('.')[1]}월 총 입금 금액</div>
+                          <div className="info-label">{selectedMonthNum}월 총 입금 금액</div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div className="info-amount">₩{Math.min(user.approvedSpent, user.monthWeekdays * 10000).toLocaleString()}</div>
                             <button className={`more-link ${expandedUsers[user.id] ? 'open' : ''}`} onClick={(e) => toggleExpand(e, user.id)}>
@@ -1983,9 +1991,9 @@ export default function App() {
                 </span>
               </div>
               <div className="summary-sidebar-stat-row" style={{ borderTop: '1.5px solid #eee', paddingTop: '16px', marginTop: '4px' }}>
-                <span className="summary-sidebar-label" style={{ color: '#000', fontSize: '0.95rem', fontWeight: 800 }}>{selectedMonth.split('.')[1]}월 총 입금 금액</span>
+                <span className="summary-sidebar-label" style={{ color: '#000', fontSize: '0.95rem', fontWeight: 800 }}>{selectedMonthNum}월 총 입금 금액</span>
                 <span className="summary-sidebar-value" style={{ fontSize: '1.35rem', fontWeight: 950, color: '#111' }}>
-                  ₩{totals.total.toLocaleString()}
+                  ₩{(totals?.total || 0).toLocaleString()}
                 </span>
               </div>
               <button
@@ -2559,7 +2567,7 @@ export default function App() {
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end' }}>
             <span style={{ fontSize: '16px', fontWeight: 900, border: '1.5px solid #000', padding: '6px 12px', borderRadius: '6px', background: '#fcfcfc' }}>
-              {selectedMonth.split('.')[1]}월 총 입금 금액: ₩{totals.total.toLocaleString()}
+              {selectedMonthNum}월 총 입금 금액: ₩{(totals?.total || 0).toLocaleString()}
             </span>
           </div>
         </div>
