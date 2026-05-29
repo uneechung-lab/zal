@@ -634,6 +634,12 @@ export default function App() {
     });
   }, [approvedSettlementsForMonth, allProfiles, printSelectedDept, printSearchEmployee]);
 
+  const totalSelectedAmount = useMemo(() => {
+    return filteredApprovedSettlements
+      .filter(s => selectedPrintIds.has(s.id))
+      .reduce((sum, s) => sum + parseInt(s.amount || 0), 0);
+  }, [filteredApprovedSettlements, selectedPrintIds]);
+
   const [printSortField, setPrintSortField] = useState("date");
   const [printSortAsc, setPrintSortAsc] = useState(false);
 
@@ -1520,10 +1526,6 @@ export default function App() {
 
     {/* Receipt Printing Screen */}
     {currentView === "print" && (() => {
-      const totalSelectedAmount = filteredApprovedSettlements
-        .filter(s => selectedPrintIds.has(s.id))
-        .reduce((sum, s) => sum + parseInt(s.amount || 0), 0);
-
       return (
         <div className="custom-screen-wrapper">
           <div className="screen-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
