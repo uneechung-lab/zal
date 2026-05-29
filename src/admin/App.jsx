@@ -460,7 +460,16 @@ export default function App() {
         return;
       }
 
-      // 2. 로그인 페이지(showroom)에서 로그인 성공 후 넘어왔는지 확인 (?login=success)
+      // 2. 로그인 페이지(showroom)에서 window.open으로 열렸는지 referrer 확인
+      if (document.referrer && (document.referrer.includes('daum-showroom.vercel.app') || document.referrer.includes('daum-showroom'))) {
+        sessionStorage.setItem('isAdminLoggedIn', 'true');
+        setIsAdminLoggedIn(true);
+        fetchData();
+        setCheckingSession(false);
+        return;
+      }
+
+      // 3. 로그인 페이지(showroom)에서 로그인 성공 후 리다이렉트되어 넘어왔는지 확인 (?login=success)
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('login') === 'success') {
         sessionStorage.setItem('isAdminLoggedIn', 'true');
@@ -472,7 +481,7 @@ export default function App() {
         return;
       }
 
-      // 3. Supabase 세션도 추가 확인 (동일 도메인 세션 유지용)
+      // 4. Supabase 세션도 추가 확인 (동일 도메인 세션 유지용)
       const { data: { session } } = await supabase.auth.getSession();
       if (session && session.user?.email === 'admin@daumit.net') {
         sessionStorage.setItem('isAdminLoggedIn', 'true');
