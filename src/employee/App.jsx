@@ -62,7 +62,14 @@ function validate(d, allowed, existingSubs = []) {
     if (dow === 0 || dow === 6 || HOLIDAYS.includes(d.date)) issues.push("주말/공휴일 사용은 지원되지 않습니다.");
   }
 
+  console.log("validate - store_name:", d.store_name || d.storeName, "category:", d.category, "allowed list:", allowed);
   const catMatch = allowed.some(t => {
+    // 상점명 매칭
+    const actualStore = (d.store_name || d.storeName || d.store || d.desc || "").trim();
+    if (actualStore && t.trim() && (actualStore.includes(t.trim()) || t.trim().includes(actualStore))) {
+      return true;
+    }
+    // 카테고리 매칭
     const cStr = (d.category || "").split(/[\/,·\s]/);
     return cStr.some(c => c.trim() && (c.trim().includes(t) || t.includes(c.trim())));
   });
@@ -602,6 +609,12 @@ export default function App() {
     checkUser();
     fetchCategories().then(setAllowed); 
   }, []);
+
+  useEffect(() => {
+    if (selectedSub) {
+      fetchCategories().then(setAllowed);
+    }
+  }, [selectedSub]);
 
   useEffect(() => {
     if (user?.full_name) {

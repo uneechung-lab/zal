@@ -94,8 +94,14 @@ function validate(d, allowed, existingSubs = []) {
     const dow = new Date(d.date).getDay();
     if (dow === 0 || dow === 6 || HOLIDAYS.includes(d.date)) issues.push("주말/공휴일 사용은 지원되지 않습니다.");
   }
-  // 업종 검사
+  // 업종 및 상점명 검사
   const catMatch = allowed.some(t => {
+    // 상점명 매칭
+    const actualStore = (d.store_name || d.storeName || d.store || d.desc || "").trim();
+    if (actualStore && t.trim() && (actualStore.includes(t.trim()) || t.trim().includes(actualStore))) {
+      return true;
+    }
+    // 카테고리 매칭
     const cStr = (d.category || "").split(/[\/,·\s]/);
     return cStr.some(c => c.trim() && (c.trim().includes(t) || t.includes(c.trim())));
   });
@@ -229,6 +235,16 @@ const transformData = (settlements, profiles, month, adminLastSeen = {}) => {
 };
 export default function App() {
   const [selectedUser, setSelectedUser] = useState(null);
+  const [currentView, setCurrentView] = useState("dashboard"); // dashboard, categories, print
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [selectedPrintIds, setSelectedPrintIds] = useState(new Set());
+  const [dialogConfig, setDialogConfig] = useState(null); // { message, type: 'confirm'|'alert', onConfirm, onCancel }
+  const customAlert = (message) => {
+    setDialogConfig({ message, type: 'alert' });
+  };
+  const customConfirm = (message, onConfirm) => {
+    setDialogConfig({ message, type: 'confirm', onConfirm });
+  };
   const [filterType, setFilterType] = useState("pending"); // pending, all, approved
   const [expandedUsers, setExpandedUsers] = useState({});
   const [gridColumns, setGridColumns] = useState(4);
@@ -312,7 +328,7 @@ export default function App() {
 
     if (error) {
       console.error("Error updating status:", error);
-      alert("상태 업데이트에 실패했습니다.");
+      customAlert("상태 업데이트에 실패했습니다.");
     } else {
       // Refresh data
       fetchData();
@@ -445,13 +461,15 @@ export default function App() {
   const monthlyUsers = useMemo(() => transformData(rawSettlements, allProfiles, selectedMonth, adminLastSeen), [rawSettlements, allProfiles, selectedMonth, adminLastSeen]);
   
   const pathLabel = useMemo(() => {
+    if (currentView === "categories") return "관리자 > 업종관리";
+    if (currentView === "print") return "관리자 > 영수증출력";
     if (isReviewPanelOpen) return "관리자 > 정산 신청 리뷰";
     if (selectedUser) {
       if (selectedHistoryItem) return `관리자 > 사용자 상세(${selectedUser.name}) > 채팅`;
       return `관리자 > 사용자 상세(${selectedUser.name}) > 목록`;
     }
     return "관리자 > 대시보드";
-  }, [isReviewPanelOpen, selectedUser, selectedHistoryItem]);
+  }, [currentView, isReviewPanelOpen, selectedUser, selectedHistoryItem]);
 
   const allPendingRequests = useMemo(() => {
     const requests = [];
@@ -510,6 +528,45 @@ export default function App() {
     });
     return requests;
   }, [rawSettlements, selectedMonth, allProfiles]);
+
+  const approvedSettlementsForMonth = useMemo(() => {
+    return rawSettlements.filter(s => 
+      s.status === "승인완료" && 
+      s.date && 
+      s.date.startsWith(selectedMonth.replace('.', '-'))
+    );
+  }, [rawSettlements, selectedMonth]);
+
+  useEffect(() => {
+    if (currentView === "print") {
+      setSelectedPrintIds(new Set(approvedSettlementsForMonth.map(s => s.id)));
+    }
+  }, [currentView, approvedSettlementsForMonth]);
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    const { error } = await supabase.from('allowed_categories').insert([{ name: newCategoryName.trim() }]);
+    if (error) {
+      console.error(error);
+      customAlert('업종 추가에 실패했습니다.');
+    } else {
+      setNewCategoryName("");
+      fetchCategories();
+    }
+  };
+
+  const handleDeleteCategory = (name) => {
+    customConfirm(`"${name}" 업종을 허용 목록에서 삭제하시겠습니까?`, async () => {
+      const { error } = await supabase.from('allowed_categories').delete().eq('name', name);
+      if (error) {
+        console.error(error);
+        customAlert('업종 삭제에 실패했습니다.');
+      } else {
+        fetchCategories();
+      }
+    });
+  };
+
 
   useEffect(() => {
     if (isReviewPanelOpen && pagerRef.current) {
@@ -655,13 +712,33 @@ export default function App() {
       {/* Header */}
       <header className="admin-header">
         <div className="header-inner">
-          <div className="logo-section">
+          <div className="logo-section" onClick={() => setCurrentView("dashboard")} style={{ cursor: 'pointer' }}>
             <img src="/bi_zaleat.png" className="logo-img" alt="logo" />
             <div className="logo-text">
               <span className="brand-zal">ZAL</span><span className="sep">:</span>잘먹
             </div>
           </div>
           <div className="header-meta" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button 
+              className={`header-nav-btn ${currentView === "categories" ? "active" : ""}`}
+              onClick={() => {
+                setCurrentView("categories");
+                setSelectedUser(null);
+                setIsReviewPanelOpen(false);
+              }}
+            >
+              업종관리
+            </button>
+            <button 
+              className={`header-nav-btn ${currentView === "print" ? "active" : ""}`}
+              onClick={() => {
+                setCurrentView("print");
+                setSelectedUser(null);
+                setIsReviewPanelOpen(false);
+              }}
+            >
+              영수증출력
+            </button>
             <div style={{ width: '1px', height: '16px', background: '#eee' }}></div>
             관리자님 
             <button className="logout-icon-btn" title="로그아웃" onClick={handleLogout}>
@@ -671,8 +748,10 @@ export default function App() {
         </div>
       </header>
 
-      {/* Summary Strip (Non-card) */}
-      <section className="summary-strip">
+      {currentView === "dashboard" && (
+        <>
+          {/* Summary Strip (Non-card) */}
+          <section className="summary-strip">
         <div className="summary-grid">
           <div className="summary-label l1">오늘 ({new Date().toISOString().slice(5, 10).replace('-', '.')}) 기준</div>
           <div className="summary-label l2">{selectedMonth.split('.')[1]}월 총 입금액</div>
@@ -1227,8 +1306,194 @@ export default function App() {
             ))
           )}
         </div>
-        </main>
+          </main>
+        </div>
+      </>
+    )}
+
+    {/* Allowed Categories Screen */}
+    {currentView === "categories" && (
+      <div className="custom-screen-wrapper">
+        <div className="screen-header-row">
+          <h1 className="screen-title">허용 업종 관리</h1>
+        </div>
+
+        <div className="category-stats-row">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div className="info-label" style={{ margin: 0 }}>등록된 허용 업종</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 900 }}>{allowedCategories.length}개</div>
+          </div>
+          <div className="category-add-form">
+            <input
+              type="text"
+              className="category-input"
+              placeholder="새로운 허용 업종 입력 (예: 한식)"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddCategory();
+              }}
+            />
+            <button className="btn-add-category" onClick={handleAddCategory}>
+              추가하기
+            </button>
+          </div>
+        </div>
+
+        <div className="categories-grid">
+          {allowedCategories.map((cat, idx) => (
+            <div key={idx} className="category-card-item">
+              <span className="category-name-text">{cat}</span>
+              <button className="btn-delete-cat" onClick={() => handleDeleteCategory(cat)} title="삭제">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
+    )}
+
+    {/* Receipt Printing Screen */}
+    {currentView === "print" && (() => {
+      const totalSelectedAmount = approvedSettlementsForMonth
+        .filter(s => selectedPrintIds.has(s.id))
+        .reduce((sum, s) => sum + parseInt(s.amount || 0), 0);
+
+      return (
+        <div className="custom-screen-wrapper">
+          <div className="screen-header-row">
+            <h1 className="screen-title">{selectedMonth} 영수증 출력</h1>
+          </div>
+
+          <div className="print-dashboard-layout">
+            <div className="print-list-panel">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 900 }}>승인된 영수증 리스트</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="selectAllPrint"
+                    className="table-checkbox"
+                    checked={approvedSettlementsForMonth.length > 0 && selectedPrintIds.size === approvedSettlementsForMonth.length}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedPrintIds(new Set(approvedSettlementsForMonth.map(s => s.id)));
+                      } else {
+                        setSelectedPrintIds(new Set());
+                      }
+                    }}
+                  />
+                  <label htmlFor="selectAllPrint" style={{ fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}>전체선택</label>
+                </div>
+              </div>
+
+              <div className="print-table-wrapper">
+                <table className="print-dashboard-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '40px' }}>선택</th>
+                      <th>날짜</th>
+                      <th>사용자</th>
+                      <th>사용처</th>
+                      <th>업종</th>
+                      <th style={{ textAlign: 'right' }}>금액</th>
+                      <th style={{ textAlign: 'center', width: '80px' }}>영수증</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {approvedSettlementsForMonth.length === 0 ? (
+                      <tr>
+                        <td colSpan="7" style={{ textAlign: 'center', padding: '3rem 0', color: '#999', fontWeight: 600 }}>
+                          해당 월에 승인 완료된 영수증 내역이 없습니다.
+                        </td>
+                      </tr>
+                    ) : (
+                      approvedSettlementsForMonth.map(s => (
+                        <tr key={s.id}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              className="table-checkbox"
+                              checked={selectedPrintIds.has(s.id)}
+                              onChange={(e) => {
+                                const next = new Set(selectedPrintIds);
+                                if (e.target.checked) {
+                                  next.add(s.id);
+                                } else {
+                                  next.delete(s.id);
+                                }
+                                setSelectedPrintIds(next);
+                              }}
+                            />
+                          </td>
+                          <td>{s.date}</td>
+                          <td>
+                            {s.user_name || "미지정"}{" "}
+                            <span style={{ fontSize: '0.75rem', color: '#888', fontWeight: 600 }}>
+                              ({allProfiles.find(p => (p.full_name || p.name) === s.user_name)?.department || "기타"})
+                            </span>
+                          </td>
+                          <td>{s.store_name || s.storeName || "상호명 없음"}</td>
+                          <td>{s.category || "-"}</td>
+                          <td className="amount-cell" style={{ textAlign: 'right' }}>
+                            ₩{parseInt(s.amount || 0).toLocaleString()}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            {s.image_url ? (
+                              <img
+                                src={s.image_url}
+                                alt="영수증"
+                                className="table-receipt-thumb"
+                                onClick={() => window.open(s.image_url, '_blank')}
+                              />
+                            ) : (
+                              <span style={{ fontSize: '0.8rem', color: '#ccc' }}>없음</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="print-summary-sidebar">
+              <h3 className="summary-sidebar-title">출력 요약 정보</h3>
+              <div className="summary-sidebar-stat-row">
+                <span className="summary-sidebar-label">조회 연월</span>
+                <span className="summary-sidebar-value">{selectedMonth}</span>
+              </div>
+              <div className="summary-sidebar-stat-row">
+                <span className="summary-sidebar-label">선택된 건수</span>
+                <span className="summary-sidebar-value">{selectedPrintIds.size}건</span>
+              </div>
+              <div className="summary-sidebar-stat-row" style={{ borderTop: '1px solid #f5f5f5', paddingTop: '12px' }}>
+                <span className="summary-sidebar-label" style={{ color: '#000', fontSize: '0.95rem' }}>총 인쇄 금액</span>
+                <span className="summary-sidebar-value" style={{ fontSize: '1.25rem', fontWeight: 950, color: '#ef4444' }}>
+                  ₩{totalSelectedAmount.toLocaleString()}
+                </span>
+              </div>
+              <button
+                className="btn-trigger-print"
+                disabled={selectedPrintIds.size === 0}
+                onClick={() => window.print()}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                  <rect x="6" y="14" width="12" height="8"></rect>
+                </svg>
+                인쇄 페이지 생성
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    })()}
 
       {/* Side Panel */}
       {selectedUser && (
@@ -1433,7 +1698,7 @@ export default function App() {
                               </div>
                               <div className="history-card-footer">
                                 <div className="history-amount">₩{item.amount.toLocaleString()}</div>
-                                <button className="history-delete-btn" onClick={(e) => { e.stopPropagation(); alert('정산 내역을 삭제하시겠습니까?'); }}>
+                                <button className="history-delete-btn" onClick={(e) => { e.stopPropagation(); customAlert('정산 내역을 삭제하시겠습니까? (이 기능은 데모이며 비활성화되어 있습니다.)'); }}>
                                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                                 </button>
                               </div>
@@ -1741,7 +2006,94 @@ export default function App() {
           </div>
         </div>
       )}
+      {/* Print only section for window.print() */}
+      <div className="print-section">
+        <h1 className="print-title">{selectedMonth} 승인 영수증 내역서</h1>
+        <div className="print-summary">
+          <span>출력 일시: {new Date().toLocaleString('ko-KR')}</span>
+          <span>총 인쇄 건수: {selectedPrintIds.size}건</span>
+          <span>총 인쇄 금액: ₩{approvedSettlementsForMonth
+            .filter(s => selectedPrintIds.has(s.id))
+            .reduce((sum, s) => sum + parseInt(s.amount || 0), 0)
+            .toLocaleString()}</span>
+        </div>
+        <table className="print-table">
+          <thead>
+            <tr>
+              <th style={{ width: '40px' }}>번호</th>
+              <th>일자</th>
+              <th>사용자</th>
+              <th>부서</th>
+              <th>가맹점</th>
+              <th>업종</th>
+              <th style={{ textAlign: 'right' }}>금액</th>
+              <th style={{ textAlign: 'center', width: '90px' }}>영수증 이미지</th>
+            </tr>
+          </thead>
+          <tbody>
+            {approvedSettlementsForMonth
+              .filter(s => selectedPrintIds.has(s.id))
+              .map((s, idx) => (
+                <tr key={s.id}>
+                  <td style={{ textAlign: 'center' }}>{idx + 1}</td>
+                  <td>{s.date}</td>
+                  <td>{s.user_name || "미지정"}</td>
+                  <td>{allProfiles.find(p => (p.full_name || p.name) === s.user_name)?.department || "기타"}</td>
+                  <td>{s.store_name || s.storeName || "상호명 없음"}</td>
+                  <td>{s.category || "-"}</td>
+                  <td className="amount">₩{parseInt(s.amount || 0).toLocaleString()}</td>
+                  <td className="img-cell">
+                    {s.image_url ? (
+                      <img src={s.image_url} alt="영수증" className="print-receipt-img" />
+                    ) : (
+                      "없음"
+                    )}
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+
       <FeedbackSystem userName="관리자" currentPath={pathLabel} showAdminView={true} />
+
+      {/* Reusable Custom Modal Dialog Box */}
+      {dialogConfig && (
+        <div className="side-panel-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div className="receipt-card" style={{ maxWidth: '400px', width: '90%', padding: '24px', textAlign: 'center', margin: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+              <Icon.Alert size={48} />
+            </div>
+            <p style={{ fontSize: '1rem', fontWeight: 800, color: '#111', marginBottom: '24px', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+              {dialogConfig.message}
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              {dialogConfig.type === 'confirm' && (
+                <button 
+                  className="btn-receipt-view" 
+                  onClick={() => {
+                    dialogConfig.onCancel?.();
+                    setDialogConfig(null);
+                  }}
+                  style={{ flex: 1, border: '1.5px solid #ccc', color: '#666', margin: 0 }}
+                >
+                  취소
+                </button>
+              )}
+              <button 
+                className="btn-add-category" 
+                onClick={() => {
+                  dialogConfig.onConfirm?.();
+                  setDialogConfig(null);
+                }}
+                style={{ flex: 1, padding: '10px', margin: 0 }}
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
