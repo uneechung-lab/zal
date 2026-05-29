@@ -507,7 +507,7 @@ function App() {
         </div>
     </div>
       <a 
-        href="/admin.html" 
+        href="https://daum-showroom.vercel.app/admin/login.html?brand=zal" 
         target="_blank"
         rel="noopener noreferrer"
         className="admin-btn"

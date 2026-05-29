@@ -2480,7 +2480,7 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
         )}
       </div>
       <a 
-        href="/admin.html" 
+        href="https://daum-showroom.vercel.app/admin/login.html?brand=zal" 
         target="_blank"
         rel="noopener noreferrer"
         className="admin-btn"
