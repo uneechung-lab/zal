@@ -74,6 +74,12 @@ const Icon = {
       <path d="M12 7V13" stroke="white" strokeWidth="3" strokeLinecap="round"/>
       <circle cx="12" cy="17" r="1.5" fill="white"/>
     </svg>
+  ),
+  Success: ({ size = 48 }) => (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="24" cy="24" r="24" fill="#10B981"/>
+      <path d="M15 24L21 30L33 18" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
   )
 };
 
@@ -243,8 +249,8 @@ export default function App() {
   const [isDownloadingZip, setIsDownloadingZip] = useState(false);
   const [zipDownloadProgress, setZipDownloadProgress] = useState("");
   const [dialogConfig, setDialogConfig] = useState(null); // { message, type: 'confirm'|'alert', onConfirm, onCancel }
-  const customAlert = (message) => {
-    setDialogConfig({ message, type: 'alert' });
+  const customAlert = (message, subType = 'alert') => {
+    setDialogConfig({ message, type: 'alert', subType });
   };
   const customConfirm = (message, onConfirm) => {
     setDialogConfig({ message, type: 'confirm', onConfirm });
@@ -867,7 +873,7 @@ export default function App() {
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
       
-      customAlert("성공적으로 영수증 ZIP 압축파일을 생성하여 다운로드했습니다.");
+      customAlert("성공적으로 영수증 ZIP 압축파일을 생성하여 다운로드했습니다.", "success");
     } catch (e) {
       console.error(e);
       customAlert("이미지 다운로드 및 압축 중 에러가 발생했습니다.");
@@ -2796,7 +2802,11 @@ export default function App() {
         <div className="side-panel-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div className="receipt-card" style={{ maxWidth: '400px', width: '90%', padding: '24px', textAlign: 'center', margin: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
-              <Icon.Alert size={48} />
+              {dialogConfig.subType === 'success' ? (
+                <Icon.Success size={48} />
+              ) : (
+                <Icon.Alert size={48} />
+              )}
             </div>
             <p style={{ fontSize: '1rem', fontWeight: 800, color: '#111', marginBottom: '24px', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
               {dialogConfig.message}
