@@ -2066,7 +2066,7 @@ export default function App() {
                   ₩{(totals?.total || 0).toLocaleString()}
                 </span>
               </div>
-              {/* 인쇄하기 (블랙 캡슐 버튼) */}
+              {/* 인쇄하기 (블랙 버튼) */}
               <button
                 className="btn-trigger-print"
                 disabled={selectedPrintIds.size === 0}
@@ -2074,7 +2074,7 @@ export default function App() {
                 style={{
                   width: '100%',
                   height: '52px',
-                  borderRadius: '24px',
+                  borderRadius: '12px',
                   border: 'none',
                   background: selectedPrintIds.size === 0 ? '#f5f5f5' : '#000',
                   color: selectedPrintIds.size === 0 ? '#ccc' : '#fff',
@@ -2085,7 +2085,7 @@ export default function App() {
                   justifyContent: 'center',
                   gap: '8px',
                   cursor: selectedPrintIds.size === 0 ? 'not-allowed' : 'pointer',
-                  marginBottom: '12px',
+                  marginBottom: '6px',
                   transition: 'all 0.2s ease-in-out',
                 }}
               >
@@ -2097,7 +2097,7 @@ export default function App() {
                 인쇄하기
               </button>
 
-              {/* 다운로드 (화이트 캡슐 버튼) */}
+              {/* 다운로드 (화이트 버튼) */}
               <button
                 className="btn-trigger-zip-download"
                 disabled={selectedPrintIds.size === 0 || isDownloadingZip}
@@ -2105,7 +2105,7 @@ export default function App() {
                 style={{
                   width: '100%',
                   height: '52px',
-                  borderRadius: '24px',
+                  borderRadius: '12px',
                   border: selectedPrintIds.size === 0 ? '1.5px solid #eee' : '1.5px solid #000',
                   background: '#fff',
                   color: (selectedPrintIds.size === 0 || isDownloadingZip) ? '#ccc' : '#000',
