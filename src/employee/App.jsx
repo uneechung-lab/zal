@@ -886,7 +886,7 @@ export default function App() {
       if (prevMonth === 0) { prevMonth = 12; prevMonthYear = curYear - 1; }
 
       const isCurrentMonth = rY === curYear && rM === curMonth;
-      const isPrevMonthValid = rY === prevMonthYear && rM === prevMonth && now.getDate() <= 10;
+      const isPrevMonthValid = rY === prevMonthYear && rM === prevMonth && now.getDate() <= 5;
       
       if (!isCurrentMonth && !isPrevMonthValid) {
         setInvalidMonth(rM);
@@ -1042,7 +1042,7 @@ export default function App() {
     const weekDates = getWeekDates(selYear, selMonth, selWeek);
     const payMonth = selMonth === 12 ? 1 : selMonth + 1;
     const payYear = selMonth === 12 ? selYear + 1 : selYear;
-    const payDateStr = `${String(payYear).slice(2)}.${String(payMonth).padStart(2,"0")}.22`;
+    const payDateStr = `${String(payYear).slice(2)}.${String(payMonth).padStart(2,"0")}.10`;
 
     const unreadSubs = useMemo(() => {
       return subs.filter(s => {
@@ -2092,8 +2092,8 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
                             {[
                                 { label: "지원금", val: "근무일수 x 10,000원" },
                                 { label: "대상 기간", val: "해당 월 전체" },
-                                { label: "제출 마감", val: "익월 10일까지" },
-                                { label: "지급일", val: "매월 22일", accent: true }
+                                { label: "제출 마감", val: "익월 5일까지" },
+                                { label: "지급일", val: "매월 10일", accent: true }
                             ].map((row, idx) => (
                                 <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                     <span style={{ fontSize: 16, color: "#999", fontWeight: 700 }}>{row.label}</span>
@@ -2275,7 +2275,7 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
             <h3 style={{ fontSize: 20, fontWeight: 800, color: "#111", margin: "0 0 12px", letterSpacing: "-0.5px" }}>등록 불가</h3>
             <p style={{ fontSize: 15, color: "#666", margin: "0 0 32px", lineHeight: 1.6, fontWeight: 500 }}>
               {invalidMonth ? (
-                <>{invalidMonth}월 영수증은<br/>{invalidMonth === 12 ? 1 : invalidMonth + 1}월 10일까지만 등록이 가능합니다.</>
+                <>{invalidMonth}월 영수증은<br/>{invalidMonth === 12 ? 1 : invalidMonth + 1}월 5일까지만 등록이 가능합니다.</>
               ) : (
                 <>이번달 영수증만<br/>업로드가 가능합니다.</>
               )}
@@ -2316,7 +2316,7 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
               {type === "done_ex" ? (
                 <>승인 여부는 담당자 확인 후<br/>결정됩니다.</>
               ) : (
-                "매월 22일에 입금됩니다."
+                "매월 10일에 입금됩니다."
               )}
             </p>
             <button onClick={onClose} style={{ width: "100%", padding: "20px", borderRadius: 20, border: "none", background: "#1A1C30", color: "#fff", fontWeight: 800, fontSize: 17, cursor: "pointer" }}>확인</button>
