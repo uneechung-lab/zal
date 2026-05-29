@@ -452,14 +452,37 @@ export default function App() {
 
   useEffect(() => {
     const checkSession = async () => {
+      // 1. sessionStorage에 로그인 완료 플래그가 있는지 확인
+      if (sessionStorage.getItem('isAdminLoggedIn') === 'true') {
+        setIsAdminLoggedIn(true);
+        fetchData();
+        setCheckingSession(false);
+        return;
+      }
+
+      // 2. 로그인 페이지(showroom)에서 로그인 성공 후 넘어왔는지 확인 (?login=success)
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('login') === 'success') {
+        sessionStorage.setItem('isAdminLoggedIn', 'true');
+        setIsAdminLoggedIn(true);
+        fetchData();
+        setCheckingSession(false);
+        // URL에서 쿼리 파라미터 깔끔하게 제거
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+
+      // 3. Supabase 세션도 추가 확인 (동일 도메인 세션 유지용)
       const { data: { session } } = await supabase.auth.getSession();
       if (session && session.user?.email === 'admin@daumit.net') {
+        sessionStorage.setItem('isAdminLoggedIn', 'true');
         setIsAdminLoggedIn(true);
         fetchData();
         setCheckingSession(false);
       } else {
-        // Redirect to external login page
-        window.location.href = 'https://daum-showroom.vercel.app/admin/login.html?returnTo=' + encodeURIComponent(window.location.href);
+        // 로그인 성공 시 ?login=success 파라미터를 들고 오도록 returnTo 설정
+        const returnUrl = window.location.origin + '/admin.html?login=success';
+        window.location.href = 'https://daum-showroom.vercel.app/admin/login.html?returnTo=' + encodeURIComponent(returnUrl);
       }
     };
     checkSession();
@@ -828,6 +851,7 @@ export default function App() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    sessionStorage.removeItem('isAdminLoggedIn');
     setIsAdminLoggedIn(false);
     window.location.href = 'https://daum-showroom.vercel.app/admin/login.html?brand=zal';
   };
