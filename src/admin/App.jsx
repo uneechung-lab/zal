@@ -456,6 +456,7 @@ export default function App() {
       if (session && session.user?.email === 'admin@daumit.net') {
         setIsAdminLoggedIn(true);
         fetchData();
+        setCheckingSession(false);
       } else {
         // Redirect to external login page
         window.location.href = 'https://daum-showroom.vercel.app/admin/login.html?returnTo=' + encodeURIComponent(window.location.href);
