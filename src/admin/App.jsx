@@ -1491,7 +1491,7 @@ export default function App() {
                 <table className="print-dashboard-table">
                   <thead>
                     <tr>
-                      <th style={{ width: '40px' }}>선택</th>
+                      <th style={{ width: '70px' }}>선택</th>
                       <th>날짜</th>
                       <th>사용자</th>
                       <th>사용처</th>
