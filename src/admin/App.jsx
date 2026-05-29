@@ -2074,7 +2074,7 @@ export default function App() {
                 style={{
                   width: '100%',
                   height: '52px',
-                  borderRadius: '12px',
+                  borderRadius: '10px',
                   border: 'none',
                   background: selectedPrintIds.size === 0 ? '#f5f5f5' : '#000',
                   color: selectedPrintIds.size === 0 ? '#ccc' : '#fff',
@@ -2085,7 +2085,7 @@ export default function App() {
                   justifyContent: 'center',
                   gap: '8px',
                   cursor: selectedPrintIds.size === 0 ? 'not-allowed' : 'pointer',
-                  marginBottom: '6px',
+                  marginBottom: '4px',
                   transition: 'all 0.2s ease-in-out',
                 }}
               >
@@ -2105,7 +2105,7 @@ export default function App() {
                 style={{
                   width: '100%',
                   height: '52px',
-                  borderRadius: '12px',
+                  borderRadius: '10px',
                   border: selectedPrintIds.size === 0 ? '1.5px solid #eee' : '1.5px solid #000',
                   background: '#fff',
                   color: (selectedPrintIds.size === 0 || isDownloadingZip) ? '#ccc' : '#000',
