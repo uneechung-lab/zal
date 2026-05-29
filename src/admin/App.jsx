@@ -1075,10 +1075,13 @@ export default function App() {
                   {/* Sticky Footer */}
                   {(() => {
                     const lastMsg = actionLogs.length > 0 ? actionLogs[actionLogs.length - 1] : null;
+                    const activeLogs = actionLogs.filter(log => !log.isDeleted);
+                    const hasUserRepliedLast = activeLogs.length > 0 && activeLogs[activeLogs.length - 1].sender === 'user';
+                    
                     const isAiApproved = currentReview.item.status === '승인완료' && !actionLogs.some(log => !log.isDeleted && log.sender === 'admin');
-                    const isProcessed = (currentReview.item.status === '승인완료' || currentReview.item.status === '반려') && !isAiApproved;
+                    const isProcessed = (currentReview.item.status === '승인완료' || currentReview.item.status === '반려') && !isAiApproved && !hasUserRepliedLast;
                     const isReplaced = currentReview.item.isReplaced;
-                    const isLocalProcessed = actionLogs.some(log => (log.type === 'approve' || log.type === 'reject') && !log.isDeleted);
+                    const isLocalProcessed = actionLogs.some(log => (log.type === 'approve' || log.type === 'reject') && !log.isDeleted) && !hasUserRepliedLast;
                     const effectiveDisabled = isProcessed || isReplaced || isLocalProcessed;
                     
                     return (
@@ -2049,8 +2052,11 @@ export default function App() {
                           }
                         } catch (e) {}
                         
+                        const activeLogs = parsedActionLogs.filter(log => !log.isDeleted);
+                        const hasUserRepliedLast = activeLogs.length > 0 && activeLogs[activeLogs.length - 1].sender === 'user';
+                        
                         const isAiApproved = selectedHistoryItem.status === '승인완료' && !parsedActionLogs.some(log => !log.isDeleted && log.sender === 'admin');
-                        const isHistoryProcessed = (selectedHistoryItem.status === '승인완료' || selectedHistoryItem.status === '반려') && !isAiApproved;
+                        const isHistoryProcessed = (selectedHistoryItem.status === '승인완료' || selectedHistoryItem.status === '반려') && !isAiApproved && !hasUserRepliedLast;
                         
                         return (
                           <>
