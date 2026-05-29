@@ -39,7 +39,7 @@ const Icon = {
   )
 };
 
-export default function FeedbackSystem({ userName, userEmail, currentPath, showAdminView = false }) {
+export default function FeedbackSystem({ userName, userEmail, currentPath, showAdminView = false, customBottom }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isAdminListOpen, setIsAdminListOpen] = useState(false);
   const [hasNew, setHasNew] = useState(false);
@@ -135,7 +135,7 @@ export default function FeedbackSystem({ userName, userEmail, currentPath, showA
 
   return (
     <>
-      <div className="FeedbackSystem-trigger-container" style={{ position: "fixed", bottom: showAdminView ? 24 : 96, right: 24, display: "flex", flexDirection: "column", gap: 12, zIndex: 10000 }}>
+      <div className="FeedbackSystem-trigger-container" style={{ position: "fixed", bottom: customBottom !== undefined ? customBottom : (showAdminView ? 24 : 96), right: 24, display: "flex", flexDirection: "column", gap: 12, zIndex: 10000 }}>
         {/* Status List FAB (White) - Only for Admin */}
         {showAdminView && (
           <button 
