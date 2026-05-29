@@ -1753,7 +1753,8 @@ body {
   .content-area-wrapper,
   .custom-screen-wrapper,
   .side-panel-overlay,
-  .FeedbackSystem-trigger {
+  .FeedbackSystem-trigger,
+  .FeedbackSystem-trigger-container {
     display: none !important;
   }
   

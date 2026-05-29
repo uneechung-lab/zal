@@ -135,7 +135,7 @@ export default function FeedbackSystem({ userName, userEmail, currentPath, showA
 
   return (
     <>
-      <div style={{ position: "fixed", bottom: showAdminView ? 24 : 96, right: 24, display: "flex", flexDirection: "column", gap: 12, zIndex: 10000 }}>
+      <div className="FeedbackSystem-trigger-container" style={{ position: "fixed", bottom: showAdminView ? 24 : 96, right: 24, display: "flex", flexDirection: "column", gap: 12, zIndex: 10000 }}>
         {/* Status List FAB (White) - Only for Admin */}
         {showAdminView && (
           <button 
@@ -334,6 +334,11 @@ export default function FeedbackSystem({ userName, userEmail, currentPath, showA
         @keyframes modalFadeIn {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @media print {
+          .FeedbackSystem-trigger-container {
+            display: none !important;
+          }
         }
       `}</style>
     </>
