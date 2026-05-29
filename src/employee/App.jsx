@@ -489,6 +489,14 @@ export default function App() {
   
   const getInitialWeek = () => {
     const now = new Date();
+    // If today is Saturday (6) or Sunday (0), move forward to the upcoming Monday (차주)
+    const day = now.getDay();
+    if (day === 6) {
+      now.setDate(now.getDate() + 2);
+    } else if (day === 0) {
+      now.setDate(now.getDate() + 1);
+    }
+
     const y = now.getFullYear();
     const m = now.getMonth() + 1;
     const todayStr = `${y}-${String(m).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
