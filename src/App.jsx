@@ -405,7 +405,7 @@ function App() {
                           background: '#fff', borderRadius: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.12)', 
                           zIndex: 50, padding: '8px', overflow: 'hidden', border: '1px solid #f0f0f0' 
                         }}>
-                          {['관리', '개발', '신사업', '연구소'].map(d => (
+                          {['관리', '개발', '신사업'].map(d => (
                             <div 
                               key={d} 
                               onClick={(e) => {

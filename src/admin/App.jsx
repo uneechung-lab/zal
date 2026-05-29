@@ -465,7 +465,13 @@ export default function App() {
     const { data: pData, error: pError } = await supabase
       .from('profiles')
       .select('*');
-    if (!pError) setAllProfiles(pData || []);
+    if (!pError) {
+      const mappedProfiles = (pData || []).map(p => ({
+        ...p,
+        department: p.department === "본부" ? "개발" : p.department
+      }));
+      setAllProfiles(mappedProfiles);
+    }
     
     setLoading(false);
   };
@@ -589,6 +595,18 @@ export default function App() {
     return requests;
   }, [rawSettlements, selectedMonth, allProfiles]);
 
+  const [printSelectedDept, setPrintSelectedDept] = useState("전체");
+  const [printSearchEmployee, setPrintSearchEmployee] = useState("");
+  const [printViewMode, setPrintViewMode] = useState("list");
+
+  const uniqueDepartments = useMemo(() => {
+    const depts = new Set();
+    allProfiles.forEach(p => {
+      if (p.department) depts.add(p.department);
+    });
+    return ["전체", ...Array.from(depts)];
+  }, [allProfiles]);
+
   const approvedSettlementsForMonth = useMemo(() => {
     return rawSettlements.filter(s => 
       s.status === "승인완료" && 
@@ -597,11 +615,60 @@ export default function App() {
     );
   }, [rawSettlements, selectedMonth]);
 
+  const filteredApprovedSettlements = useMemo(() => {
+    return approvedSettlementsForMonth.filter(s => {
+      const userProfile = allProfiles.find(p => (p.full_name || p.name) === s.user_name);
+      const userDept = userProfile?.department || "기타";
+      const matchDept = printSelectedDept === "전체" || userDept === printSelectedDept;
+      const matchEmployee = !printSearchEmployee.trim() || 
+        (s.user_name && s.user_name.toLowerCase().includes(printSearchEmployee.toLowerCase()));
+      return matchDept && matchEmployee;
+    });
+  }, [approvedSettlementsForMonth, allProfiles, printSelectedDept, printSearchEmployee]);
+
+  const [printSortField, setPrintSortField] = useState("date");
+  const [printSortAsc, setPrintSortAsc] = useState(false);
+
+  const sortedFilteredApprovedSettlements = useMemo(() => {
+    const list = [...filteredApprovedSettlements];
+    if (!printSortField) return list;
+
+    list.sort((a, b) => {
+      let valA, valB;
+      if (printSortField === "date") {
+        valA = a.date || "";
+        valB = b.date || "";
+      } else if (printSortField === "user") {
+        valA = a.user_name || "";
+        valB = b.user_name || "";
+      } else if (printSortField === "store") {
+        valA = a.store_name || a.storeName || "";
+        valB = b.store_name || b.storeName || "";
+      } else if (printSortField === "category") {
+        valA = a.category || "";
+        valB = b.category || "";
+      } else if (printSortField === "amount") {
+        valA = parseInt(a.amount || 0);
+        valB = parseInt(b.amount || 0);
+      }
+
+      if (typeof valA === "string") {
+        return printSortAsc 
+          ? valA.localeCompare(valB, 'ko') 
+          : valB.localeCompare(valA, 'ko');
+      } else {
+        return printSortAsc ? valA - valB : valB - valA;
+      }
+    });
+
+    return list;
+  }, [filteredApprovedSettlements, printSortField, printSortAsc]);
+
   useEffect(() => {
     if (currentView === "print") {
-      setSelectedPrintIds(new Set(approvedSettlementsForMonth.map(s => s.id)));
+      setSelectedPrintIds(new Set(filteredApprovedSettlements.map(s => s.id)));
     }
-  }, [currentView, approvedSettlementsForMonth]);
+  }, [currentView, filteredApprovedSettlements]);
 
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
@@ -1445,7 +1512,7 @@ export default function App() {
 
     {/* Receipt Printing Screen */}
     {currentView === "print" && (() => {
-      const totalSelectedAmount = approvedSettlementsForMonth
+      const totalSelectedAmount = filteredApprovedSettlements
         .filter(s => selectedPrintIds.has(s.id))
         .reduce((sum, s) => sum + parseInt(s.amount || 0), 0);
 
@@ -1465,97 +1532,438 @@ export default function App() {
             </h1>
           </div>
 
-          <div className="print-dashboard-layout">
-            <div className="print-list-panel">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                <div style={{ fontSize: '1.1rem', fontWeight: 900 }}>승인된 영수증 리스트</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input
-                    type="checkbox"
-                    id="selectAllPrint"
-                    className="table-checkbox"
-                    checked={approvedSettlementsForMonth.length > 0 && selectedPrintIds.size === approvedSettlementsForMonth.length}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedPrintIds(new Set(approvedSettlementsForMonth.map(s => s.id)));
-                      } else {
-                        setSelectedPrintIds(new Set());
-                      }
-                    }}
-                  />
-                  <label htmlFor="selectAllPrint" style={{ fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}>전체선택</label>
+          {/* New Row: Filter and View Mode Switcher */}
+          <div className="print-filter-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            {/* Left: Filter area */}
+            <div className="filter-area" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+              {/* Department Selection */}
+              <div className="filter-select-wrapper" style={{ display: 'flex', alignItems: 'center' }}>
+                <div className="filter-chips" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {uniqueDepartments.map(dept => (
+                    <button 
+                      key={dept}
+                      className={`filter-chip ${printSelectedDept === dept ? 'active' : ''}`}
+                      onClick={() => setPrintSelectedDept(dept)}
+                      style={{ margin: 0 }}
+                    >
+                      {dept}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="print-table-wrapper">
-                <table className="print-dashboard-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '70px' }}>선택</th>
-                      <th>날짜</th>
-                      <th>사용자</th>
-                      <th>사용처</th>
-                      <th>업종</th>
-                      <th style={{ textAlign: 'right' }}>금액</th>
-                      <th style={{ textAlign: 'center', width: '80px' }}>영수증</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {approvedSettlementsForMonth.length === 0 ? (
+              {/* Employee Search */}
+              <div className="search-input-wrapper" style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+                <svg 
+                  width="16" 
+                  height="16" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="#999" 
+                  strokeWidth="3" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                  style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+                >
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input 
+                  type="text" 
+                  placeholder="직원 이름 검색..." 
+                  value={printSearchEmployee}
+                  onChange={(e) => setPrintSearchEmployee(e.target.value)}
+                  style={{
+                    padding: '0.5rem 1rem 0.5rem 2.4rem',
+                    borderRadius: '30px',
+                    border: '1.5px solid #eee',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    outline: 'none',
+                    width: '200px',
+                    height: '38px',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                {printSearchEmployee && (
+                  <button 
+                    onClick={() => setPrintSearchEmployee("")}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#999',
+                      fontSize: '1.1rem',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '4px'
+                    }}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Right: View Mode Toggle */}
+            <div className="view-selector-wrapper" style={{ display: 'flex', background: '#f5f5f5', borderRadius: 12, padding: 3, border: '1.5px solid #eee' }}>
+              <button 
+                onClick={() => setPrintViewMode("list")}
+                style={{ 
+                  background: printViewMode === "list" ? "#fff" : "transparent",
+                  border: printViewMode === "list" ? "1.5px solid #111" : "none",
+                  borderRadius: 9,
+                  padding: "6px 14px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  boxShadow: printViewMode === "list" ? "0 2px 6px rgba(0,0,0,0.05)" : "none",
+                  fontSize: "0.85rem",
+                  fontWeight: 750,
+                  color: printViewMode === "list" ? "#111" : "#888",
+                  transition: 'all 0.2s'
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+                목록형
+              </button>
+              <button 
+                onClick={() => setPrintViewMode("card")}
+                style={{ 
+                  background: printViewMode === "card" ? "#fff" : "transparent",
+                  border: printViewMode === "card" ? "1.5px solid #111" : "none",
+                  borderRadius: 9,
+                  padding: "6px 14px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  boxShadow: printViewMode === "card" ? "0 2px 6px rgba(0,0,0,0.05)" : "none",
+                  fontSize: "0.85rem",
+                  fontWeight: 750,
+                  color: printViewMode === "card" ? "#111" : "#888",
+                  transition: 'all 0.2s'
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="9" rx="1"></rect>
+                  <rect x="14" y="3" width="7" height="5" rx="1"></rect>
+                  <rect x="14" y="12" width="7" height="9" rx="1"></rect>
+                  <rect x="3" y="16" width="7" height="5" rx="1"></rect>
+                </svg>
+                카드뷰
+              </button>
+            </div>
+          </div>
+
+          <div className="print-dashboard-layout">
+            <div className="print-list-panel">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 900 }}>
+                  {printViewMode === "list" ? "승인된 영수증 리스트" : "승인된 영수증 카드뷰"}
+                </div>
+              </div>
+
+              {printViewMode === "list" ? (
+                <div className="print-table-wrapper">
+                  <table className="print-dashboard-table">
+                    <thead>
                       <tr>
-                        <td colSpan="7" style={{ textAlign: 'center', padding: '3rem 0', color: '#999', fontWeight: 600 }}>
-                          해당 월에 승인 완료된 영수증 내역이 없습니다.
-                        </td>
-                      </tr>
-                    ) : (
-                      approvedSettlementsForMonth.map(s => (
-                        <tr key={s.id}>
-                          <td>
+                        <th style={{ width: '60px', userSelect: 'none' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '20px' }}>
                             <input
                               type="checkbox"
                               className="table-checkbox"
-                              checked={selectedPrintIds.has(s.id)}
+                              style={{ margin: 0, verticalAlign: 'middle' }}
+                              checked={filteredApprovedSettlements.length > 0 && selectedPrintIds.size === filteredApprovedSettlements.length}
                               onChange={(e) => {
-                                const next = new Set(selectedPrintIds);
                                 if (e.target.checked) {
-                                  next.add(s.id);
+                                  setSelectedPrintIds(new Set(filteredApprovedSettlements.map(s => s.id)));
                                 } else {
-                                  next.delete(s.id);
+                                  setSelectedPrintIds(new Set());
                                 }
-                                setSelectedPrintIds(next);
                               }}
                             />
-                          </td>
-                          <td>{s.date}</td>
-                          <td>
-                            {s.user_name || "미지정"}{" "}
-                            <span style={{ fontSize: '0.75rem', color: '#888', fontWeight: 600 }}>
-                              ({allProfiles.find(p => (p.full_name || p.name) === s.user_name)?.department || "기타"})
-                            </span>
-                          </td>
-                          <td>{s.store_name || s.storeName || "상호명 없음"}</td>
-                          <td>{s.category || "-"}</td>
-                          <td className="amount-cell" style={{ textAlign: 'right' }}>
-                            ₩{parseInt(s.amount || 0).toLocaleString()}
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            {s.image_url ? (
-                              <img
-                                src={s.image_url}
-                                alt="영수증"
-                                className="table-receipt-thumb"
-                                onClick={() => window.open(s.image_url, '_blank')}
-                              />
-                            ) : (
-                              <span style={{ fontSize: '0.8rem', color: '#ccc' }}>없음</span>
-                            )}
+                          </div>
+                        </th>
+                        <th 
+                          onClick={() => {
+                            if (printSortField === "date") {
+                              setPrintSortAsc(!printSortAsc);
+                            } else {
+                              setPrintSortField("date");
+                              setPrintSortAsc(true);
+                            }
+                          }}
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                          title="날짜로 정렬"
+                        >
+                          <div style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}>
+                            <span>날짜</span>
+                            <svg width="10" height="12" viewBox="0 0 10 12" style={{ marginLeft: '6px' }}>
+                              <path d="M2 4.5L5 1.5L8 4.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                              <path d="M2 7.5L5 10.5L8 7.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                            </svg>
+                          </div>
+                        </th>
+                        <th 
+                          onClick={() => {
+                            if (printSortField === "user") {
+                              setPrintSortAsc(!printSortAsc);
+                            } else {
+                              setPrintSortField("user");
+                              setPrintSortAsc(true);
+                            }
+                          }}
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                          title="사용자로 정렬"
+                        >
+                          <div style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}>
+                            <span>사용자</span>
+                            <svg width="10" height="12" viewBox="0 0 10 12" style={{ marginLeft: '6px' }}>
+                              <path d="M2 4.5L5 1.5L8 4.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                              <path d="M2 7.5L5 10.5L8 7.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                            </svg>
+                          </div>
+                        </th>
+                        <th 
+                          onClick={() => {
+                            if (printSortField === "store") {
+                              setPrintSortAsc(!printSortAsc);
+                            } else {
+                              setPrintSortField("store");
+                              setPrintSortAsc(true);
+                            }
+                          }}
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                          title="사용처로 정렬"
+                        >
+                          <div style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}>
+                            <span>사용처</span>
+                            <svg width="10" height="12" viewBox="0 0 10 12" style={{ marginLeft: '6px' }}>
+                              <path d="M2 4.5L5 1.5L8 4.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                              <path d="M2 7.5L5 10.5L8 7.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                            </svg>
+                          </div>
+                        </th>
+                        <th 
+                          onClick={() => {
+                            if (printSortField === "category") {
+                              setPrintSortAsc(!printSortAsc);
+                            } else {
+                              setPrintSortField("category");
+                              setPrintSortAsc(true);
+                            }
+                          }}
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                          title="업종으로 정렬"
+                        >
+                          <div style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}>
+                            <span>업종</span>
+                            <svg width="10" height="12" viewBox="0 0 10 12" style={{ marginLeft: '6px' }}>
+                              <path d="M2 4.5L5 1.5L8 4.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                              <path d="M2 7.5L5 10.5L8 7.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                            </svg>
+                          </div>
+                        </th>
+                        <th 
+                          onClick={() => {
+                            if (printSortField === "amount") {
+                              setPrintSortAsc(!printSortAsc);
+                            } else {
+                              setPrintSortField("amount");
+                              setPrintSortAsc(true);
+                            }
+                          }}
+                          style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                          title="금액으로 정렬"
+                        >
+                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%', verticalAlign: 'middle' }}>
+                            <span>금액</span>
+                            <svg width="10" height="12" viewBox="0 0 10 12" style={{ marginLeft: '6px' }}>
+                              <path d="M2 4.5L5 1.5L8 4.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                              <path d="M2 7.5L5 10.5L8 7.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                            </svg>
+                          </div>
+                        </th>
+                        <th style={{ textAlign: 'center', width: '80px' }}>영수증</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedFilteredApprovedSettlements.length === 0 ? (
+                        <tr>
+                          <td colSpan="7" style={{ textAlign: 'center', padding: '3rem 0', color: '#999', fontWeight: 600 }}>
+                            해당 조건에 승인 완료된 영수증 내역이 없습니다.
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                      ) : (
+                        sortedFilteredApprovedSettlements.map(s => (
+                          <tr key={s.id}>
+                            <td style={{ textAlign: 'center', width: '60px' }}>
+                              <input
+                                type="checkbox"
+                                className="table-checkbox"
+                                checked={selectedPrintIds.has(s.id)}
+                                onChange={(e) => {
+                                  const next = new Set(selectedPrintIds);
+                                  if (e.target.checked) {
+                                    next.add(s.id);
+                                  } else {
+                                    next.delete(s.id);
+                                    }
+                                  setSelectedPrintIds(next);
+                                }}
+                              />
+                            </td>
+                            <td>{s.date}</td>
+                            <td>
+                              {s.user_name || "미지정"}{" "}
+                              <span style={{ fontSize: '0.75rem', color: '#888', fontWeight: 600 }}>
+                                ({allProfiles.find(p => (p.full_name || p.name) === s.user_name)?.department || "기타"})
+                              </span>
+                            </td>
+                            <td>{s.store_name || s.storeName || "상호명 없음"}</td>
+                            <td>{s.category || "-"}</td>
+                            <td className="amount-cell" style={{ textAlign: 'right' }}>
+                              ₩{parseInt(s.amount || 0).toLocaleString()}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              {s.image_url ? (
+                                <img
+                                  src={s.image_url}
+                                  alt="영수증"
+                                  className="table-receipt-thumb"
+                                  onClick={() => window.open(s.image_url, '_blank')}
+                                />
+                              ) : (
+                                <span style={{ fontSize: '0.8rem', color: '#ccc' }}>없음</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                /* Card View Mode */
+                <div style={{ marginTop: '1rem' }}>
+                  {sortedFilteredApprovedSettlements.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '5rem 0', color: '#999', fontWeight: 600 }}>
+                      해당 조건에 승인 완료된 영수증 내역이 없습니다.
+                    </div>
+                  ) : (
+                    <div className="receipt-masonry-grid">
+                      {sortedFilteredApprovedSettlements.map(s => {
+                        const dept = allProfiles.find(p => (p.full_name || p.name) === s.user_name)?.department || "기타";
+                        return (
+                          <div 
+                            key={s.id} 
+                            className="receipt-card-item"
+                            onClick={() => {
+                              const next = new Set(selectedPrintIds);
+                              if (next.has(s.id)) {
+                                next.delete(s.id);
+                              } else {
+                                next.add(s.id);
+                              }
+                              setSelectedPrintIds(next);
+                            }}
+                          >
+                            {/* Checkbox overlay */}
+                            <div 
+                              style={{ 
+                                position: 'absolute', 
+                                top: '12px', 
+                                left: '12px', 
+                                zIndex: 5, 
+                                background: 'rgba(255,255,255,0.9)', 
+                                borderRadius: '8px', 
+                                padding: '6px', 
+                                display: 'flex', 
+                                alignItems: 'center',
+                                boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <input
+                                type="checkbox"
+                                className="table-checkbox"
+                                checked={selectedPrintIds.has(s.id)}
+                                onChange={(e) => {
+                                  const next = new Set(selectedPrintIds);
+                                  if (e.target.checked) {
+                                    next.add(s.id);
+                                  } else {
+                                    next.delete(s.id);
+                                  }
+                                  setSelectedPrintIds(next);
+                                }}
+                              />
+                            </div>
+
+                            {/* Receipt Image */}
+                            <div style={{ width: '100%', overflow: 'hidden', borderRadius: '12px', background: '#fcfcfc', border: '1px solid #f0f0f0', display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
+                              {s.image_url ? (
+                                <img
+                                  src={s.image_url}
+                                  alt="영수증"
+                                  style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'contain', maxHeight: '350px' }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.open(s.image_url, '_blank');
+                                  }}
+                                />
+                              ) : (
+                                <div style={{ height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', fontSize: '0.9rem', fontWeight: 600 }}>
+                                  영수증 이미지 없음
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Details Footer */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '4px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.8rem', color: '#888', fontWeight: 700 }}>{s.date}</span>
+                                <span style={{ fontSize: '0.75rem', background: '#f0f0f0', color: '#666', padding: '2px 8px', borderRadius: '20px', fontWeight: 800 }}>{s.category || "-"}</span>
+                              </div>
+                              <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#111', marginTop: '2px' }}>
+                                {s.store_name || s.storeName || "상호명 없음"}
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', borderTop: '1px solid #f5f5f5', paddingTop: '8px' }}>
+                                <span style={{ fontSize: '0.85rem', color: '#333', fontWeight: 750 }}>
+                                  {s.user_name || "미지정"} <span style={{ fontSize: '0.75rem', color: '#888', fontWeight: 600 }}>({dept})</span>
+                                </span>
+                                <span style={{ fontSize: '1.1rem', fontWeight: 950, color: '#000' }}>
+                                  ₩{parseInt(s.amount || 0).toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="print-summary-sidebar">
@@ -2145,42 +2553,91 @@ export default function App() {
             .reduce((sum, s) => sum + parseInt(s.amount || 0), 0)
             .toLocaleString()}</span>
         </div>
-        <table className="print-table">
-          <thead>
-            <tr>
-              <th style={{ width: '40px' }}>번호</th>
-              <th>일자</th>
-              <th>사용자</th>
-              <th>부서</th>
-              <th>가맹점</th>
-              <th>업종</th>
-              <th style={{ textAlign: 'right' }}>금액</th>
-              <th style={{ textAlign: 'center', width: '90px' }}>영수증 이미지</th>
-            </tr>
-          </thead>
-          <tbody>
+        {printViewMode === "list" ? (
+          <table className="print-table">
+            <thead>
+              <tr>
+                <th style={{ width: '40px' }}>번호</th>
+                <th>일자</th>
+                <th>사용자</th>
+                <th>부서</th>
+                <th>가맹점</th>
+                <th>업종</th>
+                <th style={{ textAlign: 'right' }}>금액</th>
+                <th style={{ textAlign: 'center', width: '90px' }}>영수증 이미지</th>
+              </tr>
+            </thead>
+            <tbody>
+              {approvedSettlementsForMonth
+                .filter(s => selectedPrintIds.has(s.id))
+                .map((s, idx) => (
+                  <tr key={s.id}>
+                    <td style={{ textAlign: 'center' }}>{idx + 1}</td>
+                    <td>{s.date}</td>
+                    <td>{s.user_name || "미지정"}</td>
+                    <td>{allProfiles.find(p => (p.full_name || p.name) === s.user_name)?.department || "기타"}</td>
+                    <td>{s.store_name || s.storeName || "상호명 없음"}</td>
+                    <td>{s.category || "-"}</td>
+                    <td className="amount">₩{parseInt(s.amount || 0).toLocaleString()}</td>
+                    <td className="img-cell">
+                      {s.image_url ? (
+                        <img src={s.image_url} alt="영수증" className="print-receipt-img" />
+                      ) : (
+                        "없음"
+                      )}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        ) : (
+          /* Printed Card Grid View */
+          <div className="print-card-grid">
             {approvedSettlementsForMonth
               .filter(s => selectedPrintIds.has(s.id))
-              .map((s, idx) => (
-                <tr key={s.id}>
-                  <td style={{ textAlign: 'center' }}>{idx + 1}</td>
-                  <td>{s.date}</td>
-                  <td>{s.user_name || "미지정"}</td>
-                  <td>{allProfiles.find(p => (p.full_name || p.name) === s.user_name)?.department || "기타"}</td>
-                  <td>{s.store_name || s.storeName || "상호명 없음"}</td>
-                  <td>{s.category || "-"}</td>
-                  <td className="amount">₩{parseInt(s.amount || 0).toLocaleString()}</td>
-                  <td className="img-cell">
-                    {s.image_url ? (
-                      <img src={s.image_url} alt="영수증" className="print-receipt-img" />
-                    ) : (
-                      "없음"
-                    )}
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
+              .map((s, idx) => {
+                const dept = allProfiles.find(p => (p.full_name || p.name) === s.user_name)?.department || "기타";
+                return (
+                  <div key={s.id} className="print-card-item">
+                    <div className="print-card-badge">No. {idx + 1}</div>
+                    
+                    <div className="print-card-img-wrapper">
+                      {s.image_url ? (
+                        <img src={s.image_url} alt="영수증" className="print-card-img" />
+                      ) : (
+                        <div className="print-card-no-img">영수증 이미지 없음</div>
+                      )}
+                    </div>
+                    
+                    <div className="print-card-details">
+                      <div className="print-card-row">
+                        <span className="print-card-label">일자</span>
+                        <span className="print-card-val">{s.date}</span>
+                      </div>
+                      <div className="print-card-row">
+                        <span className="print-card-label">사용자</span>
+                        <span className="print-card-val">{s.user_name || "미지정"} ({dept})</span>
+                      </div>
+                      <div className="print-card-row">
+                        <span className="print-card-label">사용처</span>
+                        <span className="print-card-val" style={{ fontWeight: 800 }}>{s.store_name || s.storeName || "상호명 없음"}</span>
+                      </div>
+                      <div className="print-card-row">
+                        <span className="print-card-label">업종</span>
+                        <span className="print-card-val">{s.category || "-"}</span>
+                      </div>
+                      <div className="print-card-row print-card-amount-row" style={{ borderTop: '1px dashed #ddd', paddingTop: '6px', marginTop: '6px' }}>
+                        <span className="print-card-label" style={{ fontWeight: 800 }}>금액</span>
+                        <span className="print-card-val print-amount-text" style={{ fontSize: '1.1rem', fontWeight: 900 }}>
+                          ₩{parseInt(s.amount || 0).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        )}
       </div>
 
       <FeedbackSystem userName="관리자" currentPath={pathLabel} showAdminView={true} />
