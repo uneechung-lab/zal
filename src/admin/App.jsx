@@ -320,6 +320,66 @@ export default function App() {
     setHistoryInput("");
   };
 
+  const handleHistoryApprove = async (item) => {
+    let currentLogs = [];
+    try {
+      if (item.actionLogs && item.actionLogs.startsWith('[')) {
+        currentLogs = JSON.parse(item.actionLogs);
+      }
+    } catch(e) {}
+    
+    const newLog = { 
+      text: historyInput.trim() ? `[${historyInput.trim()}] 승인되었습니다.` : '승인되었습니다.', 
+      type: 'approve', 
+      sender: 'admin', 
+      isDeleted: false, 
+      time: new Date().toISOString() 
+    };
+    const newLogs = [...currentLogs, newLog];
+    const newLogsStr = JSON.stringify(newLogs);
+    
+    await updateSettlementStatus(item.id, '승인완료', newLogsStr);
+    setSelectedHistoryItem(prev => ({ 
+      ...prev, 
+      status: '승인완료', 
+      actionLogs: newLogsStr,
+      reject_reason: newLogsStr
+    }));
+    setHistoryInput("");
+  };
+
+  const handleHistoryReject = async (item) => {
+    let currentLogs = [];
+    try {
+      if (item.actionLogs && item.actionLogs.startsWith('[')) {
+        currentLogs = JSON.parse(item.actionLogs);
+      }
+    } catch(e) {}
+    
+    const displayMsg = historyInput.trim() 
+       ? `[${historyInput.trim()}] 반려되었습니다.` 
+       : `[${item.violationLog || "사용자가 입력한 예외사유"}] 건은 반려되었습니다.`;
+       
+    const newLog = { 
+      text: displayMsg, 
+      type: 'reject', 
+      sender: 'admin', 
+      isDeleted: false, 
+      time: new Date().toISOString() 
+    };
+    const newLogs = [...currentLogs, newLog];
+    const newLogsStr = JSON.stringify(newLogs);
+    
+    await updateSettlementStatus(item.id, '반려', newLogsStr);
+    setSelectedHistoryItem(prev => ({ 
+      ...prev, 
+      status: '반려', 
+      actionLogs: newLogsStr,
+      reject_reason: newLogsStr
+    }));
+    setHistoryInput("");
+  };
+
   const updateSettlementStatus = async (id, status, rejectReason = null) => {
     const { error } = await supabase
       .from('settlements')
@@ -1013,13 +1073,11 @@ export default function App() {
                   </div>
 
                   {/* Sticky Footer */}
-                  {/* Sticky Footer */}
                   {(() => {
                     const lastMsg = actionLogs.length > 0 ? actionLogs[actionLogs.length - 1] : null;
-                    const isProcessed = currentReview.item.status === '승인완료' || currentReview.item.status === '반려';
+                    const isAiApproved = currentReview.item.status === '승인완료' && !actionLogs.some(log => !log.isDeleted && log.sender === 'admin');
+                    const isProcessed = (currentReview.item.status === '승인완료' || currentReview.item.status === '반려') && !isAiApproved;
                     const isReplaced = currentReview.item.isReplaced;
-                    // If a message was just sent but status not yet reflected in currentReview.item.status 
-                    // (though handleApprove updates currentReview.item.status locally in most patterns here)
                     const isLocalProcessed = actionLogs.some(log => (log.type === 'approve' || log.type === 'reject') && !log.isDeleted);
                     const effectiveDisabled = isProcessed || isReplaced || isLocalProcessed;
                     
@@ -1984,16 +2042,44 @@ export default function App() {
                     {/* History Footer */}
                     <div className="panel-footer-fixed" style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
                       {(() => {
-                        const isHistoryProcessed = selectedHistoryItem.status === '승인완료' || selectedHistoryItem.status === '반려';
+                        let parsedActionLogs = [];
+                        try {
+                          if (selectedHistoryItem.actionLogs && selectedHistoryItem.actionLogs.startsWith('[')) {
+                            parsedActionLogs = JSON.parse(selectedHistoryItem.actionLogs);
+                          }
+                        } catch (e) {}
+                        
+                        const isAiApproved = selectedHistoryItem.status === '승인완료' && !parsedActionLogs.some(log => !log.isDeleted && log.sender === 'admin');
+                        const isHistoryProcessed = (selectedHistoryItem.status === '승인완료' || selectedHistoryItem.status === '반려') && !isAiApproved;
+                        
                         return (
                           <>
                             <div className={`message-pill-container ${isHistoryProcessed ? 'disabled' : ''}`}>
-                              <input type="text" className="message-pill-input" placeholder={isHistoryProcessed ? "정산 처리가 이미 완료되었습니다." : "메시지를 입력하세요."} disabled={isHistoryProcessed} value={historyInput} onChange={e => setHistoryInput(e.target.value)} />
+                              <input 
+                                type="text" 
+                                className="message-pill-input" 
+                                placeholder={isHistoryProcessed ? "정산 처리가 이미 완료되었습니다." : "반려 또는 승인 사유를 입력하세요."} 
+                                disabled={isHistoryProcessed} 
+                                value={historyInput} 
+                                onChange={e => setHistoryInput(e.target.value)} 
+                              />
                             </div>
                             <div className="cta-group" style={{ alignItems: 'center' }}>
                               <button className="btn-nav" disabled={true}>‹</button>
-                              <button className={`btn-cta reject ${isHistoryProcessed ? 'disabled' : ''}`} disabled={isHistoryProcessed}>반려</button>
-                              <button className={`btn-cta approve ${isHistoryProcessed ? 'disabled' : ''}`} disabled={isHistoryProcessed}>승인</button>
+                              <button 
+                                className={`btn-cta reject ${isHistoryProcessed ? 'disabled' : ''}`} 
+                                disabled={isHistoryProcessed}
+                                onClick={() => handleHistoryReject(selectedHistoryItem)}
+                              >
+                                반려
+                              </button>
+                              <button 
+                                className={`btn-cta approve ${isHistoryProcessed ? 'disabled' : ''}`} 
+                                disabled={isHistoryProcessed}
+                                onClick={() => handleHistoryApprove(selectedHistoryItem)}
+                              >
+                                승인
+                              </button>
                               <button className="btn-nav" disabled={true}>›</button>
                             </div>
                           </>
