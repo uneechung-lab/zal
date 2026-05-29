@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import FeedbackSystem, { FeedbackAdminList } from "../FeedbackSystem";
 import { createClient } from "@supabase/supabase-js";
+import JSZip from "jszip";
 import "./Admin.css";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -239,6 +240,8 @@ export default function App() {
   const [currentView, setCurrentView] = useState("dashboard"); // dashboard, categories, print
   const [newCategoryName, setNewCategoryName] = useState("");
   const [selectedPrintIds, setSelectedPrintIds] = useState(new Set());
+  const [isDownloadingZip, setIsDownloadingZip] = useState(false);
+  const [zipDownloadProgress, setZipDownloadProgress] = useState("");
   const [dialogConfig, setDialogConfig] = useState(null); // { message, type: 'confirm'|'alert', onConfirm, onCancel }
   const customAlert = (message) => {
     setDialogConfig({ message, type: 'alert' });
@@ -807,6 +810,71 @@ export default function App() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     window.location.href = '/';
+  };
+
+  const handleDownloadZip = async () => {
+    const targets = rawSettlements.filter(s => 
+      s.status === "승인완료" && 
+      s.date && 
+      s.date.startsWith(selectedMonth.replace('.', '-')) &&
+      selectedPrintIds.has(s.id) &&
+      s.image_url
+    );
+
+    if (targets.length === 0) {
+      customAlert("선택된 내역 중 다운로드 가능한 영수증 이미지가 없습니다.");
+      return;
+    }
+
+    setIsDownloadingZip(true);
+    setZipDownloadProgress(`0 / ${targets.length}`);
+
+    try {
+      const zip = new JSZip();
+      
+      for (let i = 0; i < targets.length; i++) {
+        const item = targets[i];
+        setZipDownloadProgress(`${i + 1} / ${targets.length}`);
+
+        const response = await fetch(item.image_url);
+        if (!response.ok) throw new Error("Image fetch failed");
+        
+        const blob = await response.blob();
+        
+        const u = new URL(item.image_url);
+        const pathname = u.pathname;
+        let ext = pathname.split('.').pop() || "png";
+        if (ext.length > 4 || !/^[a-zA-Z0-9]+$/.test(ext)) {
+          ext = "png";
+        }
+        
+        const userProfile = allProfiles.find(p => (p.full_name || p.name) === item.user_name);
+        const dept = userProfile?.department || "기타";
+        
+        const fileName = `${item.date}_${dept}_${item.user_name || "미지정"}_${parseInt(item.amount || 0)}.${ext}`;
+        
+        zip.file(fileName, blob);
+      }
+
+      setZipDownloadProgress("압축 중...");
+      const content = await zip.generateAsync({ type: "blob" });
+      
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(content);
+      link.download = `${selectedMonth}_승인영수증_이미지.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      
+      customAlert("성공적으로 영수증 ZIP 압축파일을 생성하여 다운로드했습니다.");
+    } catch (e) {
+      console.error(e);
+      customAlert("이미지 다운로드 및 압축 중 에러가 발생했습니다.");
+    } finally {
+      setIsDownloadingZip(false);
+      setZipDownloadProgress("");
+    }
   };
 
   const filteredUsers = useMemo(() => {
@@ -1998,6 +2066,45 @@ export default function App() {
                   ₩{(totals?.total || 0).toLocaleString()}
                 </span>
               </div>
+              <button
+                className="btn-trigger-zip-download"
+                disabled={selectedPrintIds.size === 0 || isDownloadingZip}
+                onClick={handleDownloadZip}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  border: '1.5px solid #111',
+                  background: isDownloadingZip ? '#f5f5f5' : '#111',
+                  color: isDownloadingZip ? '#999' : '#fff',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  cursor: (selectedPrintIds.size === 0 || isDownloadingZip) ? 'not-allowed' : 'pointer',
+                  marginBottom: '10px',
+                  transition: 'all 0.2s ease-in-out',
+                }}
+              >
+                {isDownloadingZip ? (
+                  <>
+                    <svg className="spinner" width="16" height="16" viewBox="0 0 50 50" style={{ animation: 'spin 1s linear infinite' }}>
+                      <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" strokeWidth="5" strokeDasharray="80 200" />
+                    </svg>
+                    <span>이미지 준비 중 ({zipDownloadProgress})</span>
+                  </>
+                ) : (
+                  <>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    <span>영수증 이미지 ZIP 다운로드</span>
+                  </>
+                )}
+              </button>
               <button
                 className="btn-trigger-print"
                 disabled={selectedPrintIds.size === 0}

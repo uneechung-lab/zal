@@ -1754,7 +1754,8 @@ body {
   .custom-screen-wrapper,
   .side-panel-overlay,
   .FeedbackSystem-trigger,
-  .FeedbackSystem-trigger-container {
+  .FeedbackSystem-trigger-container,
+  .btn-trigger-zip-download {
     display: none !important;
   }
   
@@ -1946,6 +1947,20 @@ body {
 
 .print-amount-text {
   color: #000 !important;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.btn-trigger-zip-download:hover:not(:disabled) {
+  background: #222 !important;
+  transform: translateY(-1px);
+}
+
+.btn-trigger-zip-download:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 
