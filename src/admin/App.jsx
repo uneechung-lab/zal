@@ -286,10 +286,10 @@ const STATUS_OPTIONS = [
 ];
 
 function StatusSelect({ value, onChange }) {
-  const [open, setOpen] = React.useState(false);
-  const ref = React.useRef(null);
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handler = (e) => {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
     };
