@@ -1160,8 +1160,7 @@ export default function App() {
       // 비활성 사용자 제외 필터
       if (showActiveOnly) {
         const isDeactivated = localDeactivated.includes(p.email);
-        const isHidden = localHidden.includes(p.email);
-        if (isDeactivated || isHidden) return false;
+        if (isDeactivated) return false;
       }
 
       return true;
