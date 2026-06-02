@@ -398,6 +398,121 @@ function StatusSelect({ value, onChange }) {
   );
 }
 
+const SORT_OPTIONS = [
+  { value: 'upload', label: '업로드순', defaultAsc: false },
+  { value: 'date', label: '날짜순', defaultAsc: false },
+  { value: 'user', label: '성명순', defaultAsc: true },
+];
+
+function PrintSortSelect({ field, asc, onChangeField, onChangeAsc, printViewMode }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    if (open) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const currentOpt = SORT_OPTIONS.find(o => o.value === field) || SORT_OPTIONS[0];
+  const visibleOptions = SORT_OPTIONS;
+
+  return (
+    <div ref={ref} style={{ position: 'relative', display: 'inline-block', userSelect: 'none', zIndex: open ? 999 : 5 }}>
+      {/* Trigger pill */}
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          background: '#fff',
+          color: '#111',
+          border: '1.5px solid #eee',
+          padding: '6px 14px',
+          borderRadius: '12px',
+          fontSize: '0.85rem',
+          fontWeight: 800,
+          cursor: 'pointer',
+          outline: 'none',
+          transition: 'all 0.15s ease',
+          height: '38px',
+          justifyContent: 'center',
+          boxSizing: 'border-box',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+        }}
+      >
+        <span>{currentOpt.label}</span>
+        <span style={{ fontSize: '0.72rem', color: '#888', fontWeight: 900, marginLeft: '2px' }}>
+          {asc ? '▲' : '▼'}
+        </span>
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 6px)',
+          right: 0,
+          background: '#fff',
+          border: '1px solid #ebebeb',
+          borderRadius: '14px',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+          padding: '6px',
+          zIndex: 9999,
+          minWidth: '130px',
+          animation: 'fadeInDownRight 0.12s ease'
+        }}>
+          {visibleOptions.map(opt => {
+            const isActive = opt.value === field;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => {
+                  if (isActive) {
+                    onChangeAsc(!asc);
+                  } else {
+                    onChangeField(opt.value);
+                    onChangeAsc(opt.defaultAsc);
+                  }
+                  setOpen(false);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  background: isActive ? '#f5f5f5' : 'transparent',
+                  color: isActive ? '#000' : '#666',
+                  border: 'none',
+                  borderRadius: '9px',
+                  padding: '8px 12px',
+                  fontSize: '0.85rem',
+                  fontWeight: isActive ? 800 : 600,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'background 0.12s',
+                }}
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#f9f9f9'; }}
+                onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+              >
+                <span>{opt.label}</span>
+                {isActive && (
+                  <span style={{ fontSize: '0.72rem', color: '#333', marginLeft: 'auto', fontWeight: 900 }}>
+                    {asc ? '▲' : '▼'}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 export default function App() {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
@@ -2567,9 +2682,9 @@ export default function App() {
 
         {/* Leaves Table */}
         <div style={{ background: '#fff', border: '1.5px solid #eee', borderRadius: '24px', padding: '2rem', boxShadow: 'var(--shadow-card)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <div className="leaves-header-row">
             <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#000', margin: 0 }}>월간 연차 내역 ({selectedMonth})</h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div className="leaves-btn-group">
               <input 
                 type="file" 
                 accept=".xlsx, .xls" 
@@ -2845,8 +2960,8 @@ export default function App() {
 
         {/* Admins Table Card Container */}
         <div style={{ background: '#fff', border: '1.5px solid #eee', borderRadius: '24px', padding: '2rem', boxShadow: 'var(--shadow-card)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div className="users-header-row">
+            <div className="users-title-group">
               <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#000', margin: 0 }}>사용자관리</h3>
               <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 700, color: showActiveOnly ? '#111' : '#888', cursor: 'pointer', userSelect: 'none', transition: 'color 0.2s' }}>
                 <input 
@@ -2873,6 +2988,7 @@ export default function App() {
             </div>
             <button 
               onClick={() => handleSaveAdminsAndDeactivated(localAdmins, localDeactivated, localHidden)}
+              className="users-save-btn"
               style={{ padding: '12px 24px', borderRadius: '12px', background: '#2E7D32', color: '#fff', border: 'none', fontWeight: 800, fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'var(--transition)' }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -3281,7 +3397,7 @@ export default function App() {
                 </div>
                 <div className="print-controls-row" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   {/* Mobile Only combined row (view mode on left, dropdown on right) */}
-                  <div className="mobile-only print-mobile-controls" style={{ display: 'none', width: '100%', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                  <div className="mobile-only print-mobile-controls" style={{ width: '100%', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                     <div className="view-selector-wrapper" style={{ display: 'flex', background: '#f5f5f5', borderRadius: 12, padding: 3, border: '1.5px solid #eee' }}>
                       <button 
                         onClick={() => setPrintViewMode("list")}
@@ -3289,14 +3405,27 @@ export default function App() {
                           background: printViewMode === "list" ? "#fff" : "transparent",
                           border: printViewMode === "list" ? "1.5px solid #111" : "none",
                           borderRadius: 9,
-                          padding: "6px 14px",
+                          padding: "6px 12px",
                           cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                          boxShadow: printViewMode === "list" ? "0 2px 6px rgba(0,0,0,0.05)" : "none",
                           fontSize: "0.85rem",
                           fontWeight: 750,
                           color: printViewMode === "list" ? "#111" : "#888",
-                          boxShadow: printViewMode === "list" ? "0 2px 6px rgba(0,0,0,0.05)" : "none",
+                          transition: 'all 0.2s'
                         }}
                       >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="8" y1="6" x2="21" y2="6"></line>
+                          <line x1="8" y1="12" x2="21" y2="12"></line>
+                          <line x1="8" y1="18" x2="21" y2="18"></line>
+                          <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                          <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                          <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                        </svg>
                         목록형
                       </button>
                       <button 
@@ -3305,102 +3434,47 @@ export default function App() {
                           background: printViewMode === "card" ? "#fff" : "transparent",
                           border: printViewMode === "card" ? "1.5px solid #111" : "none",
                           borderRadius: 9,
-                          padding: "6px 14px",
+                          padding: "6px 12px",
                           cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                          boxShadow: printViewMode === "card" ? "0 2px 6px rgba(0,0,0,0.05)" : "none",
                           fontSize: "0.85rem",
                           fontWeight: 750,
                           color: printViewMode === "card" ? "#111" : "#888",
-                          boxShadow: printViewMode === "card" ? "0 2px 6px rgba(0,0,0,0.05)" : "none",
+                          transition: 'all 0.2s'
                         }}
                       >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="7" height="9" rx="1"></rect>
+                          <rect x="14" y="3" width="7" height="5" rx="1"></rect>
+                          <rect x="14" y="12" width="7" height="9" rx="1"></rect>
+                          <rect x="3" y="16" width="7" height="5" rx="1"></rect>
+                        </svg>
                         카드뷰
                       </button>
                     </div>
 
-                    <div className="print-sort-dropdown-wrapper" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                      <select
-                        value={`${printSortField}-${printSortAsc}`}
-                        onChange={(e) => {
-                          const [field, ascStr] = e.target.value.split('-');
-                          setPrintSortField(field);
-                          setPrintSortAsc(ascStr === 'true');
-                        }}
-                        style={{
-                          padding: '6px 28px 6px 12px',
-                          borderRadius: '12px',
-                          border: '1.5px solid #eee',
-                          background: '#fff',
-                          fontSize: '0.85rem',
-                          fontWeight: 800,
-                          color: '#111',
-                          cursor: 'pointer',
-                          outline: 'none',
-                          height: '38px',
-                          boxSizing: 'border-box',
-                          appearance: 'none',
-                          webkitAppearance: 'none',
-                        }}
-                      >
-                        <option value="upload-false">업로드 최신순</option>
-                        <option value="upload-true">업로드 오래된순</option>
-                        <option value="date-false">날짜 최근순</option>
-                        <option value="date-true">날짜 오래된순</option>
-                        {printViewMode !== "list" && <option value="user-true">성명 오름차순</option>}
-                        {printViewMode !== "list" && <option value="user-false">성명 내림차순</option>}
-                      </select>
-                      <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', display: 'flex', alignItems: 'center' }}>
-                        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M1 1L5 5L9 1" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </div>
-                    </div>
+                    <PrintSortSelect 
+                      field={printSortField} 
+                      asc={printSortAsc} 
+                      onChangeField={setPrintSortField} 
+                      onChangeAsc={setPrintSortAsc} 
+                      printViewMode={printViewMode} 
+                    />
                   </div>
 
-                  {/* Desktop Only Inline Buttons */}
-                  <div className="desktop-only print-desktop-sort" style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#f0f0f0', padding: '4px', borderRadius: '8px' }}>
-                    {[
-                      { label: '업로드순', field: 'upload', defaultAsc: false },
-                      { label: '날짜순', field: 'date', defaultAsc: false },
-                      { label: '성명순', field: 'user', defaultAsc: true },
-                    ].filter(opt => printViewMode !== "list" || opt.field !== "user")
-                    .map((opt) => {
-                      const isActive = printSortField === opt.field;
-                      return (
-                        <button
-                          key={opt.field}
-                          onClick={() => {
-                            if (isActive) {
-                              setPrintSortAsc(!printSortAsc);
-                            } else {
-                              setPrintSortField(opt.field);
-                              setPrintSortAsc(opt.defaultAsc);
-                            }
-                          }}
-                          style={{
-                            border: 'none',
-                            background: isActive ? '#fff' : 'transparent',
-                            color: isActive ? '#000' : '#666',
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            fontSize: '0.82rem',
-                            fontWeight: isActive ? 800 : 500,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                            transition: 'all 0.2s',
-                          }}
-                        >
-                          {opt.label}
-                          {isActive && (
-                            <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>
-                              {printSortAsc ? '▲' : '▼'}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
+                  {/* Desktop Sort Dropdown */}
+                  <div className="desktop-only">
+                    <PrintSortSelect 
+                      field={printSortField} 
+                      asc={printSortAsc} 
+                      onChangeField={setPrintSortField} 
+                      onChangeAsc={setPrintSortAsc} 
+                      printViewMode={printViewMode} 
+                    />
                   </div>
                 </div>
               </div>
