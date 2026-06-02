@@ -2029,6 +2029,25 @@ body {
     padding-right: 1.25rem !important;
   }
 
+  .category-stats-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 1.25rem !important;
+  }
+
+  .category-add-form {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    gap: 10px !important;
+  }
+
+  .category-input, 
+  .btn-add-category {
+    width: 100% !important;
+  }
+
   .admin-container {
     padding-bottom: 84px !important; /* Extra bottom padding for floating feel */
   }
