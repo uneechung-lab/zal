@@ -2069,7 +2069,8 @@ body {
     background: transparent;
     border: none;
     outline: none;
-    color: #777;
+    color: #000;
+    opacity: 0.4; /* Dim unselected items for high contrast */
     font-size: 0.7rem;
     font-weight: 800;
     cursor: pointer;
@@ -2080,7 +2081,7 @@ body {
   }
 
   .mobile-nav-item svg {
-    color: #777;
+    color: currentColor;
     transition: all 0.2s ease;
   }
 
@@ -2090,6 +2091,7 @@ body {
 
   .mobile-nav-item.active {
     color: #000;
+    opacity: 1; /* Active state is fully opaque */
   }
 
   .mobile-nav-item.active svg {
