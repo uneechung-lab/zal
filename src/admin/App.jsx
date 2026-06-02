@@ -2690,6 +2690,7 @@ export default function App() {
             <table className="print-dashboard-table">
               <thead>
                 <tr>
+                  <th style={{ width: '60px', textAlign: 'center' }}>No.</th>
                   <th 
                     onClick={() => {
                       if (usersSortField === "name") {
@@ -2775,12 +2776,12 @@ export default function App() {
               <tbody>
                 {filteredAdminsProfiles.length === 0 ? (
                   <tr>
-                    <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: '#999', fontSize: '0.95rem', fontWeight: 600 }}>
+                    <td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: '#999', fontSize: '0.95rem', fontWeight: 600 }}>
                       검색된 직원이 없습니다.
                     </td>
                   </tr>
                 ) : (
-                  filteredAdminsProfiles.map(p => {
+                  filteredAdminsProfiles.map((p, idx) => {
                     const isUserAdmin = localAdmins.includes(p.email);
                     const isUserDeactivated = localDeactivated.includes(p.email);
                     return (
@@ -2793,6 +2794,9 @@ export default function App() {
                         }} 
                         className="table-row-hover"
                       >
+                        <td style={{ padding: '16px 20px', textAlign: 'center', fontSize: '0.9rem', color: '#888', fontWeight: 700 }}>
+                          {idx + 1}
+                        </td>
                         <td style={{ padding: '16px 20px', fontSize: '0.95rem', fontWeight: 850, color: '#111' }}>
                           {p.full_name || p.name}
                         </td>
