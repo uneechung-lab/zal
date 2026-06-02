@@ -1706,46 +1706,51 @@ export default function App() {
           <div className="summary-label l1">오늘 ({new Date().toISOString().slice(5, 10).replace('-', '.')}) 기준</div>
           <div className="summary-label l2">{selectedMonthNum}월 총 입금액</div>
           
-          <div className="summary-greeting v1" onClick={() => {
-            if (newMsgIdx !== -1) {
-              setReviewIndex(newMsgIdx);
-              setIsReviewPanelOpen(true);
-            } else {
-              const firstUnreadUser = monthlyUsers.find(u => u.unreadCount > 0);
-              if (firstUnreadUser) {
-                setSelectedUser(firstUnreadUser);
-                // Also try to find the specific unread item in history and select it
-                const unreadItem = firstUnreadUser.history.find(h => {
-                   const seen = adminLastSeen[h.id];
-                   if (h.actionLogs && h.actionLogs.startsWith('[')) {
-                      try {
-                         const logs = JSON.parse(h.actionLogs);
-                         const last = logs[logs.length-1];
-                         return last.sender === 'user' && (!seen || new Date(last.time) > new Date(seen));
-                      } catch(e){}
-                   }
-                   return false;
-                });
-                if (unreadItem) setSelectedHistoryItem(unreadItem);
-              } else {
-                setIsReviewPanelOpen(true);
-              }
-            }
-          }} style={{ position: 'relative' }}>
-            <span className="mobile-hide" style={{ marginRight: '4px' }}>관리자님, </span>
-            <span className="underline" style={{ color: totals.pendingTotal > 0 ? '#ef4444' : '#15803d' }}>
-              <span className="num-spacing summary-num">{totals.pendingTotal}</span>
-              건의 
-            </span>
-            &nbsp;
-            <span style={{ position: 'relative' }}>
-              <span className="greeting-sub">승인요청이 있습니다.</span>
-              {totals.unreadTotal > 0 && (
-                <div className="new-msg-bubble" style={{ position: "absolute", bottom: "115%", right: "-12px", background: "#ef4444", color: "#fff", fontSize: "0.85rem", fontWeight: 500, padding: "5px 12px", borderRadius: "12px", whiteSpace: "nowrap", zIndex: 20, cursor: "pointer", pointerEvents: "auto" }}>
-                  새 메시지 도착!
-                  <div style={{ position: "absolute", bottom: "-5px", right: "12px", width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: "6px solid #ef4444" }} />
-                </div>
-              )}
+          <div className="summary-greeting v1" style={{ position: 'relative' }}>
+            <span
+              onClick={() => {
+                if (newMsgIdx !== -1) {
+                  setReviewIndex(newMsgIdx);
+                  setIsReviewPanelOpen(true);
+                } else {
+                  const firstUnreadUser = monthlyUsers.find(u => u.unreadCount > 0);
+                  if (firstUnreadUser) {
+                    setSelectedUser(firstUnreadUser);
+                    // Also try to find the specific unread item in history and select it
+                    const unreadItem = firstUnreadUser.history.find(h => {
+                       const seen = adminLastSeen[h.id];
+                       if (h.actionLogs && h.actionLogs.startsWith('[')) {
+                          try {
+                             const logs = JSON.parse(h.actionLogs);
+                             const last = logs[logs.length-1];
+                             return last.sender === 'user' && (!seen || new Date(last.time) > new Date(seen));
+                          } catch(e){}
+                       }
+                       return false;
+                    });
+                    if (unreadItem) setSelectedHistoryItem(unreadItem);
+                  } else {
+                    setIsReviewPanelOpen(true);
+                  }
+                }
+              }}
+              style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap' }}
+            >
+              <span className="mobile-hide" style={{ marginRight: '4px' }}>관리자님, </span>
+              <span className="underline" style={{ color: totals.pendingTotal > 0 ? '#ef4444' : '#15803d' }}>
+                <span className="num-spacing summary-num">{totals.pendingTotal}</span>
+                건의 
+              </span>
+              &nbsp;
+              <span style={{ position: 'relative' }}>
+                <span className="greeting-sub">승인요청이 있습니다.</span>
+                {totals.unreadTotal > 0 && (
+                  <div className="new-msg-bubble" style={{ position: "absolute", bottom: "115%", right: "-12px", background: "#ef4444", color: "#fff", fontSize: "0.85rem", fontWeight: 500, padding: "5px 12px", borderRadius: "12px", whiteSpace: "nowrap", zIndex: 20, cursor: "pointer", pointerEvents: "auto" }}>
+                    새 메시지 도착!
+                    <div style={{ position: "absolute", bottom: "-5px", right: "12px", width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: "6px solid #ef4444" }} />
+                  </div>
+                )}
+              </span>
             </span>
           </div>
           <div className="summary-amount v2" style={{ textAlign: 'left', justifyContent: 'flex-start' }}>
@@ -3089,52 +3094,51 @@ export default function App() {
                 <div style={{ fontSize: '1.1rem', fontWeight: 900 }}>
                   총 <span style={{ color: '#ef4444' }}>{filteredApprovedSettlements.length}</span>개의 영수증이 승인되었습니다.
                 </div>
-                {printViewMode === "card" && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#f0f0f0', padding: '4px', borderRadius: '8px' }}>
-                    {[
-                      { label: '업로드순', field: 'upload', defaultAsc: false },
-                      { label: '날짜순', field: 'date', defaultAsc: false },
-                      { label: '성명순', field: 'user', defaultAsc: true },
-                    ].map((opt) => {
-                      const isActive = printSortField === opt.field;
-                      return (
-                        <button
-                          key={opt.field}
-                          onClick={() => {
-                            if (isActive) {
-                              setPrintSortAsc(!printSortAsc);
-                            } else {
-                              setPrintSortField(opt.field);
-                              setPrintSortAsc(opt.defaultAsc);
-                            }
-                          }}
-                          style={{
-                            border: 'none',
-                            background: isActive ? '#fff' : 'transparent',
-                            color: isActive ? '#000' : '#666',
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            fontSize: '0.82rem',
-                            fontWeight: isActive ? 800 : 500,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                            transition: 'all 0.2s',
-                          }}
-                        >
-                          {opt.label}
-                          {isActive && (
-                            <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>
-                              {printSortAsc ? '▲' : '▼'}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#f0f0f0', padding: '4px', borderRadius: '8px' }}>
+                  {[
+                    { label: '업로드순', field: 'upload', defaultAsc: false },
+                    { label: '날짜순', field: 'date', defaultAsc: false },
+                    { label: '성명순', field: 'user', defaultAsc: true },
+                  ].filter(opt => printViewMode !== "list" || opt.field !== "user")
+                  .map((opt) => {
+                    const isActive = printSortField === opt.field;
+                    return (
+                      <button
+                        key={opt.field}
+                        onClick={() => {
+                          if (isActive) {
+                            setPrintSortAsc(!printSortAsc);
+                          } else {
+                            setPrintSortField(opt.field);
+                            setPrintSortAsc(opt.defaultAsc);
+                          }
+                        }}
+                        style={{
+                          border: 'none',
+                          background: isActive ? '#fff' : 'transparent',
+                          color: isActive ? '#000' : '#666',
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          fontSize: '0.82rem',
+                          fontWeight: isActive ? 800 : 500,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        {opt.label}
+                        {isActive && (
+                          <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>
+                            {printSortAsc ? '▲' : '▼'}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {printViewMode === "list" ? (
