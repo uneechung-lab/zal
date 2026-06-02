@@ -667,9 +667,7 @@ export default function App() {
           .limit(1);
           
         let isDesignatedAdmin = false;
-        if (email === 'admin@daumit.net') {
-          isDesignatedAdmin = true;
-        } else if (sData && sData.length > 0) {
+        if (sData && sData.length > 0) {
           try {
             const adminsList = JSON.parse(sData[0].exc_text || '[]');
             isDesignatedAdmin = adminsList.includes(email);
@@ -1416,9 +1414,7 @@ export default function App() {
         .limit(1);
         
       let isDesignatedAdmin = false;
-      if (email === 'admin@daumit.net') {
-        isDesignatedAdmin = true;
-      } else if (sData && sData.length > 0) {
+      if (sData && sData.length > 0) {
         try {
           const adminsList = JSON.parse(sData[0].exc_text || '[]');
           isDesignatedAdmin = adminsList.includes(email);
