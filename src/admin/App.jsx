@@ -913,7 +913,7 @@ export default function App() {
     });
   }, [allProfiles, adminsSelectedDept, adminsSearchEmployee]);
 
-  const [printSortField, setPrintSortField] = useState("date");
+  const [printSortField, setPrintSortField] = useState("upload"); // 기본값 'upload'로 변경
   const [printSortAsc, setPrintSortAsc] = useState(false);
 
   const sortedFilteredApprovedSettlements = useMemo(() => {
@@ -937,6 +937,9 @@ export default function App() {
       } else if (printSortField === "amount") {
         valA = parseInt(a.amount || 0);
         valB = parseInt(b.amount || 0);
+      } else if (printSortField === "upload") {
+        valA = a.created_at || a.id || "";
+        valB = b.created_at || b.id || "";
       }
 
       if (typeof valA === "string") {
@@ -2736,9 +2739,53 @@ export default function App() {
 
           <div className="print-dashboard-layout">
             <div className="print-list-panel">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '12px' }}>
                 <div style={{ fontSize: '1.1rem', fontWeight: 900 }}>
                   총 <span style={{ color: '#ef4444' }}>{filteredApprovedSettlements.length}</span>개의 영수증이 승인되었습니다.
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#f0f0f0', padding: '4px', borderRadius: '8px' }}>
+                  {[
+                    { label: '업로드순', field: 'upload', defaultAsc: false },
+                    { label: '날짜순', field: 'date', defaultAsc: false },
+                    { label: '성명순', field: 'user', defaultAsc: true },
+                  ].map((opt) => {
+                    const isActive = printSortField === opt.field;
+                    return (
+                      <button
+                        key={opt.field}
+                        onClick={() => {
+                          if (isActive) {
+                            setPrintSortAsc(!printSortAsc);
+                          } else {
+                            setPrintSortField(opt.field);
+                            setPrintSortAsc(opt.defaultAsc);
+                          }
+                        }}
+                        style={{
+                          border: 'none',
+                          background: isActive ? '#fff' : 'transparent',
+                          color: isActive ? '#000' : '#666',
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          fontSize: '0.82rem',
+                          fontWeight: isActive ? 800 : 500,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        {opt.label}
+                        {isActive && (
+                          <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>
+                            {printSortAsc ? '▲' : '▼'}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
