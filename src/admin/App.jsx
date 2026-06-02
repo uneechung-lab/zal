@@ -1636,11 +1636,7 @@ export default function App() {
             </button>
             <button 
               className={`header-nav-btn ${currentView === "print" ? "active" : ""}`}
-              onClick={() => {
-                setCurrentView("print");
-                setSelectedUser(null);
-                setIsReviewPanelOpen(false);
-              }}
+              onClick={() => navigateWithConfirm("print")}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="6 9 6 2 18 2 18 9"></polyline>
@@ -1651,11 +1647,7 @@ export default function App() {
             </button>
             <button 
               className={`header-nav-btn ${currentView === "leaves" ? "active" : ""}`}
-              onClick={() => {
-                setCurrentView("leaves");
-                setSelectedUser(null);
-                setIsReviewPanelOpen(false);
-              }}
+              onClick={() => navigateWithConfirm("leaves")}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -1667,11 +1659,7 @@ export default function App() {
             </button>
             <button 
               className={`header-nav-btn ${currentView === "admins" ? "active" : ""}`}
-              onClick={() => {
-                setCurrentView("admins");
-                setSelectedUser(null);
-                setIsReviewPanelOpen(false);
-              }}
+              onClick={() => navigateWithConfirm("admins")}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
