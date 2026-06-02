@@ -1095,18 +1095,33 @@ export default function App() {
           return;
         }
 
-        setSelectedMonth(finalMonthStr);
+        const hasExistingData = Object.keys(annualLeaves).some(name => (annualLeaves[name]?.[finalMonthStr] || 0) > 0);
 
-        setAnnualLeaves(prev => {
-          const next = { ...prev };
-          Object.keys(parsedLeaves).forEach(name => {
-            if (!next[name]) next[name] = {};
-            next[name][finalMonthStr] = parsedLeaves[name];
+        const updateState = () => {
+          setSelectedMonth(finalMonthStr);
+
+          setAnnualLeaves(prev => {
+            const next = { ...prev };
+            Object.keys(next).forEach(name => {
+              if (next[name]) {
+                delete next[name][finalMonthStr];
+              }
+            });
+            Object.keys(parsedLeaves).forEach(name => {
+              if (!next[name]) next[name] = {};
+              next[name][finalMonthStr] = parsedLeaves[name];
+            });
+            return next;
           });
-          return next;
-        });
 
-        customAlert(`엑셀 파일 분석 결과, [${finalMonthStr}] 데이터로 인식되어 연차가 임시 적용되었습니다. 하단의 '변경사항 저장'을 눌러야 최종 저장됩니다.`, "success");
+          customAlert(`엑셀 파일 분석 결과, [${finalMonthStr}] 데이터로 인식되어 연차가 임시 적용되었습니다. 하단의 '변경사항 저장'을 눌러야 최종 저장됩니다.`, "success");
+        };
+
+        if (hasExistingData) {
+          customConfirm(`선택된 월 [${finalMonthStr}]에 이미 연차 데이터가 존재합니다. 업로드 시 기존 데이터가 삭제되고 새로운 엑셀 데이터로 대체됩니다. 진행하시겠습니까?`, updateState);
+        } else {
+          updateState();
+        }
       } catch (err) {
         console.error("Excel parse error:", err);
         customAlert("엑셀 파일을 파싱하는 도중 오류가 발생했습니다.");
