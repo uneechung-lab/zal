@@ -2010,5 +2010,92 @@ body {
   transform: translateY(0);
 }
 
+/* --- Mobile Bottom Navigation Styles --- */
+.mobile-bottom-nav {
+  display: none; /* Hidden by default on desktop */
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+
+  .admin-container {
+    padding-bottom: 84px !important; /* Extra bottom padding for floating feel */
+  }
+
+  .admin-header {
+    padding: 1rem 1.25rem !important;
+    border-bottom: 1.5px solid rgba(0, 0, 0, 0.03);
+  }
+
+  .logo-img {
+    width: 36px !important;
+    height: 36px !important;
+  }
+
+  .logo-text {
+    font-size: 1.2rem !important;
+  }
+
+  .mobile-bottom-nav {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 72px;
+    background: rgba(255, 251, 240, 0.94);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.04);
+    z-index: 999;
+    padding: 4px 8px 12px 8px; /* Extra bottom padding for mobile safe area */
+  }
+
+  .mobile-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #777;
+    font-size: 0.7rem;
+    font-weight: 800;
+    cursor: pointer;
+    gap: 5px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 6px 0;
+    border-radius: 12px;
+  }
+
+  .mobile-nav-item svg {
+    color: #777;
+    transition: all 0.2s ease;
+  }
+
+  .mobile-nav-item:active {
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  .mobile-nav-item.active {
+    color: #000;
+  }
+
+  .mobile-nav-item.active svg {
+    color: #000;
+    fill: #FEC601; /* ZAL brand gold */
+    stroke: #000;
+    transform: scale(1.1);
+  }
+}
+
+
 
 
