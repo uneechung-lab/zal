@@ -284,6 +284,7 @@ export default function App() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [currentView, setCurrentView] = useState("dashboard"); // dashboard, categories, print, leaves, admins
   const [annualLeaves, setAnnualLeaves] = useState({});
+  const [originalAnnualLeaves, setOriginalAnnualLeaves] = useState({});
   const [leavesSelectedDept, setLeavesSelectedDept] = useState("전체");
   const [leavesSearchEmployee, setLeavesSearchEmployee] = useState("");
 
@@ -300,6 +301,50 @@ export default function App() {
   useEffect(() => {
     setLocalAdmins(adminEmails);
   }, [adminEmails]);
+
+  const isLeavesDirty = useMemo(() => {
+    return JSON.stringify(annualLeaves) !== JSON.stringify(originalAnnualLeaves);
+  }, [annualLeaves, originalAnnualLeaves]);
+
+  const isAdminsDirty = useMemo(() => {
+    const sortA = [...adminEmails].sort();
+    const sortB = [...localAdmins].sort();
+    if (JSON.stringify(sortA) !== JSON.stringify(sortB)) return true;
+
+    const sortC = [...deactivatedEmails].sort();
+    const sortD = [...localDeactivated].sort();
+    if (JSON.stringify(sortC) !== JSON.stringify(sortD)) return true;
+
+    return false;
+  }, [adminEmails, localAdmins, deactivatedEmails, localDeactivated]);
+
+  const navigateWithConfirm = (nextView) => {
+    if (isLeavesDirty || isAdminsDirty) {
+      customConfirm("변경 사항이 저장되지 않았습니다. 저장하지 않고 화면을 나가시겠습니까?", () => {
+        setCurrentView(nextView);
+        setSelectedUser(null);
+        setIsReviewPanelOpen(false);
+      });
+    } else {
+      setCurrentView(nextView);
+      setSelectedUser(null);
+      setIsReviewPanelOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isLeavesDirty || isAdminsDirty) {
+        e.preventDefault();
+        e.returnValue = "변경 사항이 저장되지 않았습니다. 저장하지 않고 화면을 나가시겠습니까?";
+        return e.returnValue;
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [isLeavesDirty, isAdminsDirty]);
 
   const fetchAdminEmails = async () => {
     try {
@@ -428,6 +473,7 @@ export default function App() {
         });
 
         setAnnualLeaves(leavesMap);
+        setOriginalAnnualLeaves(JSON.parse(JSON.stringify(leavesMap)));
       }
     } catch (e) {
       console.error("Error fetching annual leaves:", e);
@@ -1243,6 +1289,7 @@ export default function App() {
         customAlert("연차 정보 저장에 실패했습니다: " + error.message);
       } else {
         customAlert("연차 정보가 성공적으로 저장되었습니다.", "success");
+        setOriginalAnnualLeaves(JSON.parse(JSON.stringify(annualLeaves)));
         fetchData();
       }
     } catch (e) {
@@ -1560,7 +1607,7 @@ export default function App() {
       {/* Header */}
       <header className="admin-header">
         <div className="header-inner">
-          <div className="logo-section" onClick={() => setCurrentView("dashboard")} style={{ cursor: 'pointer' }}>
+          <div className="logo-section" onClick={() => navigateWithConfirm("dashboard")} style={{ cursor: 'pointer' }}>
             <img src="/bi_zaleat.png" className="logo-img" alt="logo" />
             <div className="logo-text">
               <span className="brand-zal">ZAL</span><span className="sep">:</span>잘먹
@@ -1569,11 +1616,7 @@ export default function App() {
           <div className="header-meta" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button 
               className={`header-nav-btn ${currentView === "categories" ? "active" : ""}`}
-              onClick={() => {
-                setCurrentView("categories");
-                setSelectedUser(null);
-                setIsReviewPanelOpen(false);
-              }}
+              onClick={() => navigateWithConfirm("categories")}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="8" y1="6" x2="21" y2="6"></line>
