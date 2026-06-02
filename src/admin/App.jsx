@@ -2610,13 +2610,26 @@ export default function App() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#000', margin: 0 }}>사용자관리</h3>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 700, color: '#444', cursor: 'pointer', userSelect: 'none' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 700, color: showActiveOnly ? '#111' : '#888', cursor: 'pointer', userSelect: 'none', transition: 'color 0.2s' }}>
                 <input 
                   type="checkbox" 
                   checked={showActiveOnly} 
                   onChange={(e) => setShowActiveOnly(e.target.checked)} 
-                  style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#000' }}
+                  style={{ display: 'none' }}
                 />
+                <svg 
+                  width="14" 
+                  height="14" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke={showActiveOnly ? '#000' : '#ccc'} 
+                  strokeWidth="4" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                  style={{ transition: 'stroke 0.2s ease, transform 0.2s ease', transform: showActiveOnly ? 'scale(1)' : 'scale(0.95)' }}
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
                 활성 사용자만 보기
               </label>
             </div>
