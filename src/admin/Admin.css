@@ -2048,9 +2048,12 @@ body {
     width: 100% !important;
   }
 
-  .print-filter-row,
-  .print-dashboard-layout {
-    display: contents !important; /* Flatten structure on mobile to reorder easily */
+  /* Mobile/Desktop Visibility Helpers */
+  .mobile-only {
+    display: flex !important;
+  }
+  .desktop-only {
+    display: none !important;
   }
 
   /* Full-width Search & Tabs on Mobile */
@@ -2059,7 +2062,6 @@ body {
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 12px !important;
-    order: 2 !important; /* Filters at second place (below month header) */
   }
 
   .filter-select-wrapper,
@@ -2079,31 +2081,54 @@ body {
     width: 100% !important;
   }
 
+  /* Combined Mobile View Selector & Sort Dropdown Row */
+  .print-mobile-controls {
+    display: flex !important;
+    width: 100% !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  .print-mobile-controls .view-selector-wrapper {
+    flex: 1 !important;
+    max-width: 180px !important;
+    display: flex !important;
+  }
+
+  .print-mobile-controls .view-selector-wrapper button {
+    flex: 1 !important;
+    text-align: center !important;
+    padding: 6px 0 !important;
+    font-size: 0.8rem !important;
+  }
+
+  .print-sort-dropdown-wrapper {
+    flex: 1 !important;
+    max-width: 160px !important;
+  }
+
+  .print-sort-dropdown-wrapper select {
+    width: 100% !important;
+    height: 38px !important;
+  }
+
   /* Reorder Print Summary Card to Top on Mobile */
+  .print-dashboard-layout {
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem !important;
+  }
+
   .print-summary-sidebar {
-    order: 3 !important; /* Visual placement at third place */
+    order: -1 !important; /* Visual placement at the top of grid */
     position: static !important; /* Remove sticky offset on mobile */
     margin-top: 0.25rem !important;
     margin-bottom: 0.25rem !important;
   }
 
-  /* Full-width View Selector Below Summary Card */
-  .view-selector-wrapper {
-    order: 4 !important; /* Visual placement at fourth place (below summary) */
-    width: 100% !important;
-    display: flex !important;
-    margin-top: 0.25rem !important;
-    margin-bottom: 0.25rem !important;
-  }
-
-  .view-selector-wrapper button {
-    flex: 1 !important;
-    text-align: center !important;
-    padding: 10px 0 !important;
-  }
-
   .print-list-panel {
-    order: 5 !important; /* Visual placement at the very bottom */
+    order: 1 !important; /* Visual placement below the summary */
   }
 
   .admin-container {
@@ -2183,6 +2208,10 @@ body {
     stroke-width: 2.8px; /* Slightly thicker outline for active view */
     transform: scale(1.08);
   }
+}
+
+.mobile-only {
+  display: none !important;
 }
 
 
