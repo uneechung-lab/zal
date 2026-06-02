@@ -981,7 +981,7 @@ export default function App() {
   };
 
   const fetchCategories = async () => {
-    const { data, error } = await supabase.from('allowed_categories').select('name');
+    const { data, error } = await supabase.from('allowed_categories').select('name').order('id', { ascending: false });
     if (!error) setAllowedCategories(data.map(d => d.name));
     else setAllowedCategories(["음식점","한식","중식","일식","양식","분식","카페","커피전문점","제과점","베이커리","편의점","슈퍼마켓","백화점","푸드코트"]);
   };
