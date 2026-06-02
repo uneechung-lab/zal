@@ -1157,7 +1157,7 @@ export default function App() {
       }
       if (p.email === 'admin@daumit.net') return false;
 
-      // 활성 사용자만 보기 필터
+      // 비활성 사용자 제외 필터
       if (showActiveOnly) {
         const isDeactivated = localDeactivated.includes(p.email);
         const isHidden = localHidden.includes(p.email);
@@ -2843,7 +2843,7 @@ export default function App() {
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
-                활성 사용자만 보기
+                비활성 사용자 제외
               </label>
             </div>
             <button 
