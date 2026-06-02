@@ -2712,7 +2712,15 @@ export default function App() {
                     const isUserAdmin = localAdmins.includes(p.email);
                     const isUserDeactivated = localDeactivated.includes(p.email);
                     return (
-                      <tr key={p.id} style={{ borderBottom: '1px solid #f8f9fa', transition: 'background 0.2s ease' }} className="table-row-hover">
+                      <tr 
+                        key={p.id} 
+                        style={{ 
+                          borderBottom: '1px solid #f8f9fa', 
+                          transition: 'background 0.2s ease, opacity 0.2s ease',
+                          opacity: isUserDeactivated ? 0.5 : 1
+                        }} 
+                        className="table-row-hover"
+                      >
                         <td style={{ padding: '16px 20px', fontSize: '0.95rem', fontWeight: 850, color: '#111' }}>
                           {p.full_name || p.name}
                         </td>
@@ -2759,23 +2767,25 @@ export default function App() {
                         <td style={{ padding: '16px 20px', textAlign: 'right' }}>
                           <button
                             onClick={() => {
+                              if (isUserDeactivated) return;
                               if (isUserAdmin) {
                                 setLocalAdmins(prev => prev.filter(email => email !== p.email));
                               } else {
                                 setLocalAdmins(prev => [...prev, p.email]);
                               }
                             }}
+                            disabled={isUserDeactivated}
                             style={{
-                              background: isUserAdmin ? '#111' : '#fff',
-                              color: isUserAdmin ? '#fff' : '#111',
-                              border: isUserAdmin ? '1.5px solid #111' : '1.5px solid #eaeaea',
+                              background: isUserDeactivated ? '#f5f5f5' : (isUserAdmin ? '#111' : '#fff'),
+                              color: isUserDeactivated ? '#aaa' : (isUserAdmin ? '#fff' : '#111'),
+                              border: isUserDeactivated ? '1.5px solid #eaeaea' : (isUserAdmin ? '1.5px solid #111' : '1.5px solid #eaeaea'),
                               padding: '6px 16px',
                               borderRadius: '20px',
                               fontSize: '0.85rem',
                               fontWeight: 800,
-                              cursor: 'pointer',
+                              cursor: isUserDeactivated ? 'not-allowed' : 'pointer',
                               transition: 'all 0.2s ease',
-                              boxShadow: isUserAdmin ? '0 4px 12px rgba(17,17,17,0.15)' : 'none'
+                              boxShadow: (!isUserDeactivated && isUserAdmin) ? '0 4px 12px rgba(17,17,17,0.15)' : 'none'
                             }}
                           >
                             {isUserAdmin ? '지정 완료' : '지정하기'}
