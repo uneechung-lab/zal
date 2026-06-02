@@ -610,7 +610,7 @@ export default function App() {
         setAdminEmails(newAdmins);
         setDeactivatedEmails(newDeactivated);
         setHiddenEmails(newHidden);
-        customAlert("어드민 지정 및 계정 상태가 성공적으로 저장되었습니다!", "success");
+        customAlert("어드민 지정 및 계정 상태가\n성공적으로 저장되었습니다!", "success");
       }
     } catch(e) {
       console.error(e);
