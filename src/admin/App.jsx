@@ -255,12 +255,12 @@ const transformData = (settlements, profiles, month, adminLastSeen = {}, annualL
   });
 };
 
-const SortArrow = ({ active, asc }) => {
+const SortArrow = () => {
   return (
     <svg width="10" height="12" viewBox="0 0 10 12" style={{ marginLeft: '6px', verticalAlign: 'middle', display: 'inline-block' }}>
       <path 
         d="M2 4.5L5 1.5L8 4.5" 
-        stroke={active && asc ? "#000" : "#bbb"} 
+        stroke="#bbb" 
         strokeWidth="2" 
         strokeLinecap="round" 
         strokeLinejoin="round" 
@@ -268,7 +268,7 @@ const SortArrow = ({ active, asc }) => {
       />
       <path 
         d="M2 7.5L5 10.5L8 7.5" 
-        stroke={active && !asc ? "#000" : "#bbb"} 
+        stroke="#bbb" 
         strokeWidth="2" 
         strokeLinecap="round" 
         strokeLinejoin="round" 
