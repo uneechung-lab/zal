@@ -2020,6 +2020,10 @@ body {
     display: none !important;
   }
 
+  .FeedbackSystem-trigger-container {
+    bottom: 88px !important; /* Lift FABs above mobile bottom navigation bar */
+  }
+
   .admin-container {
     padding-bottom: 84px !important; /* Extra bottom padding for floating feel */
   }
