@@ -125,9 +125,12 @@ const transformData = (settlements, profiles, month, adminLastSeen = {}, annualL
   const filtered = settlements.filter(s => s.date && s.date.startsWith(month.replace('.', '-')));
   const usersMap = {};
   
-  const activeProfiles = profiles.filter(p => !deactivatedEmails.includes(p.email) && !hiddenEmails.includes(p.email));
-  const deactivatedNames = profiles.filter(p => deactivatedEmails.includes(p.email)).map(p => p.full_name || p.name);
-  const hiddenNames = profiles.filter(p => hiddenEmails.includes(p.email)).map(p => p.full_name || p.name);
+  const deactivatedEmailsLower = deactivatedEmails.map(e => (e || "").toLowerCase());
+  const hiddenEmailsLower = hiddenEmails.map(e => (e || "").toLowerCase());
+
+  const activeProfiles = profiles.filter(p => !deactivatedEmailsLower.includes((p.email || "").toLowerCase()) && !hiddenEmailsLower.includes((p.email || "").toLowerCase()));
+  const deactivatedNames = profiles.filter(p => deactivatedEmailsLower.includes((p.email || "").toLowerCase())).map(p => p.full_name || p.name);
+  const hiddenNames = profiles.filter(p => hiddenEmailsLower.includes((p.email || "").toLowerCase())).map(p => p.full_name || p.name);
 
   // 1. Identify ALL active users from settlements to avoid missing anyone
   const allKnownUserNames = new Set(
@@ -1025,7 +1028,8 @@ export default function App() {
   // Auto-switch to "Pending" if exists on month change, otherwise "All"
   useEffect(() => {
     if (rawSettlements.length > 0) {
-      const hiddenNamesSet = new Set(allProfiles.filter(p => hiddenEmails.includes(p.email)).map(p => p.full_name || p.name));
+      const hiddenEmailsLower = hiddenEmails.map(e => (e || "").toLowerCase());
+      const hiddenNamesSet = new Set(allProfiles.filter(p => hiddenEmailsLower.includes((p.email || "").toLowerCase())).map(p => p.full_name || p.name));
       const monthFiltered = rawSettlements
         .filter(s => s.date && s.date.startsWith(selectedMonth.replace('.', '-')))
         .filter(s => !hiddenNamesSet.has(s.user_name || "미지정"));
@@ -1050,7 +1054,8 @@ export default function App() {
 
   const allPendingRequests = useMemo(() => {
     const requests = [];
-    const hiddenNamesSet = new Set(allProfiles.filter(p => hiddenEmails.includes(p.email)).map(p => p.full_name || p.name));
+    const hiddenEmailsLower = hiddenEmails.map(e => (e || "").toLowerCase());
+    const hiddenNamesSet = new Set(allProfiles.filter(p => hiddenEmailsLower.includes((p.email || "").toLowerCase())).map(p => p.full_name || p.name));
     rawSettlements
       .filter(s => s.date && s.date.startsWith(selectedMonth.replace('.', '-')))
       .filter(s => !hiddenNamesSet.has(s.user_name || "미지정"))
@@ -1121,7 +1126,8 @@ export default function App() {
   }, [allProfiles]);
 
   const approvedSettlementsForMonth = useMemo(() => {
-    const hiddenNamesSet = new Set(allProfiles.filter(p => hiddenEmails.includes(p.email)).map(p => p.full_name || p.name));
+    const hiddenEmailsLower = hiddenEmails.map(e => (e || "").toLowerCase());
+    const hiddenNamesSet = new Set(allProfiles.filter(p => hiddenEmailsLower.includes((p.email || "").toLowerCase())).map(p => p.full_name || p.name));
     return rawSettlements.filter(s => 
       s.status === "승인완료" && 
       s.date && 
@@ -1166,7 +1172,7 @@ export default function App() {
 
       // 비활성 사용자 제외 필터
       if (showActiveOnly) {
-        const isDeactivated = localDeactivated.includes(p.email);
+        const isDeactivated = localDeactivated.map(e => (e || "").toLowerCase()).includes((p.email || "").toLowerCase());
         if (isDeactivated) return false;
       }
 
@@ -2669,8 +2675,8 @@ export default function App() {
                     const name = p.full_name || p.name || "";
                     const dept = p.department || "기타";
                     if (dept === "어드민" || name === "관리자") return false; // 어드민/관리자 계정 제외
-                    if (deactivatedEmails.includes(p.email)) return false;
-                    if (hiddenEmails.includes(p.email)) return false; // 히든 사용자 제외
+                    if (deactivatedEmails.map(e => (e || "").toLowerCase()).includes((p.email || "").toLowerCase())) return false;
+                    if (hiddenEmails.map(e => (e || "").toLowerCase()).includes((p.email || "").toLowerCase())) return false; // 히든 사용자 제외
                     const matchDept = leavesSelectedDept === "전체" || dept === leavesSelectedDept;
                     const matchEmployee = !leavesSearchEmployee.trim() || 
                       name.toLowerCase().includes(leavesSearchEmployee.toLowerCase());
