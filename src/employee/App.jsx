@@ -533,6 +533,48 @@ export default function App() {
   const [user, setUser] = useState(null);
   const fileRef = useRef();
 
+  const [annualLeaves, setAnnualLeaves] = useState({});
+
+  const fetchAnnualLeaves = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('settlements')
+        .select('*')
+        .eq('user_name', '__SYSTEM_ANNUAL_LEAVES__')
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        const leavesMap = {};
+        const processedMonths = new Set();
+
+        data.forEach(row => {
+          if (!row.date || !row.exc_text) return;
+          const [y, m] = row.date.split("-");
+          const monthKey = `${y}.${m}`;
+          
+          if (processedMonths.has(monthKey)) return;
+          processedMonths.add(monthKey);
+
+          try {
+            const monthData = JSON.parse(row.exc_text);
+            Object.keys(monthData).forEach(name => {
+              if (!leavesMap[name]) leavesMap[name] = {};
+              leavesMap[name][monthKey] = monthData[name];
+            });
+          } catch(e) {}
+        });
+
+        setAnnualLeaves(leavesMap);
+      }
+    } catch (e) {
+      console.error("Error fetching annual leaves:", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnnualLeaves();
+  }, []);
+
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(() => {
     return globalIsRecoverySession || localStorage.getItem('is_resetting_password') === 'true';
   });
@@ -1042,7 +1084,10 @@ export default function App() {
     }, [monthFiltered]);
 
     const approvedSum = totals.approved;
-    const workingDays = getMonthWeekdays(selYear, selMonth);
+    const baseWeekdays = getMonthWeekdays(selYear, selMonth);
+    const leaveKey = `${selYear}.${String(selMonth).padStart(2, '0')}`;
+    const userLeaves = annualLeaves[user?.full_name]?.[leaveKey] || 0;
+    const workingDays = Math.max(0, baseWeekdays - userLeaves);
     const monthlyLimit = workingDays * 10000;
     const approvedTotal = Math.min(approvedSum, monthlyLimit);
     const pendingTotal = totals.pending;
@@ -1141,7 +1186,10 @@ export default function App() {
               {user?.full_name}님의 <span style={{ opacity: 0.55, fontWeight: 500 }}>맛있는 하루를<br/>다음정보시스템즈가 지원합니다!</span>
             </p>
             <div style={{ marginTop: 40, display: "inline-block", position: "relative" }}>
-              <p style={{ margin: "0 0 8px", fontSize: 13, color: "#666", fontWeight: 700 }}>{payDateStr} 입금 예정</p>
+              <p style={{ margin: "0 0 8px", fontSize: 13, color: "#666", fontWeight: 700 }}>
+                {payDateStr} 입금 예정
+                {userLeaves > 0 && <span style={{ color: "#E24B4A", marginLeft: 8 }}>(연차 {userLeaves}일 차감 반영)</span>}
+              </p>
               <div style={{ position: "relative", display: "inline-block" }}>
                 <span style={{ fontSize: 36, fontWeight: 900, color: "#000", letterSpacing: "-1px", position: "relative", zIndex: 2 }}>{approvedTotal.toLocaleString()}원</span>
                 <div style={{ position: "absolute", bottom: 4, left: -4, right: -4, height: 16, background: "#FEC601", opacity: 0.8, zIndex: 1 }} />
@@ -1821,7 +1869,10 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
       const p = s.date.split("-");
       return parseInt(p[0]) === myYear && parseInt(p[1]) === myMonth && (s.status === "승인완료" || s.status === "승인대기");
     });
-    const myLimit = getMonthWeekdays(myYear, myMonth) * 10000;
+    const baseMyWeekdays = getMonthWeekdays(myYear, myMonth);
+    const myLeaveKey = `${myYear}.${String(myMonth).padStart(2, '0')}`;
+    const myUserLeaves = annualLeaves[user?.full_name]?.[myLeaveKey] || 0;
+    const myLimit = Math.max(0, baseMyWeekdays - myUserLeaves) * 10000;
     const monthApprovedSum = monthSubs.reduce((a, s) => a + parseInt(s.amount || 0), 0);
     const monthTotal = Math.min(monthApprovedSum, myLimit);
 
@@ -1987,6 +2038,17 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span>승인 금액</span>
                     <span style={{ color: "#111", fontSize: 14, fontWeight: 900 }}>₩{approvedSpent.toLocaleString()}</span>
+                  </div>
+                  
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>연차</span>
+                    <span style={{ color: "#111", fontSize: 14, fontWeight: 900 }}>{myUserLeaves || 0}일</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>실제 근무일</span>
+                    <span style={{ color: "#111", fontSize: 14, fontWeight: 900 }}>
+                      {baseMyWeekdays - myUserLeaves}일
+                    </span>
                   </div>
                   
                   <div style={{ margin: "12px 0 4px", borderTop: "1px solid #f2f2f2" }} />

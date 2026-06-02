@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import FeedbackSystem, { FeedbackAdminList } from "../FeedbackSystem";
 import { createClient } from "@supabase/supabase-js";
 import JSZip from "jszip";
+import * as XLSX from 'xlsx';
 import "./Admin.css";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -120,22 +121,29 @@ function validate(d, allowed, existingSubs = []) {
   
   return issues;
 }
-const transformData = (settlements, profiles, month, adminLastSeen = {}) => {
+const transformData = (settlements, profiles, month, adminLastSeen = {}, annualLeaves = {}, deactivatedEmails = []) => {
   const filtered = settlements.filter(s => s.date && s.date.startsWith(month.replace('.', '-')));
   const usersMap = {};
   
-  // 1. Identify ALL users from ALL time in settlements to avoid missing anyone
-  const allKnownUserNames = new Set(settlements.map(s => s.user_name || "미지정"));
+  const activeProfiles = profiles.filter(p => !deactivatedEmails.includes(p.email));
+  const deactivatedNames = profiles.filter(p => deactivatedEmails.includes(p.email)).map(p => p.full_name || p.name);
+
+  // 1. Identify ALL active users from settlements to avoid missing anyone
+  const allKnownUserNames = new Set(
+    settlements
+      .map(s => s.user_name || "미지정")
+      .filter(name => name !== "미지정" && !deactivatedNames.includes(name) && !name.startsWith("__SYSTEM_"))
+  );
   
-  // 2. Add users from profiles
-  profiles.forEach(p => {
+  // 2. Add users from active profiles
+  activeProfiles.forEach(p => {
     const name = p.full_name || p.name;
     if (name) allKnownUserNames.add(name);
   });
 
-  // 3. Initialize map for ALL known users across system
+  // 3. Initialize map for active known users across system
   allKnownUserNames.forEach(userName => {
-    const p = profiles.find(it => (it.full_name || it.name) === userName);
+    const p = activeProfiles.find(it => (it.full_name || it.name) === userName);
     usersMap[userName] = {
       id: userName,
       name: userName,
@@ -235,17 +243,172 @@ const transformData = (settlements, profiles, month, adminLastSeen = {}) => {
 
   const monthWeekdays = getMonthWeekdays(month);
 
-  return Object.values(usersMap).map(u => ({
-    ...u,
-    monthWeekdays,
-    avg: u.count > 0 ? Math.floor((u.approvedSpent + u.pendingSpent + u.rejectedSpent) / u.count) : 0
-  }));
+  return Object.values(usersMap).map(u => {
+    const leaveCount = annualLeaves[u.name]?.[month] || 0;
+    const netWeekdays = Math.max(0, monthWeekdays - leaveCount);
+    return {
+      ...u,
+      monthWeekdays: netWeekdays,
+      leaveDays: leaveCount,
+      avg: u.count > 0 ? Math.floor((u.approvedSpent + u.pendingSpent + u.rejectedSpent) / u.count) : 0
+    };
+  });
 };
 export default function App() {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [currentView, setCurrentView] = useState("dashboard"); // dashboard, categories, print
+  const [currentView, setCurrentView] = useState("dashboard"); // dashboard, categories, print, leaves, admins
+  const [annualLeaves, setAnnualLeaves] = useState({});
+  const [leavesSelectedDept, setLeavesSelectedDept] = useState("전체");
+  const [leavesSearchEmployee, setLeavesSearchEmployee] = useState("");
+
+  const [adminEmails, setAdminEmails] = useState([]);
+  const [localAdmins, setLocalAdmins] = useState([]);
+  const [adminsSelectedDept, setAdminsSelectedDept] = useState("전체");
+  const [adminsSearchEmployee, setAdminsSearchEmployee] = useState("");
+  
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  useEffect(() => {
+    setLocalAdmins(adminEmails);
+  }, [adminEmails]);
+
+  const fetchAdminEmails = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('settlements')
+        .select('*')
+        .eq('user_name', '__SYSTEM_ADMINS__')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (!error && data && data.length > 0) {
+        try {
+          const list = JSON.parse(data[0].exc_text || '[]');
+          setAdminEmails(list);
+        } catch(e) {
+          setAdminEmails([]);
+        }
+      } else {
+        setAdminEmails([]);
+      }
+    } catch (e) {
+      console.error("Error fetching admin emails:", e);
+    }
+  };
+
+  const [deactivatedEmails, setDeactivatedEmails] = useState([]);
+  const [localDeactivated, setLocalDeactivated] = useState([]);
+
+  useEffect(() => {
+    setLocalDeactivated(deactivatedEmails);
+  }, [deactivatedEmails]);
+
+  const fetchDeactivatedEmails = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('settlements')
+        .select('*')
+        .eq('user_name', '__SYSTEM_DEACTIVATED_USERS__')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (!error && data && data.length > 0) {
+        try {
+          const list = JSON.parse(data[0].exc_text || '[]');
+          setDeactivatedEmails(list);
+        } catch(e) {
+          setDeactivatedEmails([]);
+        }
+      } else {
+        setDeactivatedEmails([]);
+      }
+    } catch (e) {
+      console.error("Error fetching deactivated emails:", e);
+    }
+  };
+
+  const handleSaveAdminsAndDeactivated = async (newAdmins, newDeactivated) => {
+    try {
+      setLoading(true);
+      
+      const { error: adminErr } = await supabase
+        .from('settlements')
+        .insert([{
+          user_name: '__SYSTEM_ADMINS__',
+          date: '2026-06-01',
+          exc_text: JSON.stringify(newAdmins),
+          status: '승인완료',
+          amount: 0,
+          store_name: 'SYSTEM',
+          category: 'SYSTEM'
+        }]);
+
+      const { error: deacErr } = await supabase
+        .from('settlements')
+        .insert([{
+          user_name: '__SYSTEM_DEACTIVATED_USERS__',
+          date: '2026-06-01',
+          exc_text: JSON.stringify(newDeactivated),
+          status: '승인완료',
+          amount: 0,
+          store_name: 'SYSTEM',
+          category: 'SYSTEM'
+        }]);
+
+      if (adminErr || deacErr) {
+        customAlert("저장 중 오류가 발생했습니다: " + (adminErr?.message || deacErr?.message));
+      } else {
+        setAdminEmails(newAdmins);
+        setDeactivatedEmails(newDeactivated);
+        customAlert("어드민 지정 및 계정 활성화 상태가 성공적으로 저장되었습니다!");
+      }
+    } catch(e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAnnualLeaves = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('settlements')
+        .select('*')
+        .eq('user_name', '__SYSTEM_ANNUAL_LEAVES__')
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        const leavesMap = {};
+        const processedMonths = new Set();
+
+        data.forEach(row => {
+          if (!row.date || !row.exc_text) return;
+          const [y, m] = row.date.split("-");
+          const monthKey = `${y}.${m}`;
+          
+          if (processedMonths.has(monthKey)) return;
+          processedMonths.add(monthKey);
+
+          try {
+            const monthData = JSON.parse(row.exc_text);
+            Object.keys(monthData).forEach(name => {
+              if (!leavesMap[name]) leavesMap[name] = {};
+              leavesMap[name][monthKey] = monthData[name];
+            });
+          } catch(e) {}
+        });
+
+        setAnnualLeaves(leavesMap);
+      }
+    } catch (e) {
+      console.error("Error fetching annual leaves:", e);
+    }
+  };
   const [newCategoryName, setNewCategoryName] = useState("");
   const [selectedPrintIds, setSelectedPrintIds] = useState(new Set());
   const [isDownloadingZip, setIsDownloadingZip] = useState(false);
@@ -452,6 +615,15 @@ export default function App() {
 
   useEffect(() => {
     const checkSession = async () => {
+      // 로컬 개발 환경(localhost)인 경우 테스트 편의성을 위해 자동 로그인 우회 (로그아웃 이력 없을 때만)
+      if ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && sessionStorage.getItem('logoutTriggered') !== 'true') {
+        sessionStorage.setItem('isAdminLoggedIn', 'true');
+        setIsAdminLoggedIn(true);
+        fetchData();
+        setCheckingSession(false);
+        return;
+      }
+
       // 1. sessionStorage에 로그인 완료 플래그가 있는지 확인
       if (sessionStorage.getItem('isAdminLoggedIn') === 'true') {
         setIsAdminLoggedIn(true);
@@ -481,18 +653,43 @@ export default function App() {
         return;
       }
 
-      // 4. Supabase 세션도 추가 확인 (동일 도메인 세션 유지용)
+      // 4. Supabase 세션도 추가 확인 (동일 도메인 세션 유지용 및 잘먹 지정 어드민 연동)
       const { data: { session } } = await supabase.auth.getSession();
-      if (session && session.user?.email === 'admin@daumit.net') {
-        sessionStorage.setItem('isAdminLoggedIn', 'true');
-        setIsAdminLoggedIn(true);
-        fetchData();
-        setCheckingSession(false);
-      } else {
-        // 로그인 성공 시 ?login=success 파라미터를 들고 오도록 returnTo 설정
-        const returnUrl = window.location.origin + '/admin.html?login=success';
-        window.location.href = 'https://daum-showroom.vercel.app/admin/login.html?returnTo=' + encodeURIComponent(returnUrl);
+      if (session) {
+        const email = session.user?.email;
+        
+        // Fetch designated admins from settlements
+        const { data: sData } = await supabase
+          .from('settlements')
+          .select('*')
+          .eq('user_name', '__SYSTEM_ADMINS__')
+          .order('created_at', { ascending: false })
+          .limit(1);
+          
+        let isDesignatedAdmin = false;
+        if (email === 'admin@daumit.net') {
+          isDesignatedAdmin = true;
+        } else if (sData && sData.length > 0) {
+          try {
+            const adminsList = JSON.parse(sData[0].exc_text || '[]');
+            isDesignatedAdmin = adminsList.includes(email);
+          } catch(e) {
+            console.error(e);
+          }
+        }
+        
+        if (isDesignatedAdmin) {
+          sessionStorage.setItem('isAdminLoggedIn', 'true');
+          setIsAdminLoggedIn(true);
+          fetchData();
+          setCheckingSession(false);
+          return;
+        }
       }
+      
+      // If we reach here, we are not logged in and session check is complete.
+      // We will show the premium admin login form directly on admin.html.
+      setCheckingSession(false);
     };
     checkSession();
   }, []);
@@ -515,7 +712,10 @@ export default function App() {
       .from('settlements')
       .select('*')
       .order('created_at', { ascending: false });
-    if (!sError) setRawSettlements(sData || []);
+    if (!sError) {
+      const filtered = (sData || []).filter(s => !s.user_name || !s.user_name.startsWith("__SYSTEM_"));
+      setRawSettlements(filtered);
+    }
 
     const { data: pData, error: pError } = await supabase
       .from('profiles')
@@ -527,6 +727,10 @@ export default function App() {
       }));
       setAllProfiles(mappedProfiles);
     }
+    
+    await fetchAnnualLeaves();
+    await fetchAdminEmails();
+    await fetchDeactivatedEmails();
     
     setLoading(false);
   };
@@ -586,11 +790,12 @@ export default function App() {
     }
   }, [selectedMonth, rawSettlements]);
 
-  const monthlyUsers = useMemo(() => transformData(rawSettlements, allProfiles, selectedMonth, adminLastSeen), [rawSettlements, allProfiles, selectedMonth, adminLastSeen]);
+  const monthlyUsers = useMemo(() => transformData(rawSettlements, allProfiles, selectedMonth, adminLastSeen, annualLeaves, deactivatedEmails), [rawSettlements, allProfiles, selectedMonth, adminLastSeen, annualLeaves, deactivatedEmails]);
   
   const pathLabel = useMemo(() => {
     if (currentView === "categories") return "관리자 > 업종관리";
     if (currentView === "print") return "관리자 > 영수증출력";
+    if (currentView === "leaves") return "관리자 > 연차관리";
     if (isReviewPanelOpen) return "관리자 > 정산 신청 리뷰";
     if (selectedUser) {
       if (selectedHistoryItem) return `관리자 > 사용자 상세(${selectedUser.name}) > 채팅`;
@@ -664,7 +869,7 @@ export default function App() {
   const uniqueDepartments = useMemo(() => {
     const depts = new Set();
     allProfiles.forEach(p => {
-      if (p.department) depts.add(p.department);
+      if (p.department && p.department !== "어드민") depts.add(p.department);
     });
     return ["전체", ...Array.from(depts)];
   }, [allProfiles]);
@@ -693,6 +898,22 @@ export default function App() {
       .filter(s => selectedPrintIds.has(s.id))
       .reduce((sum, s) => sum + parseInt(s.amount || 0), 0);
   }, [filteredApprovedSettlements, selectedPrintIds]);
+
+  const filteredAdminsProfiles = useMemo(() => {
+    return allProfiles.filter(p => {
+      if (adminsSelectedDept !== "전체" && p.department !== adminsSelectedDept) {
+        return false;
+      }
+      if (adminsSearchEmployee.trim() !== "") {
+        const name = (p.full_name || p.name || "").toLowerCase();
+        if (!name.includes(adminsSearchEmployee.toLowerCase())) {
+          return false;
+        }
+      }
+      if (p.email === 'admin@daumit.net') return false;
+      return true;
+    });
+  }, [allProfiles, adminsSelectedDept, adminsSearchEmployee]);
 
   const [printSortField, setPrintSortField] = useState("date");
   const [printSortAsc, setPrintSortAsc] = useState(false);
@@ -760,6 +981,181 @@ export default function App() {
         fetchCategories();
       }
     });
+  };
+
+  const handleExcelUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+        
+        console.log("Excel parsed 2D rows:", rows);
+
+        // 1. 스마트 연차 대상 월 판별 (파일명 및 파일 본문 스캔)
+        let targetYear = new Date().getFullYear();
+        let targetMonth = null;
+
+        // 파일명 검사 (예: 26.05 식대.xlsx -> 2026.05)
+        const cleanFileName = file.name.replace(/\s+/g, "");
+        const dateMatch = cleanFileName.match(/(\d{2,4})[.-](\d{2})/);
+        if (dateMatch) {
+          let yStr = dateMatch[1];
+          let mStr = dateMatch[2];
+          targetYear = yStr.length === 2 ? 2000 + parseInt(yStr) : parseInt(yStr);
+          targetMonth = parseInt(mStr);
+        } else {
+          const monthMatch = cleanFileName.match(/(\d{1,2})월/);
+          if (monthMatch) {
+            targetMonth = parseInt(monthMatch[1]);
+          }
+        }
+
+        // 파일 본문 검사 (상단 10줄 스캔하여 "* 05월 식대..." 등 탐색)
+        for (let r = 0; r < Math.min(rows.length, 10); r++) {
+          const row = rows[r];
+          if (!Array.isArray(row)) continue;
+          for (let c = 0; c < row.length; c++) {
+            const cellVal = String(row[c] || "");
+            if (!cellVal) continue;
+            
+            const mMatch = cellVal.match(/(\d{1,2})\s*월/);
+            if (mMatch) {
+              targetMonth = parseInt(mMatch[1]);
+            }
+            const yMatch = cellVal.match(/(\d{2,4})\s*년/);
+            if (yMatch) {
+              let yStr = yMatch[1];
+              targetYear = yStr.length === 2 ? 2000 + parseInt(yStr) : parseInt(yStr);
+            }
+          }
+        }
+
+        let finalMonthStr = selectedMonth;
+        if (targetMonth && targetMonth >= 1 && targetMonth <= 12) {
+          if (selectedMonth && selectedMonth.includes('.')) {
+            const [defY] = selectedMonth.split('.').map(Number);
+            if (!isNaN(defY) && !dateMatch) targetYear = defY; // 파일명에 연도가 없었던 경우에만 기존 선택월 연도 활용
+          }
+          finalMonthStr = `${targetYear}.${String(targetMonth).padStart(2, '0')}`;
+        }
+        
+        console.log("Detected target month:", finalMonthStr);
+
+        // 2. 진짜 헤더 행 탐색
+        let headerRowIdx = -1;
+        let nameColIdx = -1;
+        let leaveColIdx = -1;
+
+        for (let r = 0; r < rows.length; r++) {
+          const row = rows[r];
+          if (!Array.isArray(row)) continue;
+          
+          for (let c = 0; c < row.length; c++) {
+            const cellVal = String(row[c] || "").replace(/\s+/g, "");
+            if (cellVal === "성명" || cellVal === "이름" || cellVal === "사원명" || cellVal === "사용자") {
+              nameColIdx = c;
+              headerRowIdx = r;
+            }
+          }
+          if (headerRowIdx !== -1) {
+            for (let c = 0; c < row.length; c++) {
+              const cellVal = String(row[c] || "").replace(/\s+/g, "");
+              if (cellVal === "연차사용일" || cellVal === "연차사용" || cellVal === "연차" || cellVal === "휴가" || cellVal === "연차사용일수" || cellVal === "사용일수" || cellVal === "일수") {
+                leaveColIdx = c;
+              }
+            }
+            break;
+          }
+        }
+
+        if (headerRowIdx === -1 || nameColIdx === -1 || leaveColIdx === -1) {
+          customAlert("엑셀 파일에서 '성명'과 '연차 사용일' 열을 찾을 수 없습니다. (헤더 행을 스캔하지 못했습니다)");
+          return;
+        }
+
+        const parsedLeaves = {};
+        for (let r = headerRowIdx + 1; r < rows.length; r++) {
+          const row = rows[r];
+          if (!row || !row[nameColIdx]) continue;
+          
+          const name = String(row[nameColIdx]).trim();
+          if (name === "합계" || name.includes("근무일") || name.includes("순번") || name.includes("성명")) continue;
+          
+          const leaveVal = parseFloat(row[leaveColIdx]) || 0;
+          parsedLeaves[name] = leaveVal;
+        }
+
+        if (Object.keys(parsedLeaves).length === 0) {
+          customAlert("엑셀 파일에서 유효한 직원 데이터를 파싱하지 못했습니다.");
+          return;
+        }
+
+        setSelectedMonth(finalMonthStr);
+
+        setAnnualLeaves(prev => {
+          const next = { ...prev };
+          Object.keys(parsedLeaves).forEach(name => {
+            if (!next[name]) next[name] = {};
+            next[name][finalMonthStr] = parsedLeaves[name];
+          });
+          return next;
+        });
+
+        customAlert(`엑셀 파일 분석 결과, [${finalMonthStr}] 데이터로 인식되어 연차가 임시 적용되었습니다. 하단의 '변경사항 저장'을 눌러야 최종 저장됩니다.`, "success");
+      } catch (err) {
+        console.error("Excel parse error:", err);
+        customAlert("엑셀 파일을 파싱하는 도중 오류가 발생했습니다.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleSaveLeaves = async () => {
+    setLoading(true);
+    try {
+      const currentMonthLeaves = {};
+      Object.keys(annualLeaves).forEach(name => {
+        const val = annualLeaves[name]?.[selectedMonth] || 0;
+        if (val > 0) {
+          currentMonthLeaves[name] = val;
+        }
+      });
+
+      const [y, m] = selectedMonth.split(".");
+      const dateVal = `${y}-${m}-01`;
+
+      const payload = {
+        user_name: "__SYSTEM_ANNUAL_LEAVES__",
+        store_name: "System Config",
+        category: "시스템",
+        status: "승인완료",
+        date: dateVal,
+        exc_text: JSON.stringify(currentMonthLeaves),
+        amount: 0
+      };
+
+      const { error } = await supabase.from('settlements').insert([payload]);
+
+      if (error) {
+        console.error("Error saving annual leaves:", error);
+        customAlert("연차 정보 저장에 실패했습니다: " + error.message);
+      } else {
+        customAlert("연차 정보가 성공적으로 저장되었습니다.", "success");
+        fetchData();
+      }
+    } catch (e) {
+      console.error(e);
+      customAlert("연차 정보 저장 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
   };
 
 
@@ -861,8 +1257,8 @@ export default function App() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     sessionStorage.removeItem('isAdminLoggedIn');
+    sessionStorage.setItem('logoutTriggered', 'true');
     setIsAdminLoggedIn(false);
-    window.location.href = 'https://daum-showroom.vercel.app/admin/login.html?brand=zal';
   };
 
   const handleDownloadZip = async () => {
@@ -931,7 +1327,7 @@ export default function App() {
   };
 
   const filteredUsers = useMemo(() => {
-    let list = [...monthlyUsers];
+    let list = [...monthlyUsers].filter(u => u.department !== "어드민" && u.name !== "관리자");
     if (filterType === "pending") {
       list = list.filter(u => u.pendingCount > 0);
     } else if (filterType === "approved") {
@@ -969,10 +1365,229 @@ export default function App() {
      });
   }, [allPendingRequests, adminLastSeen]);
 
-  if (checkingSession || !isAdminLoggedIn) {
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    setLoginError("");
+    setIsLoggingIn(true);
+    
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword
+      });
+      
+      if (error) {
+        setLoginError(error.message === "Invalid login credentials" ? "이메일 또는 비밀번호가 올바르지 않습니다." : error.message);
+        setIsLoggingIn(false);
+        return;
+      }
+      
+      const email = data.user.email;
+      
+      // Check if user is deactivated
+      const { data: deacData } = await supabase
+        .from('settlements')
+        .select('*')
+        .eq('user_name', '__SYSTEM_DEACTIVATED_USERS__')
+        .order('created_at', { ascending: false })
+        .limit(1);
+        
+      if (deacData && deacData.length > 0) {
+        try {
+          const deactivatedList = JSON.parse(deacData[0].exc_text || '[]');
+          if (deactivatedList.includes(email)) {
+            await supabase.auth.signOut();
+            setLoginError("비활성화된 계정입니다. 관리자에게 문의해 주세요.");
+            setIsLoggingIn(false);
+            return;
+          }
+        } catch(e) {
+          console.error(e);
+        }
+      }
+
+      // Fetch designated admins from settlements
+      const { data: sData } = await supabase
+        .from('settlements')
+        .select('*')
+        .eq('user_name', '__SYSTEM_ADMINS__')
+        .order('created_at', { ascending: false })
+        .limit(1);
+        
+      let isDesignatedAdmin = false;
+      if (email === 'admin@daumit.net') {
+        isDesignatedAdmin = true;
+      } else if (sData && sData.length > 0) {
+        try {
+          const adminsList = JSON.parse(sData[0].exc_text || '[]');
+          isDesignatedAdmin = adminsList.includes(email);
+        } catch(e) {
+          console.error(e);
+        }
+      }
+      
+      if (isDesignatedAdmin) {
+        sessionStorage.setItem('isAdminLoggedIn', 'true');
+        sessionStorage.removeItem('logoutTriggered'); // Clear logout flag on successful login!
+        setIsAdminLoggedIn(true);
+        fetchData();
+      } else {
+        await supabase.auth.signOut();
+        setLoginError("어드민 권한이 없는 계정입니다. 잘먹 직원에 가입 후 어드민으로 지정받으셔야 합니다.");
+      }
+    } catch(err) {
+      setLoginError("로그인 중 오류가 발생했습니다: " + err.message);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  if (!isAdminLoggedIn) {
+    if (checkingSession) {
+      return (
+        <div style={{ display: 'flex', width: '100vw', height: '100vh', background: '#fdfbf7', justifyContent: 'center', alignItems: 'center', fontFamily: "'Pretendard', sans-serif" }}>
+          <div style={{ width: '48px', height: '48px', border: '5px solid #eaeaea', borderTop: '5px solid #FEC601', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      );
+    }
+
     return (
-      <div style={{ display: 'flex', width: '100vw', height: '100vh', background: '#fdfbf7', justifyContent: 'center', alignItems: 'center', fontFamily: "'Pretendard', sans-serif" }}>
-        <div style={{ width: '48px', height: '48px', border: '5px solid #eaeaea', borderTop: '5px solid #FEC601', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+      <div style={{ 
+        display: 'flex', 
+        width: '100vw', 
+        height: '100vh', 
+        background: 'linear-gradient(135deg, #fdfbf7 0%, #f7f3e9 100%)', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        fontFamily: "'Pretendard', sans-serif" 
+      }}>
+        <div style={{ 
+          width: '100%', 
+          maxWidth: '420px', 
+          background: 'rgba(255, 255, 255, 0.85)', 
+          backdropFilter: 'blur(20px)',
+          borderRadius: '32px', 
+          padding: '40px', 
+          boxShadow: '0 20px 50px rgba(0,0,0,0.06)',
+          border: '1px solid rgba(255, 255, 255, 0.6)',
+          textAlign: 'center'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <img src="/bi_zaleat.png" style={{ height: '32px', objectFit: 'contain' }} alt="logo" />
+            <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#111' }}>
+              <span style={{ color: '#FEC601' }}>ZAL</span><span style={{ margin: '0 4px', color: '#ccc' }}>:</span>잘먹 어드민
+            </div>
+          </div>
+          <p style={{ color: '#666', fontSize: '0.9rem', fontWeight: 600, marginBottom: '32px' }}>
+            어드민으로 지정된 잘먹 직원 계정으로 로그인해 주세요.
+          </p>
+
+          <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ textAlign: 'left' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 800, color: '#333', marginLeft: '12px', marginBottom: '6px', display: 'block' }}>이메일 주소</label>
+              <input 
+                type="email" 
+                required
+                placeholder="example@daumit.net" 
+                value={loginEmail}
+                onChange={e => setLoginEmail(e.target.value)}
+                style={{ 
+                  width: '100%', 
+                  height: '52px', 
+                  borderRadius: '16px', 
+                  border: '1.5px solid #eee', 
+                  padding: '0 20px', 
+                  fontSize: '0.95rem', 
+                  fontWeight: 600, 
+                  outline: 'none', 
+                  boxSizing: 'border-box',
+                  background: '#fff',
+                  transition: 'border-color 0.2s ease'
+                }}
+                onFocus={e => e.target.style.borderColor = '#FEC601'}
+                onBlur={e => e.target.style.borderColor = '#eee'}
+              />
+            </div>
+            
+            <div style={{ textAlign: 'left', marginBottom: '8px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 800, color: '#333', marginLeft: '12px', marginBottom: '6px', display: 'block' }}>비밀번호</label>
+              <input 
+                type="password" 
+                required
+                placeholder="••••••••" 
+                value={loginPassword}
+                onChange={e => setLoginPassword(e.target.value)}
+                style={{ 
+                  width: '100%', 
+                  height: '52px', 
+                  borderRadius: '16px', 
+                  border: '1.5px solid #eee', 
+                  padding: '0 20px', 
+                  fontSize: '0.95rem', 
+                  fontWeight: 600, 
+                  outline: 'none', 
+                  boxSizing: 'border-box',
+                  background: '#fff',
+                  transition: 'border-color 0.2s ease'
+                }}
+                onFocus={e => e.target.style.borderColor = '#FEC601'}
+                onBlur={e => e.target.style.borderColor = '#eee'}
+              />
+            </div>
+
+            {loginError && (
+              <div style={{ 
+                color: '#ef4444', 
+                fontSize: '0.85rem', 
+                fontWeight: 700, 
+                background: '#fef2f2', 
+                padding: '12px 16px', 
+                borderRadius: '12px',
+                textAlign: 'left',
+                border: '1px solid #fecaca'
+              }}>
+                {loginError}
+              </div>
+            )}
+
+            <button 
+              type="submit"
+              disabled={isLoggingIn}
+              style={{ 
+                width: '100%', 
+                height: '54px', 
+                borderRadius: '16px', 
+                background: '#111', 
+                color: '#fff', 
+                fontSize: '1rem', 
+                fontWeight: 850, 
+                border: 'none', 
+                cursor: 'pointer', 
+                marginTop: '8px',
+                boxShadow: '0 10px 24px rgba(17,17,17,0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+              onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+            >
+              {isLoggingIn ? (
+                <div style={{ width: '20px', height: '20px', border: '3px solid rgba(255,255,255,0.3)', borderTop: '3px solid #fff', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+              ) : (
+                "로그인"
+              )}
+            </button>
+          </form>
+        </div>
         <style>{`
           @keyframes spin {
             0% { transform: rotate(0deg); }
@@ -1003,7 +1618,7 @@ export default function App() {
                 setIsReviewPanelOpen(false);
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="8" y1="6" x2="21" y2="6"></line>
                 <line x1="8" y1="12" x2="21" y2="12"></line>
                 <line x1="8" y1="18" x2="21" y2="18"></line>
@@ -1021,7 +1636,7 @@ export default function App() {
                 setIsReviewPanelOpen(false);
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="6 9 6 2 18 2 18 9"></polyline>
                 <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
                 <rect x="6" y="14" width="12" height="8"></rect>
@@ -1029,22 +1644,61 @@ export default function App() {
               영수증출력
             </button>
             <button 
+              className={`header-nav-btn ${currentView === "leaves" ? "active" : ""}`}
+              onClick={() => {
+                setCurrentView("leaves");
+                setSelectedUser(null);
+                setIsReviewPanelOpen(false);
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              연차관리
+            </button>
+            <button 
+              className={`header-nav-btn ${currentView === "admins" ? "active" : ""}`}
+              onClick={() => {
+                setCurrentView("admins");
+                setSelectedUser(null);
+                setIsReviewPanelOpen(false);
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+              사용자 관리
+            </button>
+            <button 
               className="header-nav-btn" 
               onClick={handleLogout}
-              style={{ borderColor: '#ef4444', color: '#ef4444' }}
+              style={{ 
+                borderColor: 'transparent', 
+                color: '#ef4444', 
+                width: '42px', 
+                height: '42px', 
+                borderRadius: '50%', 
+                padding: 0, 
+                justifyContent: 'center' 
+              }}
               onMouseOver={e => {
                 e.currentTarget.style.backgroundColor = '#fef2f2';
               }}
               onMouseOut={e => {
-                e.currentTarget.style.backgroundColor = 'white';
+                e.currentTarget.style.backgroundColor = 'transparent';
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                 <polyline points="16 17 21 12 16 7"></polyline>
                 <line x1="21" y1="12" x2="9" y2="12"></line>
               </svg>
-              로그아웃
             </button>
           </div>
         </div>
@@ -1586,6 +2240,14 @@ export default function App() {
                               <div className="info-label" style={{ margin: 0 }}>승인 금액</div>
                               <div style={{ fontWeight: 700 }}>₩{user.approvedSpent.toLocaleString()}</div>
                             </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div className="info-label" style={{ margin: 0 }}>연차</div>
+                              <div style={{ fontWeight: 700 }}>{user.leaveDays || 0}일</div>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div className="info-label" style={{ margin: 0 }}>실제 근무일</div>
+                              <div style={{ fontWeight: 700 }}>{user.monthWeekdays}일</div>
+                            </div>
                             <div style={{ 
                               display: 'flex', 
                               justifyContent: 'space-between', 
@@ -1612,6 +2274,384 @@ export default function App() {
           </main>
         </div>
       </>
+    )}
+
+    {/* Annual Leaves Screen */}
+    {/* Annual Leaves Screen */}
+    {/* Annual Leaves Screen */}
+    {currentView === "leaves" && (
+      <div className="custom-screen-wrapper">
+        <div className="screen-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h1 className="screen-title" style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: 0 }}>
+            <div className="month-picker" style={{ margin: 0, padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button className="picker-arrow" onClick={handlePrevMonth} disabled={selectedMonth === monthOptions[0]}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+              </button>
+              <div style={{ minWidth: '100px', textAlign: 'center', fontSize: '1.75rem', fontWeight: 950 }}>{selectedMonth}</div>
+              <button className="picker-arrow" onClick={handleNextMonth} disabled={selectedMonth === monthOptions[monthOptions.length - 1]}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+              </button>
+            </div>
+          </h1>
+        </div>
+
+        {/* Filter and Search Row */}
+        <div className="print-filter-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div className="filter-area" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            {/* Department Selection */}
+            <div className="filter-select-wrapper" style={{ display: 'flex', alignItems: 'center' }}>
+              <div className="filter-chips" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {uniqueDepartments.map(dept => (
+                  <button 
+                    key={dept}
+                    className={`filter-chip ${leavesSelectedDept === dept ? 'active' : ''}`}
+                    onClick={() => setLeavesSelectedDept(dept)}
+                    style={{ margin: 0 }}
+                  >
+                    {dept}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Employee Search */}
+            <div className="search-input-wrapper" style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+              <svg 
+                width="16" 
+                height="16" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="#999" 
+                strokeWidth="3" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+              >
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input 
+                type="text" 
+                placeholder="직원 이름 검색..." 
+                value={leavesSearchEmployee}
+                onChange={(e) => setLeavesSearchEmployee(e.target.value)}
+                style={{
+                  padding: '0.5rem 1rem 0.5rem 2.4rem',
+                  borderRadius: '30px',
+                  border: '1.5px solid #eee',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  outline: 'none',
+                  width: '200px',
+                  height: '38px',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                  boxSizing: 'border-box'
+                }}
+              />
+              {leavesSearchEmployee && (
+                <button 
+                  onClick={() => setLeavesSearchEmployee("")}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: '#bbb',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: 0
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Leaves Table */}
+        <div style={{ background: '#fff', border: '1.5px solid #eee', borderRadius: '24px', padding: '2rem', boxShadow: 'var(--shadow-card)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#000', margin: 0 }}>월간 연차 내역 ({selectedMonth})</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <input 
+                type="file" 
+                accept=".xlsx, .xls" 
+                onChange={handleExcelUpload} 
+                id="excel-file-input" 
+                style={{ display: 'none' }} 
+              />
+              <button 
+                onClick={() => document.getElementById('excel-file-input').click()}
+                style={{ padding: '12px 24px', borderRadius: '12px', background: '#000', color: '#fff', border: 'none', fontWeight: 800, fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'var(--transition)' }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                엑셀 파일 업로드
+              </button>
+              <button 
+                onClick={handleSaveLeaves}
+                style={{ padding: '12px 24px', borderRadius: '12px', background: '#2E7D32', color: '#fff', border: 'none', fontWeight: 800, fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'var(--transition)' }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                변경사항 저장
+              </button>
+            </div>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #eee' }}>
+                  <th style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666' }}>성명</th>
+                  <th style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666' }}>부서</th>
+                  <th style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666', textAlign: 'center' }}>연차 사용일수</th>
+                  <th style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666', textAlign: 'center' }}>실제 근무일 (평일)</th>
+                  <th style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666', textAlign: 'right' }}>최종 식대 한도</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allProfiles
+                  .filter(p => {
+                    const name = p.full_name || p.name || "";
+                    const dept = p.department || "기타";
+                    if (deactivatedEmails.includes(p.email)) return false;
+                    const matchDept = leavesSelectedDept === "전체" || dept === leavesSelectedDept;
+                    const matchEmployee = !leavesSearchEmployee.trim() || 
+                      name.toLowerCase().includes(leavesSearchEmployee.toLowerCase());
+                    return matchDept && matchEmployee;
+                  })
+                  .map((p, idx) => {
+                  const name = p.full_name || p.name;
+                  const currentLeaveVal = annualLeaves[name]?.[selectedMonth] || 0;
+                  const baseDays = getMonthWeekdays(selectedMonth);
+                  const netDays = Math.max(0, baseDays - currentLeaveVal);
+                  
+                  return (
+                    <tr key={idx} style={{ borderBottom: '1px solid #f5f5f5', transition: 'background-color 0.2s' }}>
+                      <td style={{ padding: '16px', fontSize: '0.95rem', fontWeight: 800, color: '#000' }}>{name}</td>
+                      <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 600, color: '#666' }}>{p.department || '기타'}</td>
+                      <td style={{ padding: '16px', textAlign: 'center' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                          <button 
+                            onClick={() => {
+                              setAnnualLeaves(prev => {
+                                const next = { ...prev };
+                                if (!next[name]) next[name] = {};
+                                next[name][selectedMonth] = Math.max(0, currentLeaveVal - 1);
+                                return next;
+                              });
+                            }}
+                            style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid #ddd', background: '#fff', fontSize: '14px', fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >-</button>
+                          <span style={{ fontSize: '1rem', fontWeight: 800, width: '24px', textAlign: 'center' }}>{currentLeaveVal}</span>
+                          <button 
+                            onClick={() => {
+                              setAnnualLeaves(prev => {
+                                const next = { ...prev };
+                                if (!next[name]) next[name] = {};
+                                next[name][selectedMonth] = Math.min(baseDays, currentLeaveVal + 1);
+                                return next;
+                              });
+                            }}
+                            style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid #ddd', background: '#fff', fontSize: '14px', fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >+</button>
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px', fontSize: '0.95rem', fontWeight: 800, color: '#000', textAlign: 'center' }}>{netDays}일</td>
+                      <td style={{ padding: '16px', fontSize: '1.05rem', fontWeight: 950, color: '#000', textAlign: 'right' }}>₩{(netDays * 10000).toLocaleString()}원</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Admin Management Screen */}
+    {currentView === "admins" && (
+      <div className="custom-screen-wrapper" style={{ marginTop: '0.5rem' }}>
+        {/* Filter and Search Row */}
+        <div className="print-filter-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div className="filter-area" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <div className="filter-select-wrapper" style={{ display: 'flex', alignItems: 'center' }}>
+              <div className="filter-chips" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {uniqueDepartments.map(dept => (
+                  <button 
+                    key={dept}
+                    className={`filter-chip ${adminsSelectedDept === dept ? 'active' : ''}`}
+                    onClick={() => setAdminsSelectedDept(dept)}
+                    style={{ margin: 0 }}
+                  >
+                    {dept}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="search-input-wrapper" style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+              <svg 
+                width="16" 
+                height="16" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="#999" 
+                strokeWidth="3" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+              >
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input 
+                type="text" 
+                placeholder="직원 이름 검색..." 
+                value={adminsSearchEmployee}
+                onChange={(e) => setAdminsSearchEmployee(e.target.value)}
+                className="search-input"
+                style={{
+                  paddingLeft: '38px',
+                  paddingRight: '14px',
+                  height: '38px',
+                  borderRadius: '30px',
+                  border: '1.5px solid #eee',
+                  outline: 'none',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  width: '200px',
+                  transition: 'all 0.2s ease',
+                  background: '#fff'
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Admins Table Card Container */}
+        <div style={{ background: '#fff', border: '1.5px solid #eee', borderRadius: '24px', padding: '2rem', boxShadow: 'var(--shadow-card)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#000', margin: 0 }}>사용자 관리</h3>
+            <button 
+              onClick={() => handleSaveAdminsAndDeactivated(localAdmins, localDeactivated)}
+              style={{ padding: '12px 24px', borderRadius: '12px', background: '#2E7D32', color: '#fff', border: 'none', fontWeight: 800, fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'var(--transition)' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+              </svg>
+              변경사항 저장
+            </button>
+          </div>
+
+          <div className="table-responsive">
+            <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #f8f9fa' }}>
+                  <th style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 800, color: '#666' }}>성명</th>
+                  <th style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 800, color: '#666' }}>부서</th>
+                  <th style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 800, color: '#666' }}>이메일</th>
+                  <th style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 800, color: '#666', textAlign: 'center' }}>계정 상태</th>
+                  <th style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 800, color: '#666', textAlign: 'right' }}>어드민 지정</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAdminsProfiles.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: '#999', fontSize: '0.95rem', fontWeight: 600 }}>
+                      검색된 직원이 없습니다.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredAdminsProfiles.map(p => {
+                    const isUserAdmin = localAdmins.includes(p.email);
+                    const isUserDeactivated = localDeactivated.includes(p.email);
+                    return (
+                      <tr key={p.id} style={{ borderBottom: '1px solid #f8f9fa', transition: 'background 0.2s ease' }} className="table-row-hover">
+                        <td style={{ padding: '16px 20px', fontSize: '0.95rem', fontWeight: 850, color: '#111' }}>
+                          {p.full_name || p.name}
+                        </td>
+                        <td style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 650, color: '#555' }}>
+                          <span style={{ 
+                            background: p.department === '개발' ? '#E8F0FE' : p.department === '신사업' ? '#E6F4EA' : '#F1F3F4',
+                            color: p.department === '개발' ? '#1A73E8' : p.department === '신사업' ? '#137333' : '#5F6368',
+                            padding: '4px 10px',
+                            borderRadius: '12px',
+                            fontSize: '0.8rem',
+                            fontWeight: 750
+                          }}>
+                            {p.department || '기타'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 600, color: '#666' }}>
+                          {p.email}
+                        </td>
+                        <td style={{ padding: '16px 20px', textAlign: 'center' }}>
+                          <button
+                            onClick={() => {
+                              if (isUserDeactivated) {
+                                setLocalDeactivated(prev => prev.filter(email => email !== p.email));
+                              } else {
+                                setLocalDeactivated(prev => [...prev, p.email]);
+                              }
+                            }}
+                            style={{
+                              background: isUserDeactivated ? '#FCE8E6' : '#E6F4EA',
+                              color: isUserDeactivated ? '#C5221F' : '#137333',
+                              border: 'none',
+                              padding: '6px 16px',
+                              borderRadius: '20px',
+                              fontSize: '0.85rem',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              minWidth: '70px'
+                            }}
+                          >
+                            {isUserDeactivated ? '비활성' : '활성'}
+                          </button>
+                        </td>
+                        <td style={{ padding: '16px 20px', textAlign: 'right' }}>
+                          <button
+                            onClick={() => {
+                              if (isUserAdmin) {
+                                setLocalAdmins(prev => prev.filter(email => email !== p.email));
+                              } else {
+                                setLocalAdmins(prev => [...prev, p.email]);
+                              }
+                            }}
+                            style={{
+                              background: isUserAdmin ? '#111' : '#fff',
+                              color: isUserAdmin ? '#fff' : '#111',
+                              border: isUserAdmin ? '1.5px solid #111' : '1.5px solid #eaeaea',
+                              padding: '6px 16px',
+                              borderRadius: '20px',
+                              fontSize: '0.85rem',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              boxShadow: isUserAdmin ? '0 4px 12px rgba(17,17,17,0.15)' : 'none'
+                            }}
+                          >
+                            {isUserAdmin ? '지정 완료' : '지정하기'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     )}
 
     {/* Allowed Categories Screen */}

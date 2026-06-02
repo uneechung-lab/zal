@@ -45,6 +45,11 @@ function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [checkingSession, setCheckingSession] = useState(true)
 
+  const triggerAlert = (msg) => {
+    setCustomMsg(msg);
+    setModalType('auth_error');
+  };
+
   useEffect(() => {
     localStorage.setItem('autoLogin', autoLogin);
   }, [autoLogin]);
@@ -53,7 +58,7 @@ function App() {
     // 이메일 링크 만료/오류 해시 감지 및 알림
     const hash = window.location.hash;
     if (hash.includes('error_code=otp_expired') || hash.includes('otp_expired') || hash.includes('error=access_denied')) {
-      alert("비밀번호 재설정 링크의 유효기간이 만료되었거나 이미 사용되었습니다.\n\n아이디를 입력하고 [비밀번호 찾기] 버튼을 다시 눌러 새 메일을 받아주세요!");
+      triggerAlert("비밀번호 재설정 링크의 유효기간이 만료되었거나 이미 사용되었습니다.\n\n아이디를 입력하고 [비밀번호 찾기] 버튼을 다시 눌러 새 메일을 받아주세요!");
       window.location.hash = "";
     }
 
@@ -84,9 +89,9 @@ function App() {
       email: `${userId}@daumit.net`,
       password: password,
     })
-    setIsLoading(false)
     
     if (error) {
+      setIsLoading(false)
       const msg = error.message.toLowerCase()
       if (msg.includes('email not confirmed')) {
         setModalType('not_confirmed')
@@ -94,9 +99,32 @@ function App() {
         setCustomMsg("아이디 또는 비밀번호가 일치하지 않습니다.\n가입 당시 입력한 정보를 다시 확인해 주세요.")
         setModalType('auth_error')
       } else {
-        alert(`로그인 실패: ${error.message}`)
+        triggerAlert(`로그인 실패: ${error.message}`)
       }
     } else {
+      // Check if user is deactivated
+      const { data: sData } = await supabase
+        .from('settlements')
+        .select('*')
+        .eq('user_name', '__SYSTEM_DEACTIVATED_USERS__')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (sData && sData.length > 0) {
+        try {
+          const deactivatedList = JSON.parse(sData[0].exc_text || '[]');
+          if (deactivatedList.includes(`${userId}@daumit.net`)) {
+            await supabase.auth.signOut();
+            triggerAlert("비활성화된 계정입니다.\n관리자에게 문의해 주세요.");
+            setIsLoading(false);
+            return;
+          }
+        } catch(e) {
+          console.error(e);
+        }
+      }
+
+      setIsLoading(false)
       // 로그인 성공 시 즉시 홈 화면으로 이동
       window.location.href = '/employee.html'
     }
@@ -106,7 +134,7 @@ function App() {
     e.preventDefault()
     
     if (!dept) {
-      alert("부서를 선택해 주세요.");
+      triggerAlert("부서를 선택해 주세요.");
       return;
     }
 
@@ -125,7 +153,7 @@ function App() {
       if (error.status === 429 || error.message.toLowerCase().includes('rate limit')) {
         setModalType('rate_limit')
       } else {
-        alert(`가입 실패: ${error.message}`)
+        triggerAlert(`가입 실패: ${error.message}`)
       }
     } else {
       // 회원가입 성공 시 profiles 테이블에도 성명 정보 저장
@@ -145,7 +173,7 @@ function App() {
 
   const handleForgotPassword = async () => {
     if (!userId) {
-      alert("비밀번호를 재설정할 이메일 아이디(이메일 주소의 앞자리)를 먼저 입력해 주세요.");
+      triggerAlert("비밀번호를 재설정할 이메일 아이디(이메일 주소의 앞자리)를 먼저 입력해 주세요.");
       return;
     }
     setIsLoading(true);
@@ -154,7 +182,7 @@ function App() {
     });
     setIsLoading(false);
     if (error) {
-      alert(`비밀번호 재설정 요청 실패: ${error.message}`);
+      triggerAlert(`비밀번호 재설정 요청 실패: ${error.message}`);
     } else {
       localStorage.setItem('is_resetting_password', 'true');
       setStep('verify_otp');
@@ -165,7 +193,7 @@ function App() {
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     if (!otpCode || otpCode.length < 6) {
-      alert("올바른 인증번호를 입력해 주세요.");
+      triggerAlert("올바른 인증번호를 입력해 주세요.");
       return;
     }
     setIsLoading(true);
@@ -177,7 +205,7 @@ function App() {
     setIsLoading(false);
     
     if (error) {
-      alert(`인증 실패: ${error.message}`);
+      triggerAlert(`인증 실패: ${error.message}`);
     } else {
       localStorage.setItem('is_resetting_password', 'true');
       window.location.href = '/employee.html';

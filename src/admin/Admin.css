@@ -1425,29 +1425,29 @@ body {
 
 /* Custom Header Buttons */
 .header-nav-btn {
-  background: white;
-  border: 1.5px solid #111;
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 700;
+  background: transparent;
+  border: 1.5px solid transparent;
+  padding: 8px 20px;
+  border-radius: 24px;
+  font-size: 1.15rem;
+  font-weight: 800;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   color: #111;
 }
 
 .header-nav-btn:hover {
   background: #f5f5f5;
-  border-color: #000;
+  border-color: transparent;
 }
 
 .header-nav-btn.active {
   background: #111;
   color: white;
-  border-color: #111;
+  border-color: transparent;
 }
 
 /* Custom full-screen layouts */
