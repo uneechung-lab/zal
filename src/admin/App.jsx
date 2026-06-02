@@ -3015,25 +3015,25 @@ export default function App() {
                         <td style={{ padding: '16px 20px', textAlign: 'right' }}>
                           <button
                             onClick={() => {
-                              if (isUserDeactivated || isUserHidden) return;
+                              if (isUserDeactivated) return;
                               if (isUserAdmin) {
                                 setLocalAdmins(prev => prev.filter(email => email !== p.email));
                               } else {
                                 setLocalAdmins(prev => [...prev, p.email]);
                               }
                             }}
-                            disabled={isUserDeactivated || isUserHidden}
+                            disabled={isUserDeactivated}
                             style={{
-                              background: (isUserDeactivated || isUserHidden) ? '#f5f5f5' : (isUserAdmin ? '#111' : '#fff'),
-                              color: (isUserDeactivated || isUserHidden) ? '#aaa' : (isUserAdmin ? '#fff' : '#111'),
-                              border: (isUserDeactivated || isUserHidden) ? '1.5px solid #eaeaea' : (isUserAdmin ? '1.5px solid #111' : '1.5px solid #eaeaea'),
+                              background: isUserDeactivated ? '#f5f5f5' : (isUserAdmin ? '#111' : '#fff'),
+                              color: isUserDeactivated ? '#aaa' : (isUserAdmin ? '#fff' : '#111'),
+                              border: isUserDeactivated ? '1.5px solid #eaeaea' : (isUserAdmin ? '1.5px solid #111' : '1.5px solid #eaeaea'),
                               padding: '6px 16px',
                               borderRadius: '20px',
                               fontSize: '0.85rem',
                               fontWeight: 800,
-                              cursor: (isUserDeactivated || isUserHidden) ? 'not-allowed' : 'pointer',
+                              cursor: isUserDeactivated ? 'not-allowed' : 'pointer',
                               transition: 'all 0.2s ease',
-                              boxShadow: (!(isUserDeactivated || isUserHidden) && isUserAdmin) ? '0 4px 12px rgba(17,17,17,0.15)' : 'none'
+                              boxShadow: (!isUserDeactivated && isUserAdmin) ? '0 4px 12px rgba(17,17,17,0.15)' : 'none'
                             }}
                           >
                             {isUserAdmin ? '관리자' : '지정하기'}
