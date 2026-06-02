@@ -2048,12 +2048,18 @@ body {
     width: 100% !important;
   }
 
+  .print-filter-row,
+  .print-dashboard-layout {
+    display: contents !important; /* Flatten structure on mobile to reorder easily */
+  }
+
   /* Full-width Search & Tabs on Mobile */
   .filter-area {
     width: 100% !important;
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 12px !important;
+    order: 2 !important; /* Filters at second place (below month header) */
   }
 
   .filter-select-wrapper,
@@ -2074,19 +2080,30 @@ body {
   }
 
   /* Reorder Print Summary Card to Top on Mobile */
-  .print-dashboard-layout {
-    grid-template-columns: 1fr !important;
-    gap: 1.25rem !important;
+  .print-summary-sidebar {
+    order: 3 !important; /* Visual placement at third place */
+    position: static !important; /* Remove sticky offset on mobile */
+    margin-top: 0.25rem !important;
+    margin-bottom: 0.25rem !important;
   }
 
-  .print-summary-sidebar {
-    order: -1 !important; /* Visual placement at the top */
-    position: static !important; /* Remove sticky offset on mobile */
-    margin-bottom: 0.5rem !important;
+  /* Full-width View Selector Below Summary Card */
+  .view-selector-wrapper {
+    order: 4 !important; /* Visual placement at fourth place (below summary) */
+    width: 100% !important;
+    display: flex !important;
+    margin-top: 0.25rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  .view-selector-wrapper button {
+    flex: 1 !important;
+    text-align: center !important;
+    padding: 10px 0 !important;
   }
 
   .print-list-panel {
-    order: 1 !important; /* Visual placement below the summary */
+    order: 5 !important; /* Visual placement at the very bottom */
   }
 
   .admin-container {
