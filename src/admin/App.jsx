@@ -2489,6 +2489,7 @@ export default function App() {
                   .filter(p => {
                     const name = p.full_name || p.name || "";
                     const dept = p.department || "기타";
+                    if (dept === "어드민" || name === "관리자") return false; // 어드민/관리자 계정 제외
                     if (deactivatedEmails.includes(p.email)) return false;
                     const matchDept = leavesSelectedDept === "전체" || dept === leavesSelectedDept;
                     const matchEmployee = !leavesSearchEmployee.trim() || 
