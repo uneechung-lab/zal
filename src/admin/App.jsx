@@ -913,6 +913,9 @@ export default function App() {
     });
   }, [allProfiles, adminsSelectedDept, adminsSearchEmployee]);
 
+  const [leavesSortField, setLeavesSortField] = useState("name");
+  const [leavesSortAsc, setLeavesSortAsc] = useState(true);
+
   const [printSortField, setPrintSortField] = useState("upload"); // 기본값 'upload'로 변경
   const [printSortAsc, setPrintSortAsc] = useState(false);
 
@@ -2285,11 +2288,81 @@ export default function App() {
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #eee' }}>
-                  <th style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666' }}>성명</th>
-                  <th style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666' }}>부서</th>
-                  <th style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666', textAlign: 'center' }}>연차 사용일수</th>
-                  <th style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666', textAlign: 'center' }}>실제 근무일 (평일)</th>
-                  <th style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666', textAlign: 'right' }}>최종 식대 한도</th>
+                  <th 
+                    onClick={() => {
+                      if (leavesSortField === "name") {
+                        setLeavesSortAsc(!leavesSortAsc);
+                      } else {
+                        setLeavesSortField("name");
+                        setLeavesSortAsc(true);
+                      }
+                    }}
+                    style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      성명 {leavesSortField === "name" && (leavesSortAsc ? "▲" : "▼")}
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => {
+                      if (leavesSortField === "dept") {
+                        setLeavesSortAsc(!leavesSortAsc);
+                      } else {
+                        setLeavesSortField("dept");
+                        setLeavesSortAsc(true);
+                      }
+                    }}
+                    style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      부서 {leavesSortField === "dept" && (leavesSortAsc ? "▲" : "▼")}
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => {
+                      if (leavesSortField === "leave") {
+                        setLeavesSortAsc(!leavesSortAsc);
+                      } else {
+                        setLeavesSortField("leave");
+                        setLeavesSortAsc(false);
+                      }
+                    }}
+                    style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px', width: '100%' }}>
+                      연차 사용일수 {leavesSortField === "leave" && (leavesSortAsc ? "▲" : "▼")}
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => {
+                      if (leavesSortField === "workday") {
+                        setLeavesSortAsc(!leavesSortAsc);
+                      } else {
+                        setLeavesSortField("workday");
+                        setLeavesSortAsc(false);
+                      }
+                    }}
+                    style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px', width: '100%' }}>
+                      실제 근무일 (평일) {leavesSortField === "workday" && (leavesSortAsc ? "▲" : "▼")}
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => {
+                      if (leavesSortField === "limit") {
+                        setLeavesSortAsc(!leavesSortAsc);
+                      } else {
+                        setLeavesSortField("limit");
+                        setLeavesSortAsc(false);
+                      }
+                    }}
+                    style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
+                      최종 식대 한도 {leavesSortField === "limit" && (leavesSortAsc ? "▲" : "▼")}
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -2302,6 +2375,45 @@ export default function App() {
                     const matchEmployee = !leavesSearchEmployee.trim() || 
                       name.toLowerCase().includes(leavesSearchEmployee.toLowerCase());
                     return matchDept && matchEmployee;
+                  })
+                  .sort((a, b) => {
+                    const nameA = a.full_name || a.name || "";
+                    const nameB = b.full_name || b.name || "";
+                    const deptA = a.department || "기타";
+                    const deptB = b.department || "기타";
+                    const leaveA = annualLeaves[nameA]?.[selectedMonth] || 0;
+                    const leaveB = annualLeaves[nameB]?.[selectedMonth] || 0;
+                    const baseDays = getMonthWeekdays(selectedMonth);
+                    const netA = Math.max(0, baseDays - leaveA);
+                    const netB = Math.max(0, baseDays - leaveB);
+                    const limitA = netA * 10000;
+                    const limitB = netB * 10000;
+
+                    let valA, valB;
+                    if (leavesSortField === "name") {
+                      valA = nameA;
+                      valB = nameB;
+                    } else if (leavesSortField === "dept") {
+                      valA = deptA;
+                      valB = deptB;
+                    } else if (leavesSortField === "leave") {
+                      valA = leaveA;
+                      valB = leaveB;
+                    } else if (leavesSortField === "workday") {
+                      valA = netA;
+                      valB = netB;
+                    } else if (leavesSortField === "limit") {
+                      valA = limitA;
+                      valB = limitB;
+                    }
+
+                    if (typeof valA === "string") {
+                      return leavesSortAsc 
+                        ? valA.localeCompare(valB, 'ko') 
+                        : valB.localeCompare(valA, 'ko');
+                    } else {
+                      return leavesSortAsc ? valA - valB : valB - valA;
+                    }
                   })
                   .map((p, idx) => {
                   const name = p.full_name || p.name;
