@@ -2726,7 +2726,7 @@ export default function App() {
                     style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
                   >
                     <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', verticalAlign: 'middle', width: '100%' }}>
-                      <span>어드민 지정</span>
+                      <span>관리자 지정</span>
                       <SortArrow active={usersSortField === "admin"} asc={usersSortAsc} />
                     </div>
                   </th>
@@ -2820,7 +2820,7 @@ export default function App() {
                               boxShadow: (!isUserDeactivated && isUserAdmin) ? '0 4px 12px rgba(17,17,17,0.15)' : 'none'
                             }}
                           >
-                            {isUserAdmin ? '지정 완료' : '지정하기'}
+                            {isUserAdmin ? '관리자' : '지정하기'}
                           </button>
                         </td>
                       </tr>
