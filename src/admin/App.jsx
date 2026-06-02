@@ -1259,6 +1259,7 @@ export default function App() {
     sessionStorage.removeItem('isAdminLoggedIn');
     sessionStorage.setItem('logoutTriggered', 'true');
     setIsAdminLoggedIn(false);
+    window.location.href = 'https://daum-showroom.vercel.app/admin/login.html?brand=zal';
   };
 
   const handleDownloadZip = async () => {
