@@ -2970,7 +2970,7 @@ export default function App() {
                         style={{ 
                           borderBottom: '1px solid #f8f9fa', 
                           transition: 'background 0.2s ease, opacity 0.2s ease',
-                          opacity: (isUserDeactivated || isUserHidden) ? 0.5 : 1
+                          opacity: isUserDeactivated ? 0.5 : 1
                         }} 
                         className="table-row-hover"
                       >
