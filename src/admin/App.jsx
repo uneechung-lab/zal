@@ -2284,10 +2284,10 @@ export default function App() {
             </div>
           </div>
 
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <div className="print-table-wrapper">
+            <table className="print-dashboard-table">
               <thead>
-                <tr style={{ borderBottom: '2px solid #eee' }}>
+                <tr>
                   <th 
                     onClick={() => {
                       if (leavesSortField === "name") {
@@ -2297,7 +2297,7 @@ export default function App() {
                         setLeavesSortAsc(true);
                       }
                     }}
-                    style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
                   >
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       성명 {leavesSortField === "name" && (leavesSortAsc ? "▲" : "▼")}
@@ -2312,7 +2312,7 @@ export default function App() {
                         setLeavesSortAsc(true);
                       }
                     }}
-                    style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
                   >
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       부서 {leavesSortField === "dept" && (leavesSortAsc ? "▲" : "▼")}
@@ -2327,7 +2327,7 @@ export default function App() {
                         setLeavesSortAsc(false);
                       }
                     }}
-                    style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
                   >
                     <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px', width: '100%' }}>
                       연차 사용일수 {leavesSortField === "leave" && (leavesSortAsc ? "▲" : "▼")}
@@ -2342,7 +2342,7 @@ export default function App() {
                         setLeavesSortAsc(false);
                       }
                     }}
-                    style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
                   >
                     <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px', width: '100%' }}>
                       실제 근무일 (평일) {leavesSortField === "workday" && (leavesSortAsc ? "▲" : "▼")}
@@ -2357,7 +2357,7 @@ export default function App() {
                         setLeavesSortAsc(false);
                       }
                     }}
-                    style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#666', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
                   >
                     <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
                       최종 식대 한도 {leavesSortField === "limit" && (leavesSortAsc ? "▲" : "▼")}
