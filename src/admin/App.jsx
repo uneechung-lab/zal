@@ -2401,6 +2401,7 @@ export default function App() {
             <table className="print-dashboard-table">
               <thead>
                 <tr>
+                  <th style={{ width: '60px', textAlign: 'center' }}>No.</th>
                   <th 
                     onClick={() => {
                       if (leavesSortField === "name") {
@@ -2541,6 +2542,7 @@ export default function App() {
                   
                   return (
                     <tr key={idx} style={{ borderBottom: '1px solid #f5f5f5', transition: 'background-color 0.2s' }}>
+                      <td style={{ padding: '16px', textAlign: 'center', fontSize: '0.9rem', color: '#888', fontWeight: 700 }}>{idx + 1}</td>
                       <td style={{ padding: '16px', fontSize: '0.95rem', fontWeight: 800, color: '#000' }}>{name}</td>
                       <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 600, color: '#666' }}>{p.department || '기타'}</td>
                       <td style={{ padding: '16px', textAlign: 'center' }}>
