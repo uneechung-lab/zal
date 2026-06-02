@@ -923,6 +923,7 @@ export default function App() {
 
   const [usersSortField, setUsersSortField] = useState("name");
   const [usersSortAsc, setUsersSortAsc] = useState(true);
+  const [showActiveOnly, setShowActiveOnly] = useState(true);
 
   const filteredAdminsProfiles = useMemo(() => {
     const list = allProfiles.filter(p => {
@@ -936,6 +937,13 @@ export default function App() {
         }
       }
       if (p.email === 'admin@daumit.net') return false;
+
+      // 활성 사용자만 보기 필터
+      if (showActiveOnly) {
+        const isDeactivated = localDeactivated.includes(p.email);
+        if (isDeactivated) return false;
+      }
+
       return true;
     });
 
@@ -979,7 +987,7 @@ export default function App() {
     });
 
     return list;
-  }, [allProfiles, adminsSelectedDept, adminsSearchEmployee, usersSortField, usersSortAsc, localAdmins, localDeactivated]);
+  }, [allProfiles, adminsSelectedDept, adminsSearchEmployee, usersSortField, usersSortAsc, localAdmins, localDeactivated, showActiveOnly]);
 
   const [leavesSortField, setLeavesSortField] = useState("name");
   const [leavesSortAsc, setLeavesSortAsc] = useState(true);
@@ -2599,8 +2607,19 @@ export default function App() {
 
         {/* Admins Table Card Container */}
         <div style={{ background: '#fff', border: '1.5px solid #eee', borderRadius: '24px', padding: '2rem', boxShadow: 'var(--shadow-card)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#000', margin: 0 }}>사용자관리</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#000', margin: 0 }}>사용자관리</h3>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 700, color: '#444', cursor: 'pointer', userSelect: 'none' }}>
+                <input 
+                  type="checkbox" 
+                  checked={showActiveOnly} 
+                  onChange={(e) => setShowActiveOnly(e.target.checked)} 
+                  style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#000' }}
+                />
+                활성 사용자만 보기
+              </label>
+            </div>
             <button 
               onClick={() => handleSaveAdminsAndDeactivated(localAdmins, localDeactivated)}
               style={{ padding: '12px 24px', borderRadius: '12px', background: '#2E7D32', color: '#fff', border: 'none', fontWeight: 800, fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'var(--transition)' }}
