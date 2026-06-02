@@ -1618,7 +1618,7 @@ export default function App() {
                 setIsReviewPanelOpen(false);
               }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="8" y1="6" x2="21" y2="6"></line>
                 <line x1="8" y1="12" x2="21" y2="12"></line>
                 <line x1="8" y1="18" x2="21" y2="18"></line>
@@ -1636,7 +1636,7 @@ export default function App() {
                 setIsReviewPanelOpen(false);
               }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="6 9 6 2 18 2 18 9"></polyline>
                 <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
                 <rect x="6" y="14" width="12" height="8"></rect>
@@ -1651,7 +1651,7 @@ export default function App() {
                 setIsReviewPanelOpen(false);
               }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                 <line x1="16" y1="2" x2="16" y2="6"></line>
                 <line x1="8" y1="2" x2="8" y2="6"></line>
@@ -1667,13 +1667,13 @@ export default function App() {
                 setIsReviewPanelOpen(false);
               }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                 <circle cx="9" cy="7" r="4"></circle>
                 <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                 <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
               </svg>
-              사용자 관리
+              사용자관리
             </button>
             <button 
               className="header-nav-btn" 
@@ -1681,8 +1681,8 @@ export default function App() {
               style={{ 
                 borderColor: 'transparent', 
                 color: '#ef4444', 
-                width: '42px', 
-                height: '42px', 
+                width: '38px', 
+                height: '38px', 
                 borderRadius: '50%', 
                 padding: 0, 
                 justifyContent: 'center' 
@@ -1694,7 +1694,7 @@ export default function App() {
                 e.currentTarget.style.backgroundColor = 'transparent';
               }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                 <polyline points="16 17 21 12 16 7"></polyline>
                 <line x1="21" y1="12" x2="9" y2="12"></line>
@@ -2537,7 +2537,7 @@ export default function App() {
         {/* Admins Table Card Container */}
         <div style={{ background: '#fff', border: '1.5px solid #eee', borderRadius: '24px', padding: '2rem', boxShadow: 'var(--shadow-card)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#000', margin: 0 }}>사용자 관리</h3>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#000', margin: 0 }}>사용자관리</h3>
             <button 
               onClick={() => handleSaveAdminsAndDeactivated(localAdmins, localDeactivated)}
               style={{ padding: '12px 24px', borderRadius: '12px', background: '#2E7D32', color: '#fff', border: 'none', fontWeight: 800, fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'var(--transition)' }}
