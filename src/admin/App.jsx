@@ -1025,11 +1025,14 @@ export default function App() {
   // Auto-switch to "Pending" if exists on month change, otherwise "All"
   useEffect(() => {
     if (rawSettlements.length > 0) {
-      const monthFiltered = rawSettlements.filter(s => s.date && s.date.startsWith(selectedMonth.replace('.', '-')));
+      const hiddenNamesSet = new Set(allProfiles.filter(p => hiddenEmails.includes(p.email)).map(p => p.full_name || p.name));
+      const monthFiltered = rawSettlements
+        .filter(s => s.date && s.date.startsWith(selectedMonth.replace('.', '-')))
+        .filter(s => !hiddenNamesSet.has(s.user_name || "미지정"));
       const hasPending = monthFiltered.some(s => s.status === "예외요청" || s.status === "보류");
       setFilterType(hasPending ? "pending" : "all");
     }
-  }, [selectedMonth, rawSettlements]);
+  }, [selectedMonth, rawSettlements, allProfiles, hiddenEmails]);
 
   const monthlyUsers = useMemo(() => transformData(rawSettlements, allProfiles, selectedMonth, adminLastSeen, annualLeaves, deactivatedEmails, hiddenEmails), [rawSettlements, allProfiles, selectedMonth, adminLastSeen, annualLeaves, deactivatedEmails, hiddenEmails]);
   
@@ -1047,8 +1050,10 @@ export default function App() {
 
   const allPendingRequests = useMemo(() => {
     const requests = [];
+    const hiddenNamesSet = new Set(allProfiles.filter(p => hiddenEmails.includes(p.email)).map(p => p.full_name || p.name));
     rawSettlements
       .filter(s => s.date && s.date.startsWith(selectedMonth.replace('.', '-')))
+      .filter(s => !hiddenNamesSet.has(s.user_name || "미지정"))
       .forEach(s => {
       if (s.status === "예외요청" || s.status === "보류" || s.status === "반려" || (s.status === "승인완료" && (s.exc_text || s.excText))) {
         // "Replaced" logic: Is there another settlement for the same user on the same date with different ID?
@@ -1101,7 +1106,7 @@ export default function App() {
       }
     });
     return requests;
-  }, [rawSettlements, selectedMonth, allProfiles]);
+  }, [rawSettlements, selectedMonth, allProfiles, hiddenEmails]);
 
   const [printSelectedDept, setPrintSelectedDept] = useState("전체");
   const [printSearchEmployee, setPrintSearchEmployee] = useState("");
@@ -1116,12 +1121,14 @@ export default function App() {
   }, [allProfiles]);
 
   const approvedSettlementsForMonth = useMemo(() => {
+    const hiddenNamesSet = new Set(allProfiles.filter(p => hiddenEmails.includes(p.email)).map(p => p.full_name || p.name));
     return rawSettlements.filter(s => 
       s.status === "승인완료" && 
       s.date && 
-      s.date.startsWith(selectedMonth.replace('.', '-'))
+      s.date.startsWith(selectedMonth.replace('.', '-')) &&
+      !hiddenNamesSet.has(s.user_name || "미지정")
     );
-  }, [rawSettlements, selectedMonth]);
+  }, [rawSettlements, selectedMonth, allProfiles, hiddenEmails]);
 
   const filteredApprovedSettlements = useMemo(() => {
     return approvedSettlementsForMonth.filter(s => {
