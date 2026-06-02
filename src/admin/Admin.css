@@ -2048,6 +2048,31 @@ body {
     width: 100% !important;
   }
 
+  /* Full-width Search & Tabs on Mobile */
+  .filter-area {
+    width: 100% !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .filter-select-wrapper,
+  .filter-chips {
+    width: 100% !important;
+    display: flex !important;
+  }
+
+  .filter-chips .filter-chip {
+    flex: 1 !important;
+    text-align: center !important;
+    padding: 0.5rem 0.25rem !important;
+  }
+
+  .search-input-wrapper,
+  .search-input-wrapper input {
+    width: 100% !important;
+  }
+
   .admin-container {
     padding-bottom: 84px !important; /* Extra bottom padding for floating feel */
   }

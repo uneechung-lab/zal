@@ -6,11 +6,11 @@ const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZi
 const supabase = createClient(url, key);
 
 async function run() {
-  const { data, error } = await supabase.from('allowed_categories').select('*').limit(5);
+  const { data, error } = await supabase.from('allowed_categories').select('*').order('created_at', { ascending: false });
   if (error) {
     console.error("Error fetching categories:", error);
   } else {
-    console.log("Allowed Categories structure:", data);
+    console.log("Allowed Categories ordered by created_at desc:", data);
   }
 }
 
