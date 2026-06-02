@@ -2073,6 +2073,22 @@ body {
     width: 100% !important;
   }
 
+  /* Reorder Print Summary Card to Top on Mobile */
+  .print-dashboard-layout {
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem !important;
+  }
+
+  .print-summary-sidebar {
+    order: -1 !important; /* Visual placement at the top */
+    position: static !important; /* Remove sticky offset on mobile */
+    margin-bottom: 0.5rem !important;
+  }
+
+  .print-list-panel {
+    order: 1 !important; /* Visual placement below the summary */
+  }
+
   .admin-container {
     padding-bottom: 84px !important; /* Extra bottom padding for floating feel */
   }
