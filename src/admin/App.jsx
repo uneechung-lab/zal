@@ -1273,11 +1273,22 @@ export default function App() {
   }, [currentView, filteredApprovedSettlements]);
 
   const handleAddCategory = async () => {
-    if (!newCategoryName.trim()) return;
-    const { error } = await supabase.from('allowed_categories').insert([{ name: newCategoryName.trim() }]);
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) return;
+    
+    if (allowedCategories.includes(trimmed)) {
+      customAlert('이미 등록된 업종입니다.');
+      return;
+    }
+
+    const { error } = await supabase.from('allowed_categories').insert([{ name: trimmed }]);
     if (error) {
       console.error(error);
-      customAlert('업종 추가에 실패했습니다.');
+      if (error.code === '23505') {
+        customAlert('이미 등록된 업종입니다.');
+      } else {
+        customAlert('업종 추가에 실패했습니다.');
+      }
     } else {
       setNewCategoryName("");
       fetchCategories();
