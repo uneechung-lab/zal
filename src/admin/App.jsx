@@ -279,6 +279,122 @@ const SortArrow = () => {
   );
 };
 
+const STATUS_OPTIONS = [
+  { value: 'active',   label: '활성',   bg: '#E6F4EA', color: '#137333', dot: '#34A853' },
+  { value: 'inactive', label: '비활성', bg: '#FCE8E6', color: '#C5221F', dot: '#EA4335' },
+  { value: 'hidden',   label: '히든',   bg: '#FEF7E0', color: '#B06000', dot: '#FBBC04' },
+];
+
+function StatusSelect({ value, onChange }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+
+  React.useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    if (open) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const current = STATUS_OPTIONS.find(o => o.value === value) || STATUS_OPTIONS[0];
+
+  return (
+    <div ref={ref} style={{ position: 'relative', display: 'inline-block', userSelect: 'none' }}>
+      {/* Trigger pill */}
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          background: current.bg,
+          color: current.color,
+          border: 'none',
+          padding: '6px 14px 6px 10px',
+          borderRadius: '20px',
+          fontSize: '0.82rem',
+          fontWeight: 800,
+          cursor: 'pointer',
+          outline: 'none',
+          transition: 'all 0.15s ease',
+          minWidth: '88px',
+          justifyContent: 'center',
+        }}
+      >
+        <span style={{
+          width: '7px', height: '7px', borderRadius: '50%',
+          background: current.dot, flexShrink: 0,
+          boxShadow: `0 0 5px ${current.dot}88`
+        }} />
+        {current.label}
+        <svg width="9" height="6" viewBox="0 0 9 6" fill="none" style={{ marginLeft: 2, opacity: 0.55, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+          <path d="M1 1L4.5 5L8 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 6px)',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: '#fff',
+          border: '1px solid #ebebeb',
+          borderRadius: '14px',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+          padding: '6px',
+          zIndex: 200,
+          minWidth: '120px',
+          animation: 'fadeInDown 0.12s ease'
+        }}>
+          {STATUS_OPTIONS.map(opt => {
+            const isActive = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => { onChange(opt.value); setOpen(false); }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  background: isActive ? opt.bg : 'transparent',
+                  color: isActive ? opt.color : '#333',
+                  border: 'none',
+                  borderRadius: '9px',
+                  padding: '8px 12px',
+                  fontSize: '0.85rem',
+                  fontWeight: isActive ? 800 : 600,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'background 0.12s',
+                }}
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#f5f5f5'; }}
+                onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+              >
+                <span style={{
+                  width: '8px', height: '8px', borderRadius: '50%',
+                  background: opt.dot, flexShrink: 0,
+                  boxShadow: isActive ? `0 0 6px ${opt.dot}99` : 'none'
+                }} />
+                {opt.label}
+                {isActive && (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', opacity: 0.7 }}>
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 export default function App() {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -2874,10 +2990,9 @@ export default function App() {
                           {p.email}
                         </td>
                         <td style={{ padding: '16px 20px', textAlign: 'center' }}>
-                          <select
+                          <StatusSelect
                             value={isUserHidden ? 'hidden' : (isUserDeactivated ? 'inactive' : 'active')}
-                            onChange={(e) => {
-                              const val = e.target.value;
+                            onChange={(val) => {
                               if (val === 'active') {
                                 setLocalDeactivated(prev => prev.filter(email => email !== p.email));
                                 setLocalHidden(prev => prev.filter(email => email !== p.email));
@@ -2889,29 +3004,7 @@ export default function App() {
                                 setLocalHidden(prev => [...prev.filter(email => email !== p.email), p.email]);
                               }
                             }}
-                            style={{
-                              background: isUserHidden ? '#FEF7E0' : isUserDeactivated ? '#FCE8E6' : '#E6F4EA',
-                              color: isUserHidden ? '#B06000' : isUserDeactivated ? '#C5221F' : '#137333',
-                              border: 'none',
-                              padding: '6px 16px',
-                              borderRadius: '20px',
-                              fontSize: '0.85rem',
-                              fontWeight: 800,
-                              cursor: 'pointer',
-                              outline: 'none',
-                              textAlign: 'center',
-                              textAlignLast: 'center',
-                              width: '94px',
-                              display: 'inline-block',
-                              appearance: 'none',
-                              WebkitAppearance: 'none',
-                              MozAppearance: 'none'
-                            }}
-                          >
-                            <option value="active" style={{ background: '#fff', color: '#137333' }}>활성</option>
-                            <option value="inactive" style={{ background: '#fff', color: '#C5221F' }}>비활성</option>
-                            <option value="hidden" style={{ background: '#fff', color: '#B06000' }}>히든</option>
-                          </select>
+                          />
                         </td>
                         <td style={{ padding: '16px 20px', textAlign: 'right' }}>
                           <button
