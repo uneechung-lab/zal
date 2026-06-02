@@ -323,6 +323,7 @@ function StatusSelect({ value, onChange }) {
           transition: 'all 0.15s ease',
           minWidth: '88px',
           justifyContent: 'center',
+          opacity: (value === 'inactive' && !open) ? 0.55 : 1
         }}
       >
         <span style={{
@@ -2976,18 +2977,17 @@ export default function App() {
                         key={p.id} 
                         style={{ 
                           borderBottom: '1px solid #f8f9fa', 
-                          transition: 'background 0.2s ease, opacity 0.2s ease',
-                          opacity: isUserDeactivated ? 0.5 : 1
+                          transition: 'background 0.2s ease'
                         }} 
                         className="table-row-hover"
                       >
-                        <td style={{ padding: '16px 20px', textAlign: 'center', fontSize: '0.9rem', color: '#888', fontWeight: 700 }}>
+                        <td style={{ padding: '16px 20px', textAlign: 'center', fontSize: '0.9rem', color: '#888', fontWeight: 700, opacity: isUserDeactivated ? 0.45 : 1 }}>
                           {idx + 1}
                         </td>
-                        <td style={{ padding: '16px 20px', fontSize: '0.95rem', fontWeight: 850, color: '#111' }}>
+                        <td style={{ padding: '16px 20px', fontSize: '0.95rem', fontWeight: 850, color: '#111', opacity: isUserDeactivated ? 0.45 : 1 }}>
                           {p.full_name || p.name}
                         </td>
-                        <td style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 650, color: '#555' }}>
+                        <td style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 650, color: '#555', opacity: isUserDeactivated ? 0.45 : 1 }}>
                           <span style={{ 
                             background: p.department === '개발' ? '#E8F0FE' : p.department === '신사업' ? '#E6F4EA' : '#F1F3F4',
                             color: p.department === '개발' ? '#1A73E8' : p.department === '신사업' ? '#137333' : '#5F6368',
@@ -2999,7 +2999,7 @@ export default function App() {
                             {p.department || '기타'}
                           </span>
                         </td>
-                        <td style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 600, color: '#666' }}>
+                        <td style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 600, color: '#666', opacity: isUserDeactivated ? 0.45 : 1 }}>
                           {p.email}
                         </td>
                         <td style={{ padding: '16px 20px', textAlign: 'center' }}>
@@ -3019,7 +3019,7 @@ export default function App() {
                             }}
                           />
                         </td>
-                        <td style={{ padding: '16px 20px', textAlign: 'right' }}>
+                        <td style={{ padding: '16px 20px', textAlign: 'right', opacity: isUserDeactivated ? 0.45 : 1 }}>
                           <button
                             onClick={() => {
                               if (isUserDeactivated) return;
