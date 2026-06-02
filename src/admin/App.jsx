@@ -3060,7 +3060,7 @@ export default function App() {
     {/* Allowed Categories Screen */}
     {currentView === "categories" && (
       <div className="custom-screen-wrapper">
-        <div className="screen-header-row">
+        <div className="screen-header-row mobile-hide">
           <h1 className="screen-title">허용 업종 관리</h1>
         </div>
 
