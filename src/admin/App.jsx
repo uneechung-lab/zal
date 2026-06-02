@@ -303,7 +303,7 @@ function StatusSelect({ value, onChange }) {
   const current = STATUS_OPTIONS.find(o => o.value === value) || STATUS_OPTIONS[0];
 
   return (
-    <div ref={ref} style={{ position: 'relative', display: 'inline-block', userSelect: 'none' }}>
+    <div ref={ref} style={{ position: 'relative', display: 'inline-block', userSelect: 'none', zIndex: open ? 999 : 1 }}>
       {/* Trigger pill */}
       <button
         onClick={() => setOpen(v => !v)}
