@@ -302,6 +302,38 @@ export default function App() {
     setLocalAdmins(adminEmails);
   }, [adminEmails]);
 
+
+  const fetchAdminEmails = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('settlements')
+        .select('*')
+        .eq('user_name', '__SYSTEM_ADMINS__')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (!error && data && data.length > 0) {
+        try {
+          const list = JSON.parse(data[0].exc_text || '[]');
+          setAdminEmails(list);
+        } catch(e) {
+          setAdminEmails([]);
+        }
+      } else {
+        setAdminEmails([]);
+      }
+    } catch (e) {
+      console.error("Error fetching admin emails:", e);
+    }
+  };
+
+  const [deactivatedEmails, setDeactivatedEmails] = useState([]);
+  const [localDeactivated, setLocalDeactivated] = useState([]);
+
+  useEffect(() => {
+    setLocalDeactivated(deactivatedEmails);
+  }, [deactivatedEmails]);
+
   const isLeavesDirty = useMemo(() => {
     return JSON.stringify(annualLeaves) !== JSON.stringify(originalAnnualLeaves);
   }, [annualLeaves, originalAnnualLeaves]);
@@ -345,37 +377,6 @@ export default function App() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [isLeavesDirty, isAdminsDirty]);
-
-  const fetchAdminEmails = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('settlements')
-        .select('*')
-        .eq('user_name', '__SYSTEM_ADMINS__')
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (!error && data && data.length > 0) {
-        try {
-          const list = JSON.parse(data[0].exc_text || '[]');
-          setAdminEmails(list);
-        } catch(e) {
-          setAdminEmails([]);
-        }
-      } else {
-        setAdminEmails([]);
-      }
-    } catch (e) {
-      console.error("Error fetching admin emails:", e);
-    }
-  };
-
-  const [deactivatedEmails, setDeactivatedEmails] = useState([]);
-  const [localDeactivated, setLocalDeactivated] = useState([]);
-
-  useEffect(() => {
-    setLocalDeactivated(deactivatedEmails);
-  }, [deactivatedEmails]);
 
   const fetchDeactivatedEmails = async () => {
     try {
