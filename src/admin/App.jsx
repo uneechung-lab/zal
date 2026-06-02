@@ -121,18 +121,19 @@ function validate(d, allowed, existingSubs = []) {
   
   return issues;
 }
-const transformData = (settlements, profiles, month, adminLastSeen = {}, annualLeaves = {}, deactivatedEmails = []) => {
+const transformData = (settlements, profiles, month, adminLastSeen = {}, annualLeaves = {}, deactivatedEmails = [], hiddenEmails = []) => {
   const filtered = settlements.filter(s => s.date && s.date.startsWith(month.replace('.', '-')));
   const usersMap = {};
   
-  const activeProfiles = profiles.filter(p => !deactivatedEmails.includes(p.email));
+  const activeProfiles = profiles.filter(p => !deactivatedEmails.includes(p.email) && !hiddenEmails.includes(p.email));
   const deactivatedNames = profiles.filter(p => deactivatedEmails.includes(p.email)).map(p => p.full_name || p.name);
+  const hiddenNames = profiles.filter(p => hiddenEmails.includes(p.email)).map(p => p.full_name || p.name);
 
   // 1. Identify ALL active users from settlements to avoid missing anyone
   const allKnownUserNames = new Set(
     settlements
       .map(s => s.user_name || "미지정")
-      .filter(name => name !== "미지정" && !deactivatedNames.includes(name) && !name.startsWith("__SYSTEM_"))
+      .filter(name => name !== "미지정" && !deactivatedNames.includes(name) && !hiddenNames.includes(name) && !name.startsWith("__SYSTEM_"))
   );
   
   // 2. Add users from active profiles
@@ -330,9 +331,16 @@ export default function App() {
   const [deactivatedEmails, setDeactivatedEmails] = useState([]);
   const [localDeactivated, setLocalDeactivated] = useState([]);
 
+  const [hiddenEmails, setHiddenEmails] = useState([]);
+  const [localHidden, setLocalHidden] = useState([]);
+
   useEffect(() => {
     setLocalDeactivated(deactivatedEmails);
   }, [deactivatedEmails]);
+
+  useEffect(() => {
+    setLocalHidden(hiddenEmails);
+  }, [hiddenEmails]);
 
   const isLeavesDirty = useMemo(() => {
     return JSON.stringify(annualLeaves) !== JSON.stringify(originalAnnualLeaves);
@@ -347,8 +355,12 @@ export default function App() {
     const sortD = [...localDeactivated].sort();
     if (JSON.stringify(sortC) !== JSON.stringify(sortD)) return true;
 
+    const sortE = [...hiddenEmails].sort();
+    const sortF = [...localHidden].sort();
+    if (JSON.stringify(sortE) !== JSON.stringify(sortF)) return true;
+
     return false;
-  }, [adminEmails, localAdmins, deactivatedEmails, localDeactivated]);
+  }, [adminEmails, localAdmins, deactivatedEmails, localDeactivated, hiddenEmails, localHidden]);
 
   const navigateWithConfirm = (nextView) => {
     if (isLeavesDirty || isAdminsDirty) {
@@ -357,6 +369,7 @@ export default function App() {
         setAnnualLeaves(JSON.parse(JSON.stringify(originalAnnualLeaves)));
         setLocalAdmins([...adminEmails]);
         setLocalDeactivated([...deactivatedEmails]);
+        setLocalHidden([...hiddenEmails]);
 
         setCurrentView(nextView);
         setSelectedUser(null);
@@ -407,7 +420,31 @@ export default function App() {
     }
   };
 
-  const handleSaveAdminsAndDeactivated = async (newAdmins, newDeactivated) => {
+  const fetchHiddenEmails = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('settlements')
+        .select('*')
+        .eq('user_name', '__SYSTEM_HIDDEN_USERS__')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (!error && data && data.length > 0) {
+        try {
+          const list = JSON.parse(data[0].exc_text || '[]');
+          setHiddenEmails(list);
+        } catch(e) {
+          setHiddenEmails([]);
+        }
+      } else {
+        setHiddenEmails([]);
+      }
+    } catch (e) {
+      console.error("Error fetching hidden emails:", e);
+    }
+  };
+
+  const handleSaveAdminsAndDeactivated = async (newAdmins, newDeactivated, newHidden = localHidden) => {
     try {
       setLoading(true);
       
@@ -435,12 +472,25 @@ export default function App() {
           category: 'SYSTEM'
         }]);
 
-      if (adminErr || deacErr) {
-        customAlert("저장 중 오류가 발생했습니다: " + (adminErr?.message || deacErr?.message));
+      const { error: hiddenErr } = await supabase
+        .from('settlements')
+        .insert([{
+          user_name: '__SYSTEM_HIDDEN_USERS__',
+          date: '2026-06-01',
+          exc_text: JSON.stringify(newHidden),
+          status: '승인완료',
+          amount: 0,
+          store_name: 'SYSTEM',
+          category: 'SYSTEM'
+        }]);
+
+      if (adminErr || deacErr || hiddenErr) {
+        customAlert("저장 중 오류가 발생했습니다: " + (adminErr?.message || deacErr?.message || hiddenErr?.message));
       } else {
         setAdminEmails(newAdmins);
         setDeactivatedEmails(newDeactivated);
-        customAlert("어드민 지정 및 계정 활성화 상태가 성공적으로 저장되었습니다!");
+        setHiddenEmails(newHidden);
+        customAlert("어드민 지정 및 계정 상태가 성공적으로 저장되었습니다!");
       }
     } catch(e) {
       console.error(e);
@@ -805,6 +855,7 @@ export default function App() {
     await fetchAnnualLeaves();
     await fetchAdminEmails();
     await fetchDeactivatedEmails();
+    await fetchHiddenEmails();
     
     setLoading(false);
   };
@@ -864,7 +915,7 @@ export default function App() {
     }
   }, [selectedMonth, rawSettlements]);
 
-  const monthlyUsers = useMemo(() => transformData(rawSettlements, allProfiles, selectedMonth, adminLastSeen, annualLeaves, deactivatedEmails), [rawSettlements, allProfiles, selectedMonth, adminLastSeen, annualLeaves, deactivatedEmails]);
+  const monthlyUsers = useMemo(() => transformData(rawSettlements, allProfiles, selectedMonth, adminLastSeen, annualLeaves, deactivatedEmails, hiddenEmails), [rawSettlements, allProfiles, selectedMonth, adminLastSeen, annualLeaves, deactivatedEmails, hiddenEmails]);
   
   const pathLabel = useMemo(() => {
     if (currentView === "categories") return "관리자 > 업종관리";
@@ -993,7 +1044,8 @@ export default function App() {
       // 활성 사용자만 보기 필터
       if (showActiveOnly) {
         const isDeactivated = localDeactivated.includes(p.email);
-        if (isDeactivated) return false;
+        const isHidden = localHidden.includes(p.email);
+        if (isDeactivated || isHidden) return false;
       }
 
       return true;
@@ -1006,8 +1058,8 @@ export default function App() {
       const deptB = b.department || "기타";
       const emailA = a.email || "";
       const emailB = b.email || "";
-      const statusA = localDeactivated.includes(a.email) ? "비활성" : "활성";
-      const statusB = localDeactivated.includes(b.email) ? "비활성" : "활성";
+      const statusA = localHidden.includes(a.email) ? "히든" : (localDeactivated.includes(a.email) ? "비활성" : "활성");
+      const statusB = localHidden.includes(b.email) ? "히든" : (localDeactivated.includes(b.email) ? "비활성" : "활성");
       const adminA = localAdmins.includes(a.email) ? "어드민" : "일반";
       const adminB = localAdmins.includes(b.email) ? "어드민" : "일반";
 
@@ -1039,7 +1091,7 @@ export default function App() {
     });
 
     return list;
-  }, [allProfiles, adminsSelectedDept, adminsSearchEmployee, usersSortField, usersSortAsc, localAdmins, localDeactivated, showActiveOnly]);
+  }, [allProfiles, adminsSelectedDept, adminsSearchEmployee, usersSortField, usersSortAsc, localAdmins, localDeactivated, localHidden, showActiveOnly]);
 
   const [leavesSortField, setLeavesSortField] = useState("name");
   const [leavesSortAsc, setLeavesSortAsc] = useState(true);
@@ -2679,7 +2731,7 @@ export default function App() {
               </label>
             </div>
             <button 
-              onClick={() => handleSaveAdminsAndDeactivated(localAdmins, localDeactivated)}
+              onClick={() => handleSaveAdminsAndDeactivated(localAdmins, localDeactivated, localHidden)}
               style={{ padding: '12px 24px', borderRadius: '12px', background: '#2E7D32', color: '#fff', border: 'none', fontWeight: 800, fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'var(--transition)' }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -2789,13 +2841,14 @@ export default function App() {
                   filteredAdminsProfiles.map((p, idx) => {
                     const isUserAdmin = localAdmins.includes(p.email);
                     const isUserDeactivated = localDeactivated.includes(p.email);
+                    const isUserHidden = localHidden.includes(p.email);
                     return (
                       <tr 
                         key={p.id} 
                         style={{ 
                           borderBottom: '1px solid #f8f9fa', 
                           transition: 'background 0.2s ease, opacity 0.2s ease',
-                          opacity: isUserDeactivated ? 0.5 : 1
+                          opacity: (isUserDeactivated || isUserHidden) ? 0.5 : 1
                         }} 
                         className="table-row-hover"
                       >
@@ -2821,52 +2874,67 @@ export default function App() {
                           {p.email}
                         </td>
                         <td style={{ padding: '16px 20px', textAlign: 'center' }}>
-                          <button
-                            onClick={() => {
-                              if (isUserDeactivated) {
+                          <select
+                            value={isUserHidden ? 'hidden' : (isUserDeactivated ? 'inactive' : 'active')}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === 'active') {
                                 setLocalDeactivated(prev => prev.filter(email => email !== p.email));
-                              } else {
-                                setLocalDeactivated(prev => [...prev, p.email]);
+                                setLocalHidden(prev => prev.filter(email => email !== p.email));
+                              } else if (val === 'inactive') {
+                                setLocalDeactivated(prev => [...prev.filter(email => email !== p.email), p.email]);
+                                setLocalHidden(prev => prev.filter(email => email !== p.email));
+                              } else if (val === 'hidden') {
+                                setLocalDeactivated(prev => prev.filter(email => email !== p.email));
+                                setLocalHidden(prev => [...prev.filter(email => email !== p.email), p.email]);
                               }
                             }}
                             style={{
-                              background: isUserDeactivated ? '#FCE8E6' : '#E6F4EA',
-                              color: isUserDeactivated ? '#C5221F' : '#137333',
+                              background: isUserHidden ? '#FEF7E0' : isUserDeactivated ? '#FCE8E6' : '#E6F4EA',
+                              color: isUserHidden ? '#B06000' : isUserDeactivated ? '#C5221F' : '#137333',
                               border: 'none',
                               padding: '6px 16px',
                               borderRadius: '20px',
                               fontSize: '0.85rem',
                               fontWeight: 800,
                               cursor: 'pointer',
-                              transition: 'all 0.2s ease',
-                              minWidth: '70px'
+                              outline: 'none',
+                              textAlign: 'center',
+                              textAlignLast: 'center',
+                              width: '94px',
+                              display: 'inline-block',
+                              appearance: 'none',
+                              WebkitAppearance: 'none',
+                              MozAppearance: 'none'
                             }}
                           >
-                            {isUserDeactivated ? '비활성' : '활성'}
-                          </button>
+                            <option value="active" style={{ background: '#fff', color: '#137333' }}>활성</option>
+                            <option value="inactive" style={{ background: '#fff', color: '#C5221F' }}>비활성</option>
+                            <option value="hidden" style={{ background: '#fff', color: '#B06000' }}>히든</option>
+                          </select>
                         </td>
                         <td style={{ padding: '16px 20px', textAlign: 'right' }}>
                           <button
                             onClick={() => {
-                              if (isUserDeactivated) return;
+                              if (isUserDeactivated || isUserHidden) return;
                               if (isUserAdmin) {
                                 setLocalAdmins(prev => prev.filter(email => email !== p.email));
                               } else {
                                 setLocalAdmins(prev => [...prev, p.email]);
                               }
                             }}
-                            disabled={isUserDeactivated}
+                            disabled={isUserDeactivated || isUserHidden}
                             style={{
-                              background: isUserDeactivated ? '#f5f5f5' : (isUserAdmin ? '#111' : '#fff'),
-                              color: isUserDeactivated ? '#aaa' : (isUserAdmin ? '#fff' : '#111'),
-                              border: isUserDeactivated ? '1.5px solid #eaeaea' : (isUserAdmin ? '1.5px solid #111' : '1.5px solid #eaeaea'),
+                              background: (isUserDeactivated || isUserHidden) ? '#f5f5f5' : (isUserAdmin ? '#111' : '#fff'),
+                              color: (isUserDeactivated || isUserHidden) ? '#aaa' : (isUserAdmin ? '#fff' : '#111'),
+                              border: (isUserDeactivated || isUserHidden) ? '1.5px solid #eaeaea' : (isUserAdmin ? '1.5px solid #111' : '1.5px solid #eaeaea'),
                               padding: '6px 16px',
                               borderRadius: '20px',
                               fontSize: '0.85rem',
                               fontWeight: 800,
-                              cursor: isUserDeactivated ? 'not-allowed' : 'pointer',
+                              cursor: (isUserDeactivated || isUserHidden) ? 'not-allowed' : 'pointer',
                               transition: 'all 0.2s ease',
-                              boxShadow: (!isUserDeactivated && isUserAdmin) ? '0 4px 12px rgba(17,17,17,0.15)' : 'none'
+                              boxShadow: (!(isUserDeactivated || isUserHidden) && isUserAdmin) ? '0 4px 12px rgba(17,17,17,0.15)' : 'none'
                             }}
                           >
                             {isUserAdmin ? '관리자' : '지정하기'}
