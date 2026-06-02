@@ -254,6 +254,30 @@ const transformData = (settlements, profiles, month, adminLastSeen = {}, annualL
     };
   });
 };
+
+const SortArrow = ({ active, asc }) => {
+  return (
+    <svg width="10" height="12" viewBox="0 0 10 12" style={{ marginLeft: '6px', verticalAlign: 'middle', display: 'inline-block' }}>
+      <path 
+        d="M2 4.5L5 1.5L8 4.5" 
+        stroke={active && asc ? "#000" : "#bbb"} 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        fill="none"
+      />
+      <path 
+        d="M2 7.5L5 10.5L8 7.5" 
+        stroke={active && !asc ? "#000" : "#bbb"} 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        fill="none"
+      />
+    </svg>
+  );
+};
+
 export default function App() {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -897,8 +921,11 @@ export default function App() {
       .reduce((sum, s) => sum + parseInt(s.amount || 0), 0);
   }, [filteredApprovedSettlements, selectedPrintIds]);
 
+  const [usersSortField, setUsersSortField] = useState("name");
+  const [usersSortAsc, setUsersSortAsc] = useState(true);
+
   const filteredAdminsProfiles = useMemo(() => {
-    return allProfiles.filter(p => {
+    const list = allProfiles.filter(p => {
       if (adminsSelectedDept !== "전체" && p.department !== adminsSelectedDept) {
         return false;
       }
@@ -911,7 +938,48 @@ export default function App() {
       if (p.email === 'admin@daumit.net') return false;
       return true;
     });
-  }, [allProfiles, adminsSelectedDept, adminsSearchEmployee]);
+
+    list.sort((a, b) => {
+      const nameA = a.full_name || a.name || "";
+      const nameB = b.full_name || b.name || "";
+      const deptA = a.department || "기타";
+      const deptB = b.department || "기타";
+      const emailA = a.email || "";
+      const emailB = b.email || "";
+      const statusA = localDeactivated.includes(a.email) ? "비활성" : "활성";
+      const statusB = localDeactivated.includes(b.email) ? "비활성" : "활성";
+      const adminA = localAdmins.includes(a.email) ? "어드민" : "일반";
+      const adminB = localAdmins.includes(b.email) ? "어드민" : "일반";
+
+      let valA, valB;
+      if (usersSortField === "name") {
+        valA = nameA;
+        valB = nameB;
+      } else if (usersSortField === "dept") {
+        valA = deptA;
+        valB = deptB;
+      } else if (usersSortField === "email") {
+        valA = emailA;
+        valB = emailB;
+      } else if (usersSortField === "status") {
+        valA = statusA;
+        valB = statusB;
+      } else if (usersSortField === "admin") {
+        valA = adminA;
+        valB = adminB;
+      }
+
+      if (typeof valA === "string") {
+        return usersSortAsc 
+          ? valA.localeCompare(valB, 'ko') 
+          : valB.localeCompare(valA, 'ko');
+      } else {
+        return usersSortAsc ? valA - valB : valB - valA;
+      }
+    });
+
+    return list;
+  }, [allProfiles, adminsSelectedDept, adminsSearchEmployee, usersSortField, usersSortAsc, localAdmins, localDeactivated]);
 
   const [leavesSortField, setLeavesSortField] = useState("name");
   const [leavesSortAsc, setLeavesSortAsc] = useState(true);
@@ -2299,8 +2367,9 @@ export default function App() {
                     }}
                     style={{ cursor: 'pointer', userSelect: 'none' }}
                   >
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      성명 {leavesSortField === "name" && (leavesSortAsc ? "▲" : "▼")}
+                    <div style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}>
+                      <span>성명</span>
+                      <SortArrow active={leavesSortField === "name"} asc={leavesSortAsc} />
                     </div>
                   </th>
                   <th 
@@ -2314,8 +2383,9 @@ export default function App() {
                     }}
                     style={{ cursor: 'pointer', userSelect: 'none' }}
                   >
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      부서 {leavesSortField === "dept" && (leavesSortAsc ? "▲" : "▼")}
+                    <div style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}>
+                      <span>부서</span>
+                      <SortArrow active={leavesSortField === "dept"} asc={leavesSortAsc} />
                     </div>
                   </th>
                   <th 
@@ -2329,8 +2399,9 @@ export default function App() {
                     }}
                     style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
                   >
-                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px', width: '100%' }}>
-                      연차 사용일수 {leavesSortField === "leave" && (leavesSortAsc ? "▲" : "▼")}
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', verticalAlign: 'middle', width: '100%' }}>
+                      <span>연차 사용일수</span>
+                      <SortArrow active={leavesSortField === "leave"} asc={leavesSortAsc} />
                     </div>
                   </th>
                   <th 
@@ -2344,8 +2415,9 @@ export default function App() {
                     }}
                     style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
                   >
-                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px', width: '100%' }}>
-                      실제 근무일 (평일) {leavesSortField === "workday" && (leavesSortAsc ? "▲" : "▼")}
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', verticalAlign: 'middle', width: '100%' }}>
+                      <span>실제 근무일 (평일)</span>
+                      <SortArrow active={leavesSortField === "workday"} asc={leavesSortAsc} />
                     </div>
                   </th>
                   <th 
@@ -2359,8 +2431,9 @@ export default function App() {
                     }}
                     style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
                   >
-                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
-                      최종 식대 한도 {leavesSortField === "limit" && (leavesSortAsc ? "▲" : "▼")}
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', verticalAlign: 'middle', width: '100%' }}>
+                      <span>최종 식대 한도</span>
+                      <SortArrow active={leavesSortField === "limit"} asc={leavesSortAsc} />
                     </div>
                   </th>
                 </tr>
@@ -2541,15 +2614,90 @@ export default function App() {
             </button>
           </div>
 
-          <div className="table-responsive">
-            <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <div className="print-table-wrapper">
+            <table className="print-dashboard-table">
               <thead>
-                <tr style={{ borderBottom: '2px solid #f8f9fa' }}>
-                  <th style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 800, color: '#666' }}>성명</th>
-                  <th style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 800, color: '#666' }}>부서</th>
-                  <th style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 800, color: '#666' }}>이메일</th>
-                  <th style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 800, color: '#666', textAlign: 'center' }}>계정 상태</th>
-                  <th style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 800, color: '#666', textAlign: 'right' }}>어드민 지정</th>
+                <tr>
+                  <th 
+                    onClick={() => {
+                      if (usersSortField === "name") {
+                        setUsersSortAsc(!usersSortAsc);
+                      } else {
+                        setUsersSortField("name");
+                        setUsersSortAsc(true);
+                      }
+                    }}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <div style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}>
+                      <span>성명</span>
+                      <SortArrow active={usersSortField === "name"} asc={usersSortAsc} />
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => {
+                      if (usersSortField === "dept") {
+                        setUsersSortAsc(!usersSortAsc);
+                      } else {
+                        setUsersSortField("dept");
+                        setUsersSortAsc(true);
+                      }
+                    }}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <div style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}>
+                      <span>부서</span>
+                      <SortArrow active={usersSortField === "dept"} asc={usersSortAsc} />
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => {
+                      if (usersSortField === "email") {
+                        setUsersSortAsc(!usersSortAsc);
+                      } else {
+                        setUsersSortField("email");
+                        setUsersSortAsc(true);
+                      }
+                    }}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <div style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}>
+                      <span>이메일</span>
+                      <SortArrow active={usersSortField === "email"} asc={usersSortAsc} />
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => {
+                      if (usersSortField === "status") {
+                        setUsersSortAsc(!usersSortAsc);
+                      } else {
+                        setUsersSortField("status");
+                        setUsersSortAsc(true);
+                      }
+                    }}
+                    style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', verticalAlign: 'middle', width: '100%' }}>
+                      <span>계정 상태</span>
+                      <SortArrow active={usersSortField === "status"} asc={usersSortAsc} />
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => {
+                      if (usersSortField === "admin") {
+                        setUsersSortAsc(!usersSortAsc);
+                      } else {
+                        setUsersSortField("admin");
+                        setUsersSortAsc(true);
+                      }
+                    }}
+                    style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', verticalAlign: 'middle', width: '100%' }}>
+                      <span>어드민 지정</span>
+                      <SortArrow active={usersSortField === "admin"} asc={usersSortAsc} />
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -2937,10 +3085,7 @@ export default function App() {
                         >
                           <div style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}>
                             <span>날짜</span>
-                            <svg width="10" height="12" viewBox="0 0 10 12" style={{ marginLeft: '6px' }}>
-                              <path d="M2 4.5L5 1.5L8 4.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                              <path d="M2 7.5L5 10.5L8 7.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                            </svg>
+                            <SortArrow active={printSortField === "date"} asc={printSortAsc} />
                           </div>
                         </th>
                         <th 
@@ -2957,10 +3102,7 @@ export default function App() {
                         >
                           <div style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}>
                             <span>사용자</span>
-                            <svg width="10" height="12" viewBox="0 0 10 12" style={{ marginLeft: '6px' }}>
-                              <path d="M2 4.5L5 1.5L8 4.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                              <path d="M2 7.5L5 10.5L8 7.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                            </svg>
+                            <SortArrow active={printSortField === "user"} asc={printSortAsc} />
                           </div>
                         </th>
                         <th 
@@ -2977,10 +3119,7 @@ export default function App() {
                         >
                           <div style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}>
                             <span>사용처</span>
-                            <svg width="10" height="12" viewBox="0 0 10 12" style={{ marginLeft: '6px' }}>
-                              <path d="M2 4.5L5 1.5L8 4.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                              <path d="M2 7.5L5 10.5L8 7.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                            </svg>
+                            <SortArrow active={printSortField === "store"} asc={printSortAsc} />
                           </div>
                         </th>
                         <th 
@@ -2997,10 +3136,7 @@ export default function App() {
                         >
                           <div style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}>
                             <span>업종</span>
-                            <svg width="10" height="12" viewBox="0 0 10 12" style={{ marginLeft: '6px' }}>
-                              <path d="M2 4.5L5 1.5L8 4.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                              <path d="M2 7.5L5 10.5L8 7.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                            </svg>
+                            <SortArrow active={printSortField === "category"} asc={printSortAsc} />
                           </div>
                         </th>
                         <th 
@@ -3017,10 +3153,7 @@ export default function App() {
                         >
                           <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%', verticalAlign: 'middle' }}>
                             <span>금액</span>
-                            <svg width="10" height="12" viewBox="0 0 10 12" style={{ marginLeft: '6px' }}>
-                              <path d="M2 4.5L5 1.5L8 4.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                              <path d="M2 7.5L5 10.5L8 7.5" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                            </svg>
+                            <SortArrow active={printSortField === "amount"} asc={printSortAsc} />
                           </div>
                         </th>
                         <th style={{ textAlign: 'center', width: '80px' }}>영수증</th>
