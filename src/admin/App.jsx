@@ -353,6 +353,11 @@ export default function App() {
   const navigateWithConfirm = (nextView) => {
     if (isLeavesDirty || isAdminsDirty) {
       customConfirm("변경 사항이 저장되지 않았습니다. 저장하지 않고 화면을 나가시겠습니까?", () => {
+        // 로컬 변경 상태를 원본 데이터로 롤백(원복)
+        setAnnualLeaves(JSON.parse(JSON.stringify(originalAnnualLeaves)));
+        setLocalAdmins([...adminEmails]);
+        setLocalDeactivated([...deactivatedEmails]);
+
         setCurrentView(nextView);
         setSelectedUser(null);
         setIsReviewPanelOpen(false);
