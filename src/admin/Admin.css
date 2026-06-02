@@ -2024,6 +2024,11 @@ body {
     bottom: 88px !important; /* Lift FABs above mobile bottom navigation bar */
   }
 
+  .custom-screen-wrapper {
+    padding-left: 1.25rem !important;
+    padding-right: 1.25rem !important;
+  }
+
   .admin-container {
     padding-bottom: 84px !important; /* Extra bottom padding for floating feel */
   }
