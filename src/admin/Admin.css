@@ -2043,6 +2043,12 @@ body {
   gap: 12px;
 }
 
+.users-title-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 @media (max-width: 768px) {
   .desktop-only {
     display: none !important;
