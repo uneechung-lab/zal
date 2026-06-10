@@ -2215,7 +2215,7 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
                                 <div>
                                     <h3 style={{ fontSize: 15, fontWeight: 800, color: "#111", margin: "0 0 6px" }}>음료 단독 구매</h3>
                                     <p style={{ fontSize: 13, color: "#666", fontWeight: 600, lineHeight: 1.5, margin: 0 }}>
-                                        커피, 음료 단독 구매 시 식대 미인정 (단, 샌드위치 등 식사 대용 구매 시 영수증 첨부하면 인정)
+                                        커피, 음료 단독 구매 시 식대 미인정 (단, 샌드위치 등 식사 대용 구매 시 상세 영수증 첨부하면 인정)
                                     </p>
                                 </div>
                             </div>
