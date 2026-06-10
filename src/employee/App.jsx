@@ -52,7 +52,7 @@ function validate(d, allowed, existingSubs = []) {
   } else {
     const [h, m] = d.time.split(":").map(Number);
     const tot = h * 60 + m;
-    if (tot < 600 || tot > 840) issues.push(`결제 시간(${d.time})이 정산 허용 시간(10:00~14:00)을 지났습니다.`);
+    if (tot < 630 || tot > 810) issues.push(`결제 시간(${d.time})이 정산 허용 시간(10:30~13:30)을 지났습니다.`);
   }
 
   if (!d.date) {
@@ -2113,7 +2113,7 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
                         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
                             {[
                                 { icon: "📅", t: "지원 일정", d: "평일 근무일 기준 (1일 1회)" },
-                                { icon: "⏰", t: "정산 시간", d: "오전 10:00 ~ 오후 2:00" }
+                                { icon: "⏰", t: "정산 시간", d: "오전 10:30 ~ 오후 1:30" }
                             ].map((item, i) => (
                                 <div key={i} style={{ display: "flex", gap: 20, alignItems: "center" }}>
                                     <div style={{ fontSize: 28 }}>{item.icon}</div>
@@ -2173,7 +2173,7 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
                 </section>
 
                 {/* 섹션: 지급 불가 */}
-                <section style={{ paddingBottom: 40 }}>
+                <section>
                     <div style={{ background: "#fff", borderRadius: 32, padding: "32px", boxShadow: "0 10px 40px rgba(0,0,0,0.03)" }}>
                         <h2 style={{ fontSize: 17, fontWeight: 900, color: "#111", marginBottom: 24 }}>지급 불가 사유</h2>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -2182,7 +2182,10 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
                             { icon: "🚩", t: "공휴일" },
                             { icon: "🏖️", t: "휴가 중" },
                             { icon: "📄", t: "영수증 미비" },
-                            { icon: "🚫", t: "중복 사용" }
+                            { icon: "🚫", t: "중복 사용" },
+                            { icon: "🍺", t: "주류 구매" },
+                            { icon: "🚬", t: "담배 구매" },
+                            { icon: "🧴", t: "생활용품" }
                         ].map((item, i) => (
                             <div key={i} style={{ 
                                 background: "#F9F9F9", 
@@ -2199,6 +2202,49 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
                             </div>
                         ))}
                     </div>
+                    </div>
+                </section>
+
+                {/* 섹션: 식대로 인정되지 않는 사용 사례 */}
+                <section>
+                    <div style={{ background: "#fff", borderRadius: 32, padding: "32px", boxShadow: "0 10px 40px rgba(0,0,0,0.03)" }}>
+                        <h2 style={{ fontSize: 17, fontWeight: 900, color: "#111", marginBottom: 24 }}>■ 식대로 인정되지 않는 사용 사례</h2>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                            <div>
+                                <h3 style={{ fontSize: 15, fontWeight: 800, color: "#e24b4a", margin: "0 0 8px" }}>1. 카페 이용</h3>
+                                <p style={{ fontSize: 14, color: "#666", fontWeight: 600, lineHeight: 1.6, margin: 0 }}>
+                                    커피, 음료 등 음료 구매만을 목적으로 한 사용 건은 식대로 인정하지 않는다.
+                                </p>
+                                <p style={{ fontSize: 13, color: "#e24b4a", fontWeight: 700, lineHeight: 1.5, marginTop: 10, background: "#FFF5F5", padding: "12px 16px", borderRadius: 16 }}>
+                                    💡 단, 샌드위치, 베이글, 샐러드 등 식사 대용 식품을 구매한 경우에는 세부내역이 확인 가능한 영수증 또는 증빙자료 제출 시 식대로 인정할 수 있다.
+                                </p>
+                            </div>
+                            <div style={{ borderTop: "1.5px solid #f9f9f9", paddingTop: 20 }}>
+                                <h3 style={{ fontSize: 15, fontWeight: 800, color: "#e24b4a", margin: "0 0 8px" }}>2. 스토어 등 이용</h3>
+                                <p style={{ fontSize: 14, color: "#666", fontWeight: 600, lineHeight: 1.6, margin: 0 }}>
+                                    당일 식사를 위한 구매가 아닌 다량 구매, 비축 목적 구매 또는 식사와 직접 관련성이 없는 상품 구매건은 식대로 인정하지 않는다.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* 섹션: 유의사항 */}
+                <section style={{ paddingBottom: 40 }}>
+                    <div style={{ background: "#fff", borderRadius: 32, padding: "32px", boxShadow: "0 10px 40px rgba(0,0,0,0.03)" }}>
+                        <h2 style={{ fontSize: 17, fontWeight: 900, color: "#111", marginBottom: 24 }}>■ 유의사항</h2>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                            <div style={{ background: "#fdf8f2", padding: "16px 20px", borderRadius: 20, borderLeft: "4px solid #f0ad4e" }}>
+                                <p style={{ fontSize: 14, color: "#666", fontWeight: 600, lineHeight: 1.6, margin: 0 }}>
+                                    식대는 실제 근무일의 식사 비용 지원을 목적으로 하며, 허위 또는 부정한 방법으로 정산 신청한 경우 회사는 해당 금액의 지급을 취소하거나 환수할 수 있다.
+                                </p>
+                            </div>
+                            <div style={{ background: "#f3f8fd", padding: "16px 20px", borderRadius: 20, borderLeft: "4px solid #5bc0de" }}>
+                                <p style={{ fontSize: 14, color: "#666", fontWeight: 600, lineHeight: 1.6, margin: 0 }}>
+                                    개인카드 사용 후 회사로부터 정산받은 식대는 직원이 실제 부담한 비용이 아니므로, 연말정산 시 카드세액공제 대상에서 제외된다.
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </section>
             </div>

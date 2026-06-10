@@ -88,13 +88,12 @@ function validate(d, allowed, existingSubs = []) {
   const issues = [];
   const isDup = existingSubs.some(s => s.date === d.date && s.id !== d.id);
   if (isDup) issues.push("해당 날짜( " + d.date + " )에 이미 제출된 내역이 있습니다.");
-  // 시간 검사
   if (!d.time || !d.time.includes(":")) {
     issues.push("시간 정보를 확인할 수 없습니다.");
   } else {
     const [h, m] = d.time.split(":").map(Number);
     const tot = h * 60 + m;
-    if (tot < 600 || tot > 840) issues.push(`결제 시간(${d.time})이 정산 허용 시간(10:00~14:00)을 지났습니다.`);
+    if (tot < 630 || tot > 810) issues.push(`결제 시간(${d.time})이 정산 허용 시간(10:30~13:30)을 지났습니다.`);
   }
   // 날짜 검사
   if (!d.date) {
