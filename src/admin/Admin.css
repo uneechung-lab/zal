@@ -2034,6 +2034,12 @@ body {
   gap: 12px;
 }
 
+.leaves-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .users-header-row {
   display: flex;
   justify-content: space-between;
