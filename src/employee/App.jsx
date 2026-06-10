@@ -2208,22 +2208,25 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
                 {/* 섹션: 식대로 인정되지 않는 사용 사례 */}
                 <section>
                     <div style={{ background: "#fff", borderRadius: 32, padding: "32px", boxShadow: "0 10px 40px rgba(0,0,0,0.03)" }}>
-                        <h2 style={{ fontSize: 17, fontWeight: 900, color: "#111", marginBottom: 24 }}>■ 식대로 인정되지 않는 사용 사례</h2>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                            <div>
-                                <h3 style={{ fontSize: 15, fontWeight: 800, color: "#e24b4a", margin: "0 0 8px" }}>1. 카페 이용</h3>
-                                <p style={{ fontSize: 14, color: "#666", fontWeight: 600, lineHeight: 1.6, margin: 0 }}>
-                                    커피, 음료 등 음료 구매만을 목적으로 한 사용 건은 식대로 인정하지 않는다.
-                                </p>
-                                <p style={{ fontSize: 13, color: "#e24b4a", fontWeight: 700, lineHeight: 1.5, marginTop: 10, background: "#FFF5F5", padding: "12px 16px", borderRadius: 16 }}>
-                                    💡 단, 샌드위치, 베이글, 샐러드 등 식사 대용 식품을 구매한 경우에는 세부내역이 확인 가능한 영수증 또는 증빙자료 제출 시 식대로 인정할 수 있다.
-                                </p>
+                        <h2 style={{ fontSize: 17, fontWeight: 900, color: "#111", marginBottom: 24 }}>식대 미인정 사용 사례</h2>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                            <div style={{ background: "#F9F9F9", borderRadius: 20, padding: "20px", display: "flex", gap: 16 }}>
+                                <span style={{ fontSize: 24, flexShrink: 0 }}>☕</span>
+                                <div>
+                                    <h3 style={{ fontSize: 15, fontWeight: 800, color: "#111", margin: "0 0 6px" }}>음료 단독 구매</h3>
+                                    <p style={{ fontSize: 13, color: "#666", fontWeight: 600, lineHeight: 1.5, margin: 0 }}>
+                                        커피, 음료 단독 구매 시 식대 미인정 (단, 샌드위치 등 식사 대용 구매 시 영수증 첨부하면 인정)
+                                    </p>
+                                </div>
                             </div>
-                            <div style={{ borderTop: "1.5px solid #f9f9f9", paddingTop: 20 }}>
-                                <h3 style={{ fontSize: 15, fontWeight: 800, color: "#e24b4a", margin: "0 0 8px" }}>2. 스토어 등 이용</h3>
-                                <p style={{ fontSize: 14, color: "#666", fontWeight: 600, lineHeight: 1.6, margin: 0 }}>
-                                    당일 식사를 위한 구매가 아닌 다량 구매, 비축 목적 구매 또는 식사와 직접 관련성이 없는 상품 구매건은 식대로 인정하지 않는다.
-                                </p>
+                            <div style={{ background: "#F9F9F9", borderRadius: 20, padding: "20px", display: "flex", gap: 16 }}>
+                                <span style={{ fontSize: 24, flexShrink: 0 }}>🛒</span>
+                                <div>
+                                    <h3 style={{ fontSize: 15, fontWeight: 800, color: "#111", margin: "0 0 6px" }}>비축성 다량 구매</h3>
+                                    <p style={{ fontSize: 13, color: "#666", fontWeight: 600, lineHeight: 1.5, margin: 0 }}>
+                                        식사와 직접 관련이 없는 마트/스토어의 대량 및 비축 목적 구매 건은 식대 미인정
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2232,17 +2235,25 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
                 {/* 섹션: 유의사항 */}
                 <section style={{ paddingBottom: 40 }}>
                     <div style={{ background: "#fff", borderRadius: 32, padding: "32px", boxShadow: "0 10px 40px rgba(0,0,0,0.03)" }}>
-                        <h2 style={{ fontSize: 17, fontWeight: 900, color: "#111", marginBottom: 24 }}>■ 유의사항</h2>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                            <div style={{ background: "#fdf8f2", padding: "16px 20px", borderRadius: 20, borderLeft: "4px solid #f0ad4e" }}>
-                                <p style={{ fontSize: 14, color: "#666", fontWeight: 600, lineHeight: 1.6, margin: 0 }}>
-                                    식대는 실제 근무일의 식사 비용 지원을 목적으로 하며, 허위 또는 부정한 방법으로 정산 신청한 경우 회사는 해당 금액의 지급을 취소하거나 환수할 수 있다.
-                                </p>
+                        <h2 style={{ fontSize: 17, fontWeight: 900, color: "#111", marginBottom: 24 }}>유의사항</h2>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                            <div style={{ background: "#FFFBF0", borderRadius: 20, padding: "20px", display: "flex", gap: 16, border: "1.5px solid #FFEAB2" }}>
+                                <span style={{ fontSize: 24, flexShrink: 0 }}>⚠️</span>
+                                <div>
+                                    <h3 style={{ fontSize: 15, fontWeight: 800, color: "#B87020", margin: "0 0 6px" }}>부정 청구 시 환수</h3>
+                                    <p style={{ fontSize: 13, color: "#B87020", fontWeight: 600, lineHeight: 1.5, margin: 0 }}>
+                                        실제 근무일 식사비가 아니거나 허위/부정한 방법으로 정산 신청 시 지급 취소 및 환수 조치
+                                    </p>
+                                </div>
                             </div>
-                            <div style={{ background: "#f3f8fd", padding: "16px 20px", borderRadius: 20, borderLeft: "4px solid #5bc0de" }}>
-                                <p style={{ fontSize: 14, color: "#666", fontWeight: 600, lineHeight: 1.6, margin: 0 }}>
-                                    개인카드 사용 후 회사로부터 정산받은 식대는 직원이 실제 부담한 비용이 아니므로, 연말정산 시 카드세액공제 대상에서 제외된다.
-                                </p>
+                            <div style={{ background: "#F4F7FB", borderRadius: 20, padding: "20px", display: "flex", gap: 16, border: "1.5px solid #E1E8F5" }}>
+                                <span style={{ fontSize: 24, flexShrink: 0 }}>💳</span>
+                                <div>
+                                    <h3 style={{ fontSize: 15, fontWeight: 800, color: "#3B5998", margin: "0 0 6px" }}>연말정산 소득공제 제외</h3>
+                                    <p style={{ fontSize: 13, color: "#556E9B", fontWeight: 600, lineHeight: 1.5, margin: 0 }}>
+                                        회사로부터 정산받은 식대는 본인이 부담한 비용이 아니므로 카드 소득공제 대상에서 제외
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
