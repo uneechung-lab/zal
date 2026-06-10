@@ -981,15 +981,6 @@ export default function App() {
   const handleFile = async e => {
     const f = e.target.files[0]; if (!f) return;
 
-    // 오늘이 공휴일/주말인지 체크 (업로드 액션 자체를 차단)
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const dow = now.getDay();
-    if (dow === 0 || dow === 6 || HOLIDAYS.includes(todayStr)) {
-      setModal("holiday_error");
-      return;
-    }
-
     setFile(f);
     processFile(f);
   };

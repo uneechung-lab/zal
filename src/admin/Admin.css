@@ -1271,7 +1271,7 @@ body {
   padding: 0 1.5rem;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 /* Detailed Request View Styles (Matching Employee App) */
