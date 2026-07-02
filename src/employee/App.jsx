@@ -23,11 +23,36 @@ const HOLIDAYS = [
   "2026-05-01", "2026-05-05", "2026-05-25",
   "2026-06-03",
   "2026-06-06",
+  "2026-07-17",
   "2026-08-15", "2026-08-17",
   "2026-09-24", "2026-09-25", "2026-09-26",
   "2026-10-01", "2026-10-03", "2026-10-05", "2026-10-09",
   "2026-12-25"
 ];
+
+const HOLIDAY_NAMES = {
+  "2026-01-01": "신정",
+  "2026-02-16": "설날 연휴",
+  "2026-02-17": "설날",
+  "2026-02-18": "설날 연휴",
+  "2026-03-02": "삼일절 대체공휴일",
+  "2026-05-01": "근로자의 날",
+  "2026-05-05": "어린이날",
+  "2026-05-25": "부처님오신날 대체공휴일",
+  "2026-06-03": "지방선거일",
+  "2026-06-06": "현충일",
+  "2026-07-17": "제헌절",
+  "2026-08-15": "광복절",
+  "2026-08-17": "광복절 대체공휴일",
+  "2026-09-24": "추석 연휴",
+  "2026-09-25": "추석",
+  "2026-09-26": "추석 연휴",
+  "2026-10-01": "임시공휴일",
+  "2026-10-03": "개천절",
+  "2026-10-05": "개천절 대체공휴일",
+  "2026-10-09": "한글날",
+  "2026-12-25": "성탄절"
+};
 
 async function fetchCategories() {
   try {
@@ -1861,6 +1886,13 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
       return parseInt(p[0]) === myYear && parseInt(p[1]) === myMonth && (s.status === "승인완료" || s.status === "승인대기");
     });
     const baseMyWeekdays = getMonthWeekdays(myYear, myMonth);
+    const myMonthHolidays = HOLIDAYS.filter(h => {
+      const p = h.split("-");
+      if (parseInt(p[0]) !== myYear || parseInt(p[1]) !== myMonth) return false;
+      const d = new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
+      const day = d.getDay();
+      return day !== 0 && day !== 6;
+    });
     const myLeaveKey = `${myYear}.${String(myMonth).padStart(2, '0')}`;
     const myUserLeaves = annualLeaves[user?.full_name]?.[myLeaveKey] || 0;
     const myLimit = Math.max(0, baseMyWeekdays - myUserLeaves) * 10000;
@@ -2034,6 +2066,21 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span>연차</span>
                     <span style={{ color: "#111", fontSize: 14, fontWeight: 900 }}>{myUserLeaves || 0}일</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>공휴일</span>
+                    <span style={{ color: "#111", fontSize: 14, fontWeight: 900 }}>
+                      {myMonthHolidays.length > 0 && (
+                        <span style={{ fontSize: "11px", color: "#888", fontWeight: 500, marginRight: 6 }}>
+                          ({myMonthHolidays.map(h => {
+                            const dateNum = parseInt(h.split("-")[2]);
+                            const name = HOLIDAY_NAMES[h] || "공휴일";
+                            return `${dateNum}일 ${name}`;
+                          }).join(", ")})
+                        </span>
+                      )}
+                      {myMonthHolidays.length}일
+                    </span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span>실제 근무일</span>
