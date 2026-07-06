@@ -105,14 +105,19 @@ function validate(d, allowed, existingSubs = []) {
   }
   // 업종 및 상점명 검사
   const catMatch = allowed.some(t => {
-    // 상점명 매칭
+    // 상점명 매칭 (공백 제거 후 비교)
     const actualStore = (d.store_name || d.storeName || d.store || d.desc || "").trim();
-    if (actualStore && t.trim() && (actualStore.includes(t.trim()) || t.trim().includes(actualStore))) {
+    const cleanStore = actualStore.replace(/\s+/g, "");
+    const cleanT = t.trim().replace(/\s+/g, "");
+    if (cleanStore && cleanT && (cleanStore.includes(cleanT) || cleanT.includes(cleanStore))) {
       return true;
     }
     // 카테고리 매칭
     const cStr = (d.category || "").split(/[\/,·\s]/);
-    return cStr.some(c => c.trim() && (c.trim().includes(t) || t.includes(c.trim())));
+    return cStr.some(c => {
+      const cleanC = c.trim().replace(/\s+/g, "");
+      return cleanC && cleanT && (cleanC.includes(cleanT) || cleanT.includes(cleanC));
+    });
   });
   if (!catMatch) issues.push("지원 업종이 아닙니다. (업종: " + (d.category || "미확인") + ")");
   // 금액 검사
