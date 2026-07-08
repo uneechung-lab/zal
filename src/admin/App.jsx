@@ -1713,6 +1713,14 @@ export default function App() {
     return { total, pendingSpentTotal, pendingTotal, pendingPeople, unreadTotal, approvedPeople, activePeople, totalPeople };
   }, [rawSettlements, selectedMonth, monthlyUsers]);
 
+  const printFilteredUsersTotal = useMemo(() => {
+    if (!printSearchEmployee.trim()) return totals?.total || 0;
+    const query = printSearchEmployee.toLowerCase().trim();
+    return monthlyUsers
+      .filter(u => u.name && u.name.toLowerCase().includes(query))
+      .reduce((acc, u) => acc + Math.min(u.approvedSpent, u.monthWeekdays * 10000), 0);
+  }, [monthlyUsers, printSearchEmployee, totals]);
+
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -4407,7 +4415,11 @@ export default function App() {
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end' }}>
             <span style={{ fontSize: '16px', fontWeight: 900, border: '1.5px solid #000', padding: '6px 12px', borderRadius: '6px', background: '#fcfcfc' }}>
-              {selectedMonthNum}월 총 입금 금액: ₩{(totals?.total || 0).toLocaleString()}
+              {printSearchEmployee.trim() ? (
+                `[${printSearchEmployee.trim()}] ${selectedMonthNum}월 입금 금액: ₩${printFilteredUsersTotal.toLocaleString()}`
+              ) : (
+                `${selectedMonthNum}월 총 입금 금액: ₩${(totals?.total || 0).toLocaleString()}`
+              )}
             </span>
           </div>
         </div>
