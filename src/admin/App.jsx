@@ -1246,6 +1246,25 @@ export default function App() {
     return ["전체", ...Array.from(depts)];
   }, [allProfiles]);
 
+  const printFilteredEmployees = useMemo(() => {
+    const deactivatedLower = deactivatedEmails.map(e => (e || "").toLowerCase());
+    const hiddenLower = hiddenEmails.map(e => (e || "").toLowerCase());
+    
+    return allProfiles
+      .filter(p => {
+        const email = (p.email || "").toLowerCase();
+        if (deactivatedLower.includes(email) || hiddenLower.includes(email)) return false;
+        
+        if (printSelectedDept !== "전체") {
+          return p.department === printSelectedDept;
+        }
+        return true;
+      })
+      .map(p => p.full_name || p.name)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, 'ko'));
+  }, [allProfiles, printSelectedDept, deactivatedEmails, hiddenEmails]);
+
   const approvedSettlementsForMonth = useMemo(() => {
     const hiddenEmailsLower = hiddenEmails.map(e => (e || "").toLowerCase());
     const hiddenNamesSet = new Set(allProfiles.filter(p => hiddenEmailsLower.includes((p.email || "").toLowerCase())).map(p => p.full_name || p.name));
@@ -3400,6 +3419,35 @@ export default function App() {
                 카드뷰
               </button>
             </div>
+          </div>
+
+          {/* 직원 이름 선택 칩 목록 */}
+          <div className="employee-chips-row" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '1.5rem', background: '#fafafa', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #f0f0f0', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#666', display: 'flex', alignItems: 'center', marginRight: '8px' }}>직원 필터:</span>
+            {printFilteredEmployees.length === 0 ? (
+              <span style={{ fontSize: '0.85rem', color: '#999' }}>해당 부서에 직원이 없습니다.</span>
+            ) : (
+              printFilteredEmployees.map(name => {
+                const isActive = printSearchEmployee.trim().toLowerCase() === name.toLowerCase();
+                return (
+                  <button
+                    key={name}
+                    className={`filter-chip ${isActive ? 'active' : ''}`}
+                    onClick={() => setPrintSearchEmployee(isActive ? "" : name)}
+                    style={{ 
+                      padding: '4px 12px', 
+                      fontSize: '0.8rem', 
+                      fontWeight: isActive ? 800 : 600,
+                      borderRadius: '20px',
+                      height: 'auto',
+                      margin: 0
+                    }}
+                  >
+                    {name}
+                  </button>
+                );
+              })
+            )}
           </div>
 
           <div className="print-dashboard-layout">
