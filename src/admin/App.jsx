@@ -3280,7 +3280,7 @@ export default function App() {
           </div>
 
           {/* New Row: Filter and View Mode Switcher */}
-          <div className="print-filter-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div className="print-filter-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '1rem' }}>
             {/* Left: Filter area */}
             <div className="filter-area" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
               {/* Department Selection */}
@@ -3422,8 +3422,7 @@ export default function App() {
           </div>
 
           {/* 직원 이름 선택 칩 목록 */}
-          <div className="employee-chips-row" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '1.5rem', background: '#fafafa', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #f0f0f0', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#666', display: 'flex', alignItems: 'center', marginRight: '8px' }}>직원 필터:</span>
+          <div className="employee-chips-row" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '1rem', background: '#fafafa', padding: '8px 12px', borderRadius: '12px', border: '1.5px solid #f0f0f0', alignItems: 'center' }}>
             {printFilteredEmployees.length === 0 ? (
               <span style={{ fontSize: '0.85rem', color: '#999' }}>해당 부서에 직원이 없습니다.</span>
             ) : (
