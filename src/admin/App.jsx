@@ -1331,9 +1331,9 @@ export default function App() {
       }
       if (p.email === 'admin@daumit.net') return false;
 
-      // 비활성 사용자 제외 필터
+      // 비활성 사용자 제외 필터 (저장된 DB 기준)
       if (showActiveOnly) {
-        const isDeactivated = localDeactivated.map(e => (e || "").toLowerCase()).includes((p.email || "").toLowerCase());
+        const isDeactivated = deactivatedEmails.map(e => (e || "").toLowerCase()).includes((p.email || "").toLowerCase());
         if (isDeactivated) return false;
       }
 
@@ -3149,9 +3149,10 @@ export default function App() {
                   </tr>
                 ) : (
                   filteredAdminsProfiles.map((p, idx) => {
-                    const isUserAdmin = localAdmins.includes(p.email);
-                    const isUserDeactivated = localDeactivated.includes(p.email);
-                    const isUserHidden = localHidden.includes(p.email);
+                    const targetEmailLower = (p.email || "").trim().toLowerCase();
+                    const isUserAdmin = localAdmins.map(e => (e || "").trim().toLowerCase()).includes(targetEmailLower);
+                    const isUserDeactivated = localDeactivated.map(e => (e || "").trim().toLowerCase()).includes(targetEmailLower);
+                    const isUserHidden = localHidden.map(e => (e || "").trim().toLowerCase()).includes(targetEmailLower);
                     return (
                       <tr 
                         key={p.id} 
@@ -3186,15 +3187,16 @@ export default function App() {
                           <StatusSelect
                             value={isUserHidden ? 'hidden' : (isUserDeactivated ? 'inactive' : 'active')}
                             onChange={(val) => {
+                              const targetEmail = (p.email || "").trim().toLowerCase();
                               if (val === 'active') {
-                                setLocalDeactivated(prev => prev.filter(email => email !== p.email));
-                                setLocalHidden(prev => prev.filter(email => email !== p.email));
+                                setLocalDeactivated(prev => prev.filter(email => (email || "").trim().toLowerCase() !== targetEmail));
+                                setLocalHidden(prev => prev.filter(email => (email || "").trim().toLowerCase() !== targetEmail));
                               } else if (val === 'inactive') {
-                                setLocalDeactivated(prev => [...prev.filter(email => email !== p.email), p.email]);
-                                setLocalHidden(prev => prev.filter(email => email !== p.email));
+                                setLocalDeactivated(prev => [...prev.filter(email => (email || "").trim().toLowerCase() !== targetEmail), p.email]);
+                                setLocalHidden(prev => prev.filter(email => (email || "").trim().toLowerCase() !== targetEmail));
                               } else if (val === 'hidden') {
-                                setLocalDeactivated(prev => prev.filter(email => email !== p.email));
-                                setLocalHidden(prev => [...prev.filter(email => email !== p.email), p.email]);
+                                setLocalDeactivated(prev => prev.filter(email => (email || "").trim().toLowerCase() !== targetEmail));
+                                setLocalHidden(prev => [...prev.filter(email => (email || "").trim().toLowerCase() !== targetEmail), p.email]);
                               }
                             }}
                           />
