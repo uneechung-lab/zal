@@ -3848,9 +3848,19 @@ export default function App() {
                 </span>
               </div>
               <div className="summary-sidebar-stat-row" style={{ borderTop: '1.5px solid #eee', paddingTop: '16px', marginTop: '4px' }}>
-                <span className="summary-sidebar-label" style={{ color: '#000', fontSize: '0.95rem', fontWeight: 800 }}>{selectedMonthNum}월 총 입금 금액</span>
+                <span className="summary-sidebar-label" style={{ color: '#000', fontSize: '0.95rem', fontWeight: 800 }}>
+                  {printSearchEmployee.trim() ? (
+                    `[${printSearchEmployee.trim()}] ${selectedMonthNum}월 입금 금액`
+                  ) : (
+                    `${selectedMonthNum}월 총 입금 금액`
+                  )}
+                </span>
                 <span className="summary-sidebar-value" style={{ fontSize: '1.35rem', fontWeight: 950, color: '#111' }}>
-                  ₩{(totals?.total || 0).toLocaleString()}
+                  ₩{printSearchEmployee.trim() ? (
+                    printFilteredUsersTotal.toLocaleString()
+                  ) : (
+                    (totals?.total || 0).toLocaleString()
+                  )}
                 </span>
               </div>
               {/* 인쇄하기 (블랙 버튼) */}
