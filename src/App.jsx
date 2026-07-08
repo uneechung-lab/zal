@@ -64,8 +64,27 @@ function App() {
 
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      // If there's a session, redirect to the employee app
       if (session) {
+        const { data: sData } = await supabase
+          .from('settlements')
+          .select('*')
+          .eq('user_name', '__SYSTEM_DEACTIVATED_USERS__')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (sData && sData.length > 0) {
+          try {
+            const deactivatedList = JSON.parse(sData[0].exc_text || '[]');
+            if (deactivatedList.map(e => (e || "").toLowerCase()).includes(session.user.email.toLowerCase())) {
+              await supabase.auth.signOut();
+              triggerAlert("비활성화된 계정입니다.\n관리자에게 문의해 주세요.");
+              setCheckingSession(false);
+              return;
+            }
+          } catch(e) {
+            console.error(e);
+          }
+        }
         window.location.href = '/employee.html';
       } else {
         setCheckingSession(false);
@@ -113,7 +132,7 @@ function App() {
       if (sData && sData.length > 0) {
         try {
           const deactivatedList = JSON.parse(sData[0].exc_text || '[]');
-          if (deactivatedList.includes(`${userId}@daumit.net`)) {
+          if (deactivatedList.map(e => (e || "").toLowerCase()).includes(`${userId}@daumit.net`.toLowerCase())) {
             await supabase.auth.signOut();
             triggerAlert("비활성화된 계정입니다.\n관리자에게 문의해 주세요.");
             setIsLoading(false);
