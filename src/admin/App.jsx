@@ -1246,6 +1246,26 @@ export default function App() {
     return ["전체", ...Array.from(depts)];
   }, [allProfiles]);
 
+  const printDeptMemberCounts = useMemo(() => {
+    const deactivatedLower = deactivatedEmails.map(e => (e || "").toLowerCase());
+    const hiddenLower = hiddenEmails.map(e => (e || "").toLowerCase());
+    
+    const counts = {};
+    let totalCount = 0;
+    
+    allProfiles.forEach(p => {
+      const email = (p.email || "").toLowerCase();
+      if (deactivatedLower.includes(email) || hiddenLower.includes(email)) return;
+      if (p.department === "어드민") return;
+      
+      const dept = p.department || "기타";
+      counts[dept] = (counts[dept] || 0) + 1;
+      totalCount += 1;
+    });
+    
+    return { ...counts, "전체": totalCount };
+  }, [allProfiles, deactivatedEmails, hiddenEmails]);
+
   const printFilteredEmployees = useMemo(() => {
     const deactivatedLower = deactivatedEmails.map(e => (e || "").toLowerCase());
     const hiddenLower = hiddenEmails.map(e => (e || "").toLowerCase());
@@ -1254,6 +1274,7 @@ export default function App() {
       .filter(p => {
         const email = (p.email || "").toLowerCase();
         if (deactivatedLower.includes(email) || hiddenLower.includes(email)) return false;
+        if (p.department === "어드민") return false;
         
         if (printSelectedDept !== "전체") {
           return p.department === printSelectedDept;
@@ -3293,7 +3314,7 @@ export default function App() {
                       onClick={() => setPrintSelectedDept(dept)}
                       style={{ margin: 0 }}
                     >
-                      {dept}
+                      {dept} ({printDeptMemberCounts[dept] || 0})
                     </button>
                   ))}
                 </div>
