@@ -104,9 +104,13 @@ function validate(d, allowed, existingSubs = []) {
     if (dow === 0 || dow === 6 || HOLIDAYS.includes(d.date)) issues.push("주말/공휴일 사용은 지원되지 않습니다.");
   }
   // 업종 및 상점명 검사
+  const actualStore = (d.store_name || d.storeName || d.store || d.desc || "").trim();
+  if (!actualStore || actualStore === "상호명 없음") {
+    issues.push("상호명 정보를 확인할 수 없습니다.");
+  }
+
   const catMatch = allowed.some(t => {
     // 상점명 매칭 (공백 제거 후 비교)
-    const actualStore = (d.store_name || d.storeName || d.store || d.desc || "").trim();
     const cleanStore = actualStore.replace(/\s+/g, "");
     const cleanT = t.trim().replace(/\s+/g, "");
     if (cleanStore && cleanT && (cleanStore.includes(cleanT) || cleanT.includes(cleanStore))) {
