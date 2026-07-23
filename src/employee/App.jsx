@@ -520,6 +520,7 @@ export default function App() {
   const [excType, setExcType] = useState("");
   const [excText, setExcText] = useState("");
   const [allowed, setAllowed] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const getInitialWeek = () => {
     const now = new Date();
@@ -821,40 +822,45 @@ export default function App() {
   };
 
   const submit = async (isEx = false, data = ocr) => {
-    // 중복 교체 건이 있으면 먼저 확실히 삭제
-    if (duplicateId) {
-      try {
-        const { error } = await supabase
-          .from('settlements')
-          .delete()
-          .eq('id', duplicateId);
-        
-        if (error) {
-          console.error("Duplicate Delete Error:", error);
-          alert("이전 영수증 삭제 중 오류가 발생했습니다.");
-          return; // 삭제 실패 시 중단
-        }
-        setDuplicateId(null);
-      } catch (e) {
-        console.error("Duplicate Delete Error:", e);
-        return;
-      }
-    }
-
-    const finalStatus = isEx ? "예외요청" : "승인완료";
-    const payload = {
-      store_name: data.storeName || data.store_name,
-      date: data.date,
-      time: data.time,
-      amount: data.amount,
-      category: data.category,
-      status: finalStatus,
-      exc_text: isEx ? excText : null,
-      image_url: data.image_url || preview,
-      user_name: user?.full_name || "익명"
-    };
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
     try {
+      // 중복 교체 건이 있으면 먼저 확실히 삭제
+      if (duplicateId) {
+        try {
+          const { error } = await supabase
+            .from('settlements')
+            .delete()
+            .eq('id', duplicateId);
+          
+          if (error) {
+            console.error("Duplicate Delete Error:", error);
+            alert("이전 영수증 삭제 중 오류가 발생했습니다.");
+            setIsSubmitting(false);
+            return; // 삭제 실패 시 중단
+          }
+          setDuplicateId(null);
+        } catch (e) {
+          console.error("Duplicate Delete Error:", e);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      const finalStatus = isEx ? "예외요청" : "승인완료";
+      const payload = {
+        store_name: data.storeName || data.store_name,
+        date: data.date,
+        time: data.time,
+        amount: data.amount,
+        category: data.category,
+        status: finalStatus,
+        exc_text: isEx ? excText : null,
+        image_url: data.image_url || preview,
+        user_name: user?.full_name || "익명"
+      };
+
       await fetch(`${SUPABASE_URL}/rest/v1/settlements`, {
         method: "POST",
         headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
@@ -895,6 +901,8 @@ export default function App() {
     } catch (e) { 
       alert("연동 실패"); 
       setModal(null);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1698,7 +1706,7 @@ export default function App() {
     await supabase.from('settlements').update({ reject_reason: newLogsStr }).eq('id', currentId);
   }
 
-  const AppResult = () => {
+  const AppResult = ({ isSubmitting }) => {
     const hasIssues = issues.length > 0;
     
     return (
@@ -1764,14 +1772,14 @@ export default function App() {
               setStep("exception");
             }} style={{ flex: 2, padding: "18px", borderRadius: 16, border: "none", background: "#E24B4A", color: "#fff", fontWeight: 800, fontSize: 16 }}>예외 요청하기</button>
           ) : (
-            <button onClick={() => { submit(false); }} style={{ flex: 2, padding: "18px", borderRadius: 16, border: "none", background: "#000", color: "#fff", fontWeight: 800, fontSize: 16 }}>정산 요청하기</button>
+            <button disabled={isSubmitting} onClick={() => { submit(false); }} style={{ flex: 2, padding: "18px", borderRadius: 16, border: "none", background: isSubmitting ? "#9CA3AF" : "#000", color: "#fff", fontWeight: 800, fontSize: 16, cursor: isSubmitting ? "not-allowed" : "pointer" }}>{isSubmitting ? "처리 중..." : "정산 요청하기"}</button>
           )}
         </div>
       </div>
     );
   };
 
-function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
+function AppException({ issues, ocr, setStep, excText, setExcText, submit, isSubmitting }) {
   const mainIssue = issues[0] || "";
   let summary = "예외 정산 신청 건";
   if (mainIssue.includes("시간")) summary = `[시간 외 사용] ${ocr?.time} 결제 건`;
@@ -1813,17 +1821,18 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "40px 28px 40px", background: "linear-gradient(to top, #FFFBF0 70%, transparent)", zIndex: 9999 }}>
         <button 
           onClick={() => { submit(true); }} 
-          disabled={!excText.trim()} 
+          disabled={isSubmitting || !excText.trim()} 
           style={{ 
             width: "100%", padding: "20px", borderRadius: 16, border: "none", 
-            background: !excText.trim() ? "#E5E7EB" : "#000", 
-            color: !excText.trim() ? "#9CA3AF" : "#fff", 
+            background: (isSubmitting || !excText.trim()) ? "#E5E7EB" : "#000", 
+            color: (isSubmitting || !excText.trim()) ? "#9CA3AF" : "#fff", 
             fontWeight: 800, fontSize: 17, 
             boxShadow: "none",
-            transition: "0.2s"
+            transition: "0.2s",
+            cursor: (isSubmitting || !excText.trim()) ? "not-allowed" : "pointer"
           }}
         >
-          예외 신청하기
+          {isSubmitting ? "신청 중..." : "예외 신청하기"}
         </button>
       </div>
     </div>
@@ -2393,6 +2402,7 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
       setStep={setStep} 
       submit={submit} 
       fileRef={fileRef} 
+      isSubmitting={isSubmitting}
     />, 
     exception: AppException({
       issues: issues, 
@@ -2400,7 +2410,8 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit }) {
       setStep: setStep, 
       excText: excText, 
       setExcText: setExcText, 
-      submit: submit 
+      submit: submit,
+      isSubmitting: isSubmitting
     }), 
     menu: <AppMenu 
       step={step} 
