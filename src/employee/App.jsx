@@ -758,10 +758,10 @@ export default function App() {
         }
       }
 
-      const { data: prof } = await supabase.from('profiles').select('department').eq('email', session.user.email).single();
+      const { data: prof } = await supabase.from('profiles').select('full_name, department').eq('email', session.user.email).single();
       setUser({
         email: session.user.email,
-        full_name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+        full_name: prof?.full_name || session.user.user_metadata?.full_name || session.user.email.split('@')[0],
         department: prof?.department || "소속 없음"
       });
     } else {
@@ -823,6 +823,12 @@ export default function App() {
 
   const submit = async (isEx = false, data = ocr) => {
     if (isSubmitting) return;
+
+    if (!user || !user.full_name || user.full_name.trim() === "" || user.full_name === "익명") {
+      alert("로그인 사용자 정보를 불러올 수 없습니다.\n페이지를 새로고침하거나 다시 로그인해 주세요.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -858,7 +864,7 @@ export default function App() {
         status: finalStatus,
         exc_text: isEx ? excText : null,
         image_url: data.image_url || preview,
-        user_name: user?.full_name || "익명"
+        user_name: user.full_name
       };
 
       await fetch(`${SUPABASE_URL}/rest/v1/settlements`, {
@@ -1043,6 +1049,12 @@ export default function App() {
 
   const handleFile = async e => {
     const f = e.target.files[0]; if (!f) return;
+
+    if (!user || !user.full_name || user.full_name.trim() === "" || user.full_name === "익명") {
+      alert("로그인 사용자 정보를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+      if (e.target) e.target.value = "";
+      return;
+    }
 
     setFile(f);
     processFile(f);

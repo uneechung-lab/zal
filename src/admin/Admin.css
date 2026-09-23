@@ -804,7 +804,7 @@ body {
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(4px);
-  z-index: 100;
+  z-index: 2000;
   display: flex;
   justify-content: flex-end;
 }
@@ -2062,6 +2062,15 @@ body {
 
   .FeedbackSystem-trigger-container {
     bottom: 88px !important; /* Lift FABs above mobile bottom navigation bar */
+    z-index: 950 !important;
+  }
+
+  .side-panel {
+    max-width: 100% !important;
+  }
+
+  .panel-footer-fixed {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 1.5rem)) !important;
   }
 
   .custom-screen-wrapper {
