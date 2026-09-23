@@ -2065,10 +2065,6 @@ body {
     z-index: 950 !important;
   }
 
-  .side-panel {
-    max-width: 100% !important;
-  }
-
   .panel-footer-fixed {
     padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 1.5rem)) !important;
   }
