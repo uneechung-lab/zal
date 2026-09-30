@@ -110,16 +110,22 @@ function validate(d, allowed, existingSubs = []) {
   }
 
   const catMatch = allowed.some(t => {
-    // 상점명 매칭 (공백 제거 후 비교)
-    const cleanStore = actualStore.replace(/\s+/g, "");
-    const cleanT = t.trim().replace(/\s+/g, "");
+    // 상점명 매칭 (공백 제거 및 대소문자 통일 후 비교)
+    const cleanStore = actualStore.replace(/\s+/g, "").toLowerCase();
+    const cleanT = t.trim().replace(/\s+/g, "").toLowerCase();
     if (cleanStore && cleanT && (cleanStore.includes(cleanT) || cleanT.includes(cleanStore))) {
+      return true;
+    }
+    // 법인/사업자 표기((주), 주식회사 등) 정규화 후 매칭
+    const normStore = cleanStore.replace(/\(주\)|주식회사|\(유\)|유한회사|\(재\)|재단법인|\(사\)|사단법인/gi, "");
+    const normT = cleanT.replace(/\(주\)|주식회사|\(유\)|유한회사|\(재\)|재단법인|\(사\)|사단법인/gi, "");
+    if (normStore && normT && (normStore.includes(normT) || normT.includes(normStore))) {
       return true;
     }
     // 카테고리 매칭
     const cStr = (d.category || "").split(/[\/,·\s]/);
     return cStr.some(c => {
-      const cleanC = c.trim().replace(/\s+/g, "");
+      const cleanC = c.trim().replace(/\s+/g, "").toLowerCase();
       return cleanC && cleanT && (cleanC.includes(cleanT) || cleanT.includes(cleanC));
     });
   });
@@ -2209,7 +2215,8 @@ export default function App() {
                             date: currentReview.item.date.split(' ')[0], 
                             time: currentReview.item.time,
                             category: currentReview.item.category,
-                            amount: currentReview.item.amount
+                            amount: currentReview.item.amount,
+                            store_name: currentReview.item.desc || currentReview.item.store_name || currentReview.item.store
                           };
                           const issues = validate(dObj, allowedCategories, rawSettlements);
                           const filteredIssues = issues.filter(iss => !iss.includes("이미 제출된 내역"));
@@ -4321,7 +4328,8 @@ export default function App() {
                               date: selectedHistoryItem.date.split(' ')[0], 
                               time: selectedHistoryItem.time || selectedHistoryItem.date.split(' ')[1],
                               category: selectedHistoryItem.category,
-                              amount: selectedHistoryItem.amount
+                              amount: selectedHistoryItem.amount,
+                              store_name: selectedHistoryItem.desc || selectedHistoryItem.store_name || selectedHistoryItem.store
                             };
                             const issues = validate(dObj, allowedCategories, rawSettlements);
                             const filteredIssues = issues.filter(iss => !iss.includes("이미 제출된 내역"));
