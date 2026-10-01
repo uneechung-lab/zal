@@ -16,42 +16,25 @@ supabase.auth.onAuthStateChange((event, session) => {
   }
 });
 
-const HOLIDAYS = [
-  "2026-01-01",
-  "2026-02-16", "2026-02-17", "2026-02-18",
-  "2026-03-02",
-  "2026-05-01", "2026-05-05", "2026-05-25",
-  "2026-06-03",
-  "2026-06-06",
-  "2026-07-17",
-  "2026-08-15", "2026-08-17",
-  "2026-09-24", "2026-09-25", "2026-09-26",
-  "2026-10-03", "2026-10-05", "2026-10-09",
-  "2026-12-25"
-];
+import {
+  fetchHolidays,
+  isHoliday,
+  getHolidayName,
+  getAllHolidays,
+  getMonthWeekdays,
+  getMonthHolidays
+} from "../holidays";
 
-const HOLIDAY_NAMES = {
-  "2026-01-01": "신정",
-  "2026-02-16": "설날 연휴",
-  "2026-02-17": "설날",
-  "2026-02-18": "설날 연휴",
-  "2026-03-02": "삼일절 대체공휴일",
-  "2026-05-01": "근로자의 날",
-  "2026-05-05": "어린이날",
-  "2026-05-25": "부처님오신날 대체공휴일",
-  "2026-06-03": "지방선거일",
-  "2026-06-06": "현충일",
-  "2026-07-17": "제헌절",
-  "2026-08-15": "광복절",
-  "2026-08-17": "광복절 대체공휴일",
-  "2026-09-24": "추석 연휴",
-  "2026-09-25": "추석",
-  "2026-09-26": "추석 연휴",
-  "2026-10-03": "개천절",
-  "2026-10-05": "개천절 대체공휴일",
-  "2026-10-09": "한글날",
-  "2026-12-25": "성탄절"
+const HOLIDAYS = {
+  includes: (dateStr) => isHoliday(dateStr),
+  filter: (fn) => getAllHolidays().filter(fn),
+  map: (fn) => getAllHolidays().map(fn),
+  get length() { return getAllHolidays().length; }
 };
+
+const HOLIDAY_NAMES = new Proxy({}, {
+  get: (_, prop) => getHolidayName(prop)
+});
 
 async function fetchCategories() {
   try {
@@ -171,18 +154,6 @@ function getWeekDates(year, month, week) {
 
 function getWeekCount(year, month) {
   return getWeeksInMonth(year, month).length;
-}
-
-function getMonthWeekdays(year, month) {
-  const date = new Date(year, month - 1, 1);
-  let count = 0;
-  while (date.getMonth() === month - 1) {
-    const day = date.getDay();
-    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    if (day !== 0 && day !== 6 && !HOLIDAYS.includes(dateStr)) count++;
-    date.setDate(date.getDate() + 1);
-  }
-  return count;
 }
 
 function Badge({ status }) {
@@ -509,6 +480,16 @@ function AppDetailView({ sub, onBack, onShowImg, chats, onSendChat, replyTxt, se
 }
 
 export default function App() {
+  const [, setHolidaysUpdated] = useState(0);
+  useEffect(() => {
+    const curY = new Date().getFullYear();
+    fetchHolidays(curY);
+    fetchHolidays(curY + 1);
+    const onHolidaysUpdate = () => setHolidaysUpdated(c => c + 1);
+    window.addEventListener("zal-holidays-updated", onHolidaysUpdate);
+    return () => window.removeEventListener("zal-holidays-updated", onHolidaysUpdate);
+  }, []);
+
   const [subs, setSubs] = useState([]);
   const [step, setStep] = useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1942,13 +1923,7 @@ function AppException({ issues, ocr, setStep, excText, setExcText, submit, isSub
       return parseInt(p[0]) === myYear && parseInt(p[1]) === myMonth && (s.status === "승인완료" || s.status === "승인대기");
     });
     const baseMyWeekdays = getMonthWeekdays(myYear, myMonth);
-    const myMonthHolidays = HOLIDAYS.filter(h => {
-      const p = h.split("-");
-      if (parseInt(p[0]) !== myYear || parseInt(p[1]) !== myMonth) return false;
-      const d = new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
-      const day = d.getDay();
-      return day !== 0 && day !== 6;
-    });
+    const myMonthHolidays = getMonthHolidays(myYear, myMonth);
     const myLeaveKey = `${myYear}.${String(myMonth).padStart(2, '0')}`;
     const myUserLeaves = annualLeaves[user?.full_name]?.[myLeaveKey] || 0;
     const myLimit = Math.max(0, baseMyWeekdays - myUserLeaves) * 10000;

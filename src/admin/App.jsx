@@ -9,33 +9,20 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const HOLIDAYS = [
-  "2026-01-01",
-  "2026-02-16", "2026-02-17", "2026-02-18",
-  "2026-03-02",
-  "2026-05-01", "2026-05-05", "2026-05-25",
-  "2026-06-03",
-  "2026-06-06",
-  "2026-07-17",
-  "2026-08-15", "2026-08-17",
-  "2026-09-24", "2026-09-25", "2026-09-26",
-  "2026-10-03", "2026-10-05", "2026-10-09",
-  "2026-12-25"
-];
+import {
+  fetchHolidays,
+  isHoliday,
+  getHolidayName,
+  getAllHolidays,
+  getMonthWeekdays,
+  getMonthHolidays
+} from "../holidays";
 
-const getMonthWeekdays = (monthStr) => {
-  if (!monthStr || !monthStr.includes('.')) return 0;
-  const [y, m] = monthStr.split('.').map(Number);
-  if (isNaN(y) || isNaN(m)) return 0;
-  const date = new Date(y, m - 1, 1);
-  let count = 0;
-  while (date.getMonth() === m - 1) {
-    const day = date.getDay();
-    const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    if (day !== 0 && day !== 6 && !HOLIDAYS.includes(dateStr)) count++;
-    date.setDate(date.getDate() + 1);
-  }
-  return count;
+const HOLIDAYS = {
+  includes: (dateStr) => isHoliday(dateStr),
+  filter: (fn) => getAllHolidays().filter(fn),
+  map: (fn) => getAllHolidays().map(fn),
+  get length() { return getAllHolidays().length; }
 };
 
 function getWeeksInMonth(year, month) {
@@ -530,6 +517,16 @@ function PrintSortSelect({ field, asc, onChangeField, onChangeAsc, printViewMode
 
 
 export default function App() {
+  const [, setHolidaysUpdated] = useState(0);
+  useEffect(() => {
+    const curY = new Date().getFullYear();
+    fetchHolidays(curY);
+    fetchHolidays(curY + 1);
+    const onHolidaysUpdate = () => setHolidaysUpdated(c => c + 1);
+    window.addEventListener("zal-holidays-updated", onHolidaysUpdate);
+    return () => window.removeEventListener("zal-holidays-updated", onHolidaysUpdate);
+  }, []);
+
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
