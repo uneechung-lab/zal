@@ -1,6 +1,101 @@
 // src/holidays.js
 // Nager.Date API를 활용한 공휴일 자동 동기화 모듈 (키 불필요, CORS 허용)
 
+const FIXED_HOLIDAY_ORIGINALS = {
+  "3·1절": { m: 3, d: 1, name: "삼일절" },
+  "삼일절": { m: 3, d: 1, name: "삼일절" },
+  "어린이날": { m: 5, d: 5, name: "어린이날" },
+  "현충일": { m: 6, d: 6, name: "현충일" },
+  "제헌절": { m: 7, d: 17, name: "제헌절" },
+  "광복절": { m: 8, d: 15, name: "광복절" },
+  "개천절": { m: 10, d: 3, name: "개천절" },
+  "한글날": { m: 10, d: 9, name: "한글날" },
+  "크리스마스": { m: 12, d: 25, name: "성탄절" },
+  "성탄절": { m: 12, d: 25, name: "성탄절" },
+  "새해": { m: 1, d: 1, name: "신정" },
+  "신정": { m: 1, d: 1, name: "신정" },
+  "노동절": { m: 5, d: 1, name: "근로자의 날" },
+  "근로자의 날": { m: 5, d: 1, name: "근로자의 날" }
+};
+
+/**
+ * 공휴일 항목들을 분석하여 '대체공휴일' 및 표준 한국어 명칭으로 정규화
+ */
+export function normalizeHolidayItems(rawItems) {
+  if (!Array.isArray(rawItems)) return [];
+  const sorted = [...rawItems].sort((a, b) => a.date.localeCompare(b.date));
+
+  // 설날 / 추석 그룹핑
+  const groups = { 설날: [], 추석: [] };
+  sorted.forEach(item => {
+    const raw = (item.name || "").trim();
+    if (raw.includes("설날")) groups.설날.push(item);
+    else if (raw.includes("추석")) groups.추석.push(item);
+  });
+
+  const nameMap = {};
+  ["설날", "추석"].forEach(key => {
+    const list = groups[key];
+    if (list && list.length >= 3) {
+      list.forEach((item, idx) => {
+        if (idx === 0) nameMap[item.date] = `${key} 연휴`;
+        else if (idx === 1) nameMap[item.date] = key;
+        else if (idx === 2) nameMap[item.date] = `${key} 연휴`;
+        else nameMap[item.date] = `${key} 대체공휴일`;
+      });
+    }
+  });
+
+  sorted.forEach(item => {
+    if (nameMap[item.date]) return;
+
+    const raw = (item.name || "").trim();
+    const [y, m, d] = item.date.split("-").map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    const dayOfWeek = dateObj.getDay();
+
+    // 이미 '대체공휴일'이 포함된 경우 유지
+    if (raw.includes("대체")) {
+      nameMap[item.date] = raw;
+      return;
+    }
+
+    // 부처님오신날
+    if (raw.includes("부처님")) {
+      if (dayOfWeek === 1 && (item.date === "2026-05-25" || item.date === "2025-05-06")) {
+        nameMap[item.date] = "부처님오신날 대체공휴일";
+      } else {
+        nameMap[item.date] = "부처님오신날";
+      }
+      return;
+    }
+
+    // 고정 국경일 체크 (삼일절, 어린이날, 광복절, 개천절, 한글날 등)
+    let matched = false;
+    for (const [key, info] of Object.entries(FIXED_HOLIDAY_ORIGINALS)) {
+      if (raw.includes(key) || key.includes(raw)) {
+        matched = true;
+        if (m === info.m && d === info.d) {
+          nameMap[item.date] = info.name;
+        } else {
+          // 본래 날짜와 다를 경우 대체공휴일로 표기 (예: 8월 17일 광복절 -> 광복절 대체공휴일)
+          nameMap[item.date] = `${info.name} 대체공휴일`;
+        }
+        break;
+      }
+    }
+
+    if (!matched) {
+      nameMap[item.date] = raw;
+    }
+  });
+
+  return sorted.map(item => ({
+    date: item.date,
+    name: nameMap[item.date] || item.name
+  }));
+}
+
 const FALLBACK_2026 = [
   { date: "2026-01-01", name: "신정" },
   { date: "2026-02-16", name: "설날 연휴" },
@@ -25,17 +120,27 @@ const FALLBACK_2026 = [
 
 // 메모리 캐시
 const memoryCache = {
-  holidays: new Set(FALLBACK_2026.map(h => h.date)),
-  holidayNames: FALLBACK_2026.reduce((acc, h) => {
-    acc[h.date] = h.name;
-    return acc;
-  }, {})
+  holidays: new Set(),
+  holidayNames: {}
 };
 
 const CACHE_PREFIX = "zal_holidays_";
 const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7일
 
-// 초기화: localStorage에 저장된 캐시가 있다면 즉시 메모리에 병합
+function applyToMemory(items) {
+  const normalized = normalizeHolidayItems(items);
+  normalized.forEach(item => {
+    memoryCache.holidays.add(item.date);
+    if (item.name) {
+      memoryCache.holidayNames[item.date] = item.name;
+    }
+  });
+}
+
+// 기본값 적용
+applyToMemory(FALLBACK_2026);
+
+// 초기화: localStorage에 저장된 캐시가 있다면 즉시 정규화하여 메모리에 병합
 function loadInitialCache() {
   if (typeof window === "undefined" || !window.localStorage) return;
   try {
@@ -46,10 +151,7 @@ function loadInitialCache() {
         if (raw) {
           const parsed = JSON.parse(raw);
           if (Array.isArray(parsed.items)) {
-            parsed.items.forEach(item => {
-              memoryCache.holidays.add(item.date);
-              if (item.name) memoryCache.holidayNames[item.date] = item.name;
-            });
+            applyToMemory(parsed.items);
           }
         }
       }
@@ -92,10 +194,12 @@ export async function fetchHolidays(year = new Date().getFullYear()) {
     if (!res.ok) throw new Error(`HTTP error ${res.status}`);
     const data = await res.json();
 
-    const items = data.map(item => ({
+    const rawItems = data.map(item => ({
       date: item.date,
       name: item.localName || item.name
     }));
+
+    const items = normalizeHolidayItems(rawItems);
 
     // 캐시 저장
     if (typeof window !== "undefined" && window.localStorage) {
@@ -126,15 +230,6 @@ export async function fetchHolidays(year = new Date().getFullYear()) {
       holidayNames: { ...memoryCache.holidayNames }
     };
   }
-}
-
-function applyToMemory(items) {
-  items.forEach(item => {
-    memoryCache.holidays.add(item.date);
-    if (item.name) {
-      memoryCache.holidayNames[item.date] = item.name;
-    }
-  });
 }
 
 /**
